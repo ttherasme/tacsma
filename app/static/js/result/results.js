@@ -39,10 +39,15 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // Generates a single form row
-    function generateFormRow() {
+    function generateFormRow(showDeleteButton = true) {
         const row = document.createElement("div");
         row.className = "form-row";
-
+    
+        // Conditionally render the delete button based on the value of showDeleteButton
+        const deleteButtonHTML = !showDeleteButton
+            ? `<button type="button" class="icon-button ${DELETE_ROW_CLASS}">🗑️</button>`
+            : '';
+    
         row.innerHTML = `
             <div>
                 <select class="${TASK_SELECT_CLASS}"></select>
@@ -68,20 +73,24 @@ document.addEventListener("DOMContentLoaded", () => {
             </div>
             <div></div>
             <div>
-                <button type="button" class="icon-button ${DELETE_ROW_CLASS}">🗑️</button>
+                ${deleteButtonHTML}
             </div>
         `;
-
-        // Delete row button listener
-        row.querySelector(`.${DELETE_ROW_CLASS}`).addEventListener("click", () => {
-            if (confirm("Are you sure you want to delete this row?")) {
-                row.remove();
-            }
-        });
-
+    
+        // Add delete button listener only if the button exists
+        const deleteButton = row.querySelector(`.${DELETE_ROW_CLASS}`);
+        if (deleteButton) {
+            deleteButton.addEventListener("click", () => {
+                if (confirm("Are you sure you want to delete this row?")) {
+                    row.remove();
+                }
+            });
+        }
+    
         populateAndLinkSelects(row);
         return row;
     }
+
 
     // Populate selects and link unit name and unit selects dynamically
     function populateAndLinkSelects(rowElement) {
@@ -162,6 +171,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const formRowsContainer = document.getElementById("form-rows");
         const addRowButton = document.getElementById("add-row");
+        addRowButton.disabled = true; // ← This disables the button
         const runButton = document.querySelector(".run-button");
         const loadingSpinner = document.getElementById("loading-spinner");
 
