@@ -1,0 +1,158 @@
+/* app/static/css/sop.css */
+
+/* ---------- SOP PANEL SECTION ---------- */
+.sop-panel { /* Changed from uom-panel */
+    /* margin-top: 20px;
+    padding: 20px; */
+    max-width: 1200px;
+    margin: 40px auto;
+    padding: 0 20px;
+    box-sizing: border-box;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+}
+
+.sop-header h2 { /* Changed from uom-header */
+    font-size: 1.4rem;
+    margin-bottom: 15px;
+}
+
+.sop-actions { /* Changed from uom-actions */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    border: 1px solid #aaa;
+    border-radius: 10px;
+    gap: 40px;
+}
+
+.sop-icon { /* Changed from uom-icon */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 1rem;
+    color: #222;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+}
+
+.sop-icon img { /* Changed from uom-icon */
+    width: 50px;
+    height: 50px;
+    margin-bottom: 8px;
+    object-fit: contain;
+    transition: transform 0.3s ease;
+}
+
+.sop-icon:hover { /* Changed from uom-icon */
+    transform: scale(1.05);
+}
+
+/* ---------- SOP SEARCH SECTION ---------- */
+.sop-search { /* Changed from uom-search */
+    margin-top: 25px;
+    margin-bottom: 10px;
+}
+
+.sop-search label { /* Changed from uom-search */
+    font-weight: bold;
+    display: block;
+    margin-bottom: 8px;
+}
+
+.search-box {
+    display: flex;
+    align-items: center;
+    max-width: 100%;
+    gap: 0;
+}
+
+.search-box input {
+    padding: 6px 10px;
+    font-size: 1rem;
+    border: 1px solid #888;
+    border-radius: 4px 0 0 4px;
+    border-right: none;
+    width: 25%;
+    min-width: 180px;
+}
+
+.search-box .search-btn {
+    background-color: white;
+    border: 1px solid #888;
+    border-left: none;
+    border-radius: 0 4px 4px 0;
+    padding: 5px 10px;
+    cursor: pointer;
+}
+
+.search-box .search-btn img {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+}
+
+/* ---------- SOP TABLE ---------- */
+.sop-table { /* Changed from uom-table */
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+.sop-table th { /* Changed from uom-table */
+    background-color: #015c7a;
+    color: white;
+    padding: 10px;
+    text-align: left;
+}
+
+.sop-table td { /* Changed from uom-table */
+    background-color: #e0e5eb;
+    height: 40px;
+    padding: 8px;
+    border: 1px solid #ccc;
+}
+
+.sop-table tr:nth-child(even) td { /* Changed from uom-table */
+    background-color: #d2d9e0;
+}
+
+/* ✅ Checkbox column: align properly */
+.sop-table th:last-child, /* Changed from uom-table */
+.sop-table td:last-child { /* Changed from uom-table */
+    text-align: center;
+    vertical-align: middle;
+    width: 60px;
+}
+
+/* ✅ Checkbox styling */
+.sop-checkbox { /* Changed from uom-checkbox */
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    transform: translateY(2px);
+}
+
+/* ---------- RESPONSIVE ADJUSTMENTS ---------- */
+@media (max-width: 768px) {
+    .sop-actions { /* Changed from uom-actions */
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .sop-search { /* Changed from uom-search */
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .search-box {
+        width: 100%;
+    }
+
+    .search-box input {
+        width: 100%;
+    }
+}

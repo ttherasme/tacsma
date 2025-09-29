@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+  <div class="page-wrapper">
+    <!-- Title -->
+    <header class="page-title">
+      <h1>TACSMA - LOGIN</h1>
+    </header>
+
+    <!-- Login Form -->
+    <div class="login-container">
+      <div class="user-icon">
+        <svg height="100%" width="100%" viewBox="0 0 24 24" fill="#0083b0">
+          <path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v3h20v-3c0-3.3-6.7-5-10-5z"/>
+        </svg>
+      </div>
+
+      <!-- Flash message for server-side login errors -->
+      {% with messages = get_flashed_messages() %}
+        {% if messages %}
+          <div class="flash-message">
+            {% for message in messages %}
+              <p style="color: red;">{{ message }}</p>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      <!-- Flash message for client-side JS validation -->
+      <div id="client-side-messages" class="flash-message"></div>
+
+      <!-- Login Form -->
+      <form method="POST" action="{{ url_for('auth_bp.login') }}">
+        <div class="input-icon">
+          <span class="icon">👤</span>
+          <input type="text" name="username" placeholder="Username" required>
+        </div>
+
+        <div class="input-icon">
+          <span class="icon">🔒</span>
+          <input type="password" name="password" placeholder="Password" required>
+        </div>
+
+        <div class="remember-forgot">
+          <label>
+            <input type="checkbox" name="remember" id="remember-checkbox" />
+            Remember me
+          </label>
+        </div>
+
+        <button type="submit" class="login-btn">Login</button>
+      </form>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <p>&copy; 2025 TACSMA. All rights reserved.</p>
+    </footer>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

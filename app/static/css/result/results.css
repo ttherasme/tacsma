@@ -1,0 +1,187 @@
+/* Space below Results title (fix overlap with Analysis 1) */
+.page-content > h1 {
+  margin-bottom: 40px;
+}
+
+.dynamic-wrapper {
+  /*margin-left: 20px; /* same as .page-content > h1 margin-left */
+  /*margin-right: 20px; /* optional, for consistent horizontal padding */
+  max-width: 1200px;
+  margin: 40px auto;
+  padding: 0 20px;
+  box-sizing: border-box;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+}
+
+/* Injected form styles (unique to results page) */
+.form-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.form-header-top h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.form-actions-top {
+  display: flex;
+  gap: 5px;
+}
+
+.form-box {
+  border: 1px solid #ccc;
+  background: white;
+  padding: 15px;
+  margin-bottom: 20px;
+}
+
+.form-header,
+.form-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 60px 60px;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.form-header {
+  font-weight: bold;
+  border-bottom: 1px solid #ccc;
+  padding-bottom: 5px;
+}
+
+/* Ensure inline selects (if you have them) also have the correct style */
+.form-row select,
+.form-row input {
+  width: 100%;
+  height: 40px;
+  font-size: 1.1rem;
+  padding: 5px;
+  margin-bottom: 5px;
+} 
+
+.unit-input {
+  display: flex;
+  gap: 5px;
+}
+
+.unit-input input {
+  flex: 1;
+  width: 70px;
+} 
+
+.unit-input select {
+  width: 100%;
+  height: 40px;
+  font-size: 1.1rem;
+} 
+
+.icon-button {
+  padding: 5px 10px;
+  background: #eee;
+  border: 1px solid #aaa;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.delete-row {
+  background-color: #e74c3c;
+  color: white;
+  border: none; /* Optional: removes the default border */
+}
+
+.run-button-wrapper {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+.run-button {
+  padding: 8px 16px;
+  background: blue;
+  color: white;
+  border: 2px solid #999;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold; 
+  height: 35px;
+}
+
+/* Ensure the table takes up the full width of its container */
+.table-responsive table {
+    width: 100%;
+    margin-bottom: 1rem;
+    color: #212529;
+    border-collapse: collapse;
+}
+
+/* Align text in all table cells to the left */
+.table-responsive th,
+.table-responsive td {
+    text-align: left;
+    padding: 0.75rem;
+    vertical-align: top;
+    border-top: 1px solid #dee2e6;
+}
+
+/* Style the table header row */
+.table-responsive thead th {
+    font-weight: bold; /* Make the text bold */
+    background-color: #f2f2f2; /* Set a light gray background color */
+    border-bottom: 2px solid #dee2e6; /* Add a bottom border for separation */
+}
+
+/* Fè tit tablo a pi lejè */
+.table-responsive th {
+    font-weight: 500;
+}
+
+/* Responsive layout for form rows */
+@media (max-width: 768px) {
+  .form-header {
+    display: none;
+  }
+
+  .form-row {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid #ddd;
+  }
+
+  .form-actions-top {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .run-button-wrapper {
+    justify-content: center;
+  }
+
+  .unit-input {
+    flex-direction: row;
+    justify-content: space-between;
+  }
+
+  .unit-input select {
+    width: auto;
+    min-width: 60px;
+  }
+
+  .form-header-top {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .form-actions-top {
+    justify-content: flex-start;
+  }
+}

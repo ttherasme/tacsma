@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}TACSMA - Transportation mode{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/tot/tot.css') }}" />
+{% endblock %}
+
+{% block content %}
+<section class="page-content">
+       <h1>Transportation mode</h1>
+      <section class="tot-panel">
+        <div class="tot-header">
+          <div class="tot-actions">
+            <div class="tot-icon open-icon">
+              <img src="{{ url_for('static', filename='img/addtask.png') }}" alt="Add" data-url="{{ url_for('typeoftransportation_bp.registertot')}}"/>
+              <span>Add</span>
+            </div>
+            <div class="tot-icon open-icon">
+              <img src="{{ url_for('static', filename='img/edittask.png') }}" alt="Edit" data-url="{{ url_for('typeoftransportation_bp.updatetot')}}"/>
+              <span>Edit</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="tot-search">
+            <label for="tot-search-input">Search</label>
+            <div class="search-box">
+                <input type="text" id="tot-search-input" placeholder="Find" />
+                <button class="search-btn" aria-label="Search tots">🔍</button>
+            </div>
+        </div>
+
+
+        <table class="tot-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>State</th>
+              <th>Entry date</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="tot-table-body">
+            {% for mt in modetransportions %}
+              <tr>
+                <td>{{ mt.IDM }}</td>
+                <td>{{ mt.MTName }}</td> 
+                <td>{{ mt.State }}</td>
+                <td>{{ mt.EntryDate.strftime('%Y-%m-%d %H:%M') if mt.EntryDate else '' }}</td>
+                <td>
+                    <input type="checkbox" class="tot-checkbox" data-id="{{ mt.IDM }}">
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+      </section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/modetransportation/totsearch.js') }}"></script>
+<script src="{{ url_for('static', filename='js/openother.js') }}"></script>
+{% endblock %}

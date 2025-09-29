@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}TACSMA - Unit of measure{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/uom/uom.css') }}" />
+{% endblock %}
+
+{% block content %}
+<section class="page-content">
+    {# The styling for this H1 is now primarily controlled by the 'page-content h1' rule in uom.css #}
+    <h1>Unit Of Measure</h1>
+    <section class="uom-panel">
+        <div class="uom-header">
+            <div class="uom-actions">
+                <div class="uom-icon open-icon">
+                    <img src="{{ url_for('static', filename='img/addtask.png') }}" alt="Add" data-url="{{ url_for('uom_bp.registeruom')}}"/>
+                    <span>Add</span>
+                </div>
+                <div class="uom-icon open-icon">
+                    <img src="{{ url_for('static', filename='img/edittask.png') }}" alt="Edit" data-url="{{ url_for('uom_bp.updateuom')}}"/>
+                    <span>Edit</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="uom-search">
+            <label for="uom-search-input">Search</label>
+            <div class="search-box">
+                <input type="text" id="uom-search-input" placeholder="Find" />
+                <button class="search-btn" aria-label="Search uoms">🔍</button>
+            </div>
+        </div>
+
+        <table class="uom-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Unit</th>
+                    <th>State</th>
+                    <th>Entry Date</th> {# Add Entry Date column #}
+                    <th></th> {# Checkbox column header #}
+                </tr>
+            </thead>
+            <tbody id="uom-table-body">
+                {% for uom in uoms %}
+                    <tr>
+                        <td>{{ uom.IDU }}</td>
+                        <td>{{ uom.UName }}</td>
+                        <td>{{ uom.Unit }}</td>
+                        <td>{{ uom.State }}</td>
+                        <td>{{ uom.EntryDate.strftime('%Y-%m-%d %H:%M') if uom.EntryDate else '' }}</td>
+                        <td>
+                            <input type="checkbox" class="uom-checkbox" data-id="{{ uom.IDU }}">
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/uom/uomsearch.js') }}"></script> {# Link your new JS file #}
+<script src="{{ url_for('static', filename='js/openother.js') }}"></script>
+{% endblock %}

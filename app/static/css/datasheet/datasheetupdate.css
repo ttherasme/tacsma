@@ -1,0 +1,465 @@
+/* === Layout Container to Center the Page === */
+.page-wrapper {
+  max-width: 1200px;
+  margin: 40px auto;
+  padding: 0 20px;
+  box-sizing: border-box;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+}
+
+.select-common {
+  height: 50px;
+  font-size: 1.1rem;
+  padding: 0 0.8rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  box-sizing: border-box;
+}
+
+#rowsContainer {
+  margin-bottom: 20px;
+}
+
+/* Styles for the element registration form (in the modal) */
+.modal-form-header,
+.modal-form-row {
+  display: grid;
+  grid-template-columns: 4fr 1fr 1fr 40px;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.modal-form-header {
+  font-weight: bold;
+  border-bottom: 1px solid #ccc;
+  padding-bottom: 5px;
+}
+
+/* Styles for input fields in the modal */
+.modal-form-row input {
+  width: 100%;
+  padding: 5px;
+  box-sizing: border-box;
+}
+
+/* Styles for icon buttons in the modal */
+.modal-form-row .icon-button {
+  padding: 5px 10px;
+  background: #eee;
+  border: 1px solid #aaa;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.modal-form-row .delete-row {
+  background-color: #e74c3c;
+  color: white;
+  border: none;
+}
+
+/* Styles for the "Register" button in the modal */
+.modal-action-button {
+  font-weight: bold;
+  height: 35px;
+  padding: 8px 16px;
+  border-radius: 5px;
+  cursor: pointer;
+  border: 2px solid #999;
+}
+
+.modal-run-button {
+  background: #4CAF50;
+  color: white;
+}
+
+/* Styles for positioning the "Add element" button */
+.modal-form-header-top {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #ccc;
+}
+
+.modal-form-actions-top {
+  display: flex;
+  gap: 5px;
+}
+
+/* modal.css */
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background-color: rgba(0, 0, 0, 0.4);
+}
+
+.modal-content {
+  background-color: #fefefe;
+  margin: 15% auto;
+  padding: 20px;
+  border: 1px solid #888;
+  width: 80%;
+  max-width: 600px;
+  border-radius: 8px;
+  position: relative;
+}
+
+.close-button {
+  color: #aaa;
+  float: right;
+  font-size: 28px;
+  font-weight: bold;
+}
+
+.close-button:hover,
+.close-button:focus {
+  color: black;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/* Define the common styles for the buttons */
+.action-button {
+  font-weight: bold;
+  height: 32px;
+  border-radius: 4px;
+  padding: 0 15px;
+  cursor: pointer;
+  border: 1px solid #ccc;
+}
+
+/* Specific styles for the validate button */
+.check-button {
+  background-color: #4CAF50;
+  color: white;
+}
+
+/* Specific styles for the new item button */
+.register-element-button {
+  background-color: #008CBA;
+  color: white;
+}
+
+/* === Base Reset === */
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background-color: #f5f5f5;
+}
+
+/* === Top Tabs Section === */
+.top-tabs {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 0;
+  flex-wrap: wrap;
+}
+
+/* Left select + button */
+.tabs-left-controls {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.task-select {
+  width: 250px;
+  padding: 0.4rem 0.6rem;
+  font-size: 1rem;
+}
+
+.task-button,
+.step-button {
+  font-size: 1.2rem;
+  padding: 0.4rem 0.6rem;
+  cursor: pointer;
+}
+
+/* Center module tabs */
+.tabs-center {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  overflow-x: auto;
+  white-space: nowrap;
+  flex-shrink: 1;
+}
+
+.module-tab {
+  cursor: pointer;
+  border: none;
+  background: #eee;
+  padding: 0.5rem 1rem;
+  border-radius: 4px 4px 0 0;
+  font-weight: 600;
+  font-size: 1rem;
+  white-space: nowrap;
+  transition: background-color 0.3s;
+}
+
+.module-tab.active,
+.module-tab:hover {
+  background-color: #a2c0ff;
+}
+
+/* === Main Layout === */
+.main-layout {
+  display: flex;
+  gap: 1rem;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* Left Panel */
+.left-panel {
+  flex: 0 0 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+.category {
+  padding: 0.5rem 0.8rem;
+  cursor: pointer;
+  border: none;
+  background: #f7f7f7;
+  border-radius: 4px;
+  text-align: left;
+  font-size: 1rem;
+  white-space: nowrap;
+  transition: background-color 0.3s;
+}
+
+.category.selected,
+.category:hover {
+  background-color: #c7d8ff;
+}
+
+/* === Right Panel === */
+.right-panel {
+  flex: 1;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 1rem;
+  overflow-y: auto;
+  max-height: 100%;
+}
+
+/* === Group Box === */
+.group-box {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.group-box > .group-icons {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: auto;
+  margin-bottom: 0.5rem;
+}
+
+.group-box > .group-icons > button {
+  font-size: 1.2rem;
+  cursor: pointer;
+  background: #eee;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 0.2rem 0.5rem;
+  transition: background-color 0.3s;
+}
+
+.group-box > .group-icons > button:hover {
+  background-color: #d0d8ff;
+}
+
+.inline-selects {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.inline-selects .styled-select {
+  height: 50px;
+  font-size: 1.1rem;
+  padding: 0 0.8rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  box-sizing: border-box;
+  flex-grow: 1;
+  min-width: 80px;
+  max-width: 120px;
+}
+
+/* === Form Header & Rows (Aligned & Responsive Width) === */
+.form-header,
+.form-row {
+    display: grid;
+    grid-template-columns: 3fr 1fr 300px 40px 40px; 
+    gap: 1rem;
+    align-items: center;
+}
+
+.co-products-form .form-header,
+.co-products-form .form-row {
+    display: grid;
+    grid-template-columns: 3fr 1fr 300px 40px 40px 40px; 
+    gap: 1rem;
+    align-items: center;
+}
+
+.co-products-form .form-row .unit-container {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+}
+
+.form-header {
+  font-weight: bold;
+  border-bottom: 1px solid #aaa;
+  padding-bottom: 0.3rem;
+}
+
+.form-header > span {
+  text-align: left;
+}
+
+/* === Form Inputs === */
+.form-row > div > input[type="text"],
+.form-row > div > input[type="number"],
+.form-row > div > select {
+  width: 100%;
+  height: 50px;
+  font-size: 1.1rem;
+  padding: 0 0.8rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  box-sizing: border-box;
+}
+
+.form-row > div > input[type="checkbox"] {
+    width: 24px;
+    height: 24px;
+    margin: auto;
+    cursor: pointer;
+}
+
+/* === Delete Row Button in Row === */
+.form-row > div > .delete-row {
+  background-color: #e74c3c;
+  color: white;
+  border: none;
+  padding: 0.4rem 0.6rem;
+  border-radius: 4px;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.form-row > div > .delete-row:hover {
+  background-color: #c0392b;
+}
+
+/* === Footer Area === */
+.form-footer-buttons {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 2rem;
+}
+
+.form-footer button.check-button {
+  background-color: #1976d2;
+  color: white;
+  font-weight: bold;
+  padding: 0.6rem 1rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.form-footer button.check-button:hover {
+  background-color: #1458a1;
+}
+
+/* === NEW: Styles for the new "Save Changes" button === */
+.action-button.check-button {
+  background-color: #4CAF50; /* Green background color */
+  color: white; /* White text color */
+}
+
+/* === NEW: Styles for the "Add Row" button when disabled === */
+.add-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+  border-color: #999;
+}
+
+/* === Chat Icon === */
+.chat-icon {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  cursor: pointer;
+  width: 50px;
+  height: 50px;
+}
+
+/* === Scrollbar === */
+.left-panel::-webkit-scrollbar,
+.right-panel::-webkit-scrollbar {
+  width: 8px;
+}
+
+.left-panel::-webkit-scrollbar-thumb,
+.right-panel::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+}
+
+/* === Responsive Tweaks === */
+@media (max-width: 900px) {
+  .main-layout {
+    flex-direction: column;
+  }
+
+  .left-panel {
+    flex: none;
+    width: 100%;
+    display: flex;
+    overflow-x: auto;
+  }
+
+  .top-tabs {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .tabs-center {
+    overflow-x: auto;
+  }
+
+  .form-header,
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .form-footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

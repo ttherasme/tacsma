@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}TACSMA - Tasks{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/task/tasks.css') }}" />
+{% endblock %}
+
+{% block content %}
+<section class="page-content">
+       <h1>Tasks</h1>
+      <section class="task-panel">
+        <div class="task-header">
+           <!-- <h2>New Task</h2> -->
+          <div class="task-actions">
+            <div class="task-icon open-icon">
+              <img src="{{ url_for('static', filename='img/addtask.png') }}" alt="Add" data-url="{{ url_for('tasks_bp.registertask')}}"/>
+              <span>Add</span>
+            </div>
+            <div class="task-icon open-icon">
+              <img src="{{ url_for('static', filename='img/edittask.png') }}" alt="Edit" data-url="{{ url_for('tasks_bp.updatetask')}}"/>
+              <span>Edit</span>
+            </div>
+            <!-- <div class="task-icon open-icon">
+              <img src="{{ url_for('static', filename='img/viewtask.png') }}" alt="View" />
+              <span>View</span>
+            </div> -->
+          </div>
+        </div>
+
+        <div class="task-search">
+            <label for="task-search-input">Search</label>
+            <div class="search-box">
+                <input type="text" id="task-search-input" placeholder="Find" />
+                <button class="search-btn" aria-label="Search Tasks">🔍</button>
+                </button>
+            </div>
+        </div>
+
+
+        <table class="task-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Description</th>
+              <th>Entry date</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="task-table-body">
+            {% for task in tasks %}
+              <tr>
+                <td>{{ task.IDT }}</td>
+                <td>{{ task.TName }}</td> 
+                <td>{{ task.Description }}</td>
+                <td>{{ task.EntryDate.strftime('%Y-%m-%d %H:%M') if task.EntryDate else '' }}</td>
+                <td>
+                    <input type="checkbox" class="task-checkbox" data-id="{{ task.IDT }}">
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+
+        </table>
+      </section>
+      </section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/openother.js') }}"></script> 
+<script src="{{ url_for('static', filename='js/task/tasksearch.js') }}"></script>
+{% endblock %}

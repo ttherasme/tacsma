@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}TACSMA - Data Sheet Register{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/datasheet/datasheet.css') }}" />
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+{% endblock %}
+
+{% block content %}
+<section class="page-content">
+    <div id="url-data"
+      data-register-product-url="{{ url_for('element_bp.registerelement', elementname='Product') }}"
+      data-register-input-materials-url="{{ url_for('element_bp.registerelement', elementname='Input Materials and ressources') }}"
+      data-register-co-products-url="{{ url_for('element_bp.registerelement', elementname='Co-Products') }}">
+    </div>
+  <h1>Data Sheet - Register</h1>
+  <div class="page-wrapper">
+
+    <div class="top-tabs">
+      <div class="tabs-left-controls">
+        <select class="task-select" id="taskSelect"> </select>
+        <button title="Add Task" class="task-button" data-url="{{ url_for('tasks_bp.registertask') }}">+</button>
+      </div>
+
+      <div class="tabs-center">
+          <button class="module-tab active">Forest Operation</button>
+          <button class="module-tab">Transportation</button>
+          <button class="module-tab">Wood Processing</button>
+
+          <select class="module-tab" id="activeStepsSelect">
+              </select>
+
+          <button title="Add Step" class="step-button" data-url="{{ url_for('stepofprocess_bp.registersop') }}">+</button>
+      </div>
+    </div>
+
+    <div class="main-layout">
+      <div class="left-panel">
+        <button class="category selected">+ Product</button>
+        <button class="category">+ Co-Products</button>
+        <button class="category">+ Input Materials and Resources</button>
+        <button class="category">+ Input Energy</button>
+        <button class="category">+ Emissions</button>
+        <button class="category">+ Waste Treatment</button>
+      </div>
+
+      <div class="right-panel" id="rightPanel">
+        </div>
+    </div>
+
+  </div>
+</section>
+
+<div id="elementModal" class="modal">
+  <div class="modal-content">
+    <span class="close-button">&times;</span>
+    <div id="modal-body">
+      </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/datasheet/datasheet.js') }}"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="{{ url_for('static', filename='js/datasheet/elementmodal.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Create User{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/user/create.css') }}">
+{% endblock %}
+
+{% block content %}
+  <div class="create-user-wrapper">
+    <h1>Create User</h1>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <ul class="flash-messages">
+          {% for category, message in messages %}
+            <li class="{{ category }}">{{ message }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+
+    <!-- 🟡 Add onsubmit attribute to call confirmSubmission() -->
+    <form action="{{ url_for('user_bp.create_user') }}" method="post" class="create-user-form" onsubmit="return confirmSubmission();">
+      <label>
+        Username:
+        <input type="text" name="username" required maxlength="25">
+      </label>
+
+      <label>
+        Password:
+        <input type="password" name="password" required maxlength="256">
+      </label>
+
+      <label>
+        State:
+        <select name="state">
+          <option value="1" selected>Active</option>
+          <option value="0">Inactive</option>
+        </select>
+      </label>
+
+      <label>
+        Level:
+        <input type="number" name="level" value="0" min="0">
+      </label>
+
+      <label>
+        Change PWD on connection:
+        <select name="change">
+          <option value="1" selected>Yes</option>
+          <option value="0">No</option>
+        </select>
+      </label>
+
+      <div class="form-buttons">
+        <button type="submit" class="btn-primary">Create</button>
+        <a href="{{ url_for('user_bp.list_users') }}" class="btn-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+
+  <!-- 🟢 Add JavaScript confirmation function -->
+  <script>
+    function confirmSubmission() {
+      return confirm("Are you sure you want to create this user?");
+    }
+  </script>
+{% endblock %}

@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Edit User{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/user/edit.css') }}">
+{% endblock %}
+
+{% block content %}
+  <div class="edit-user-wrapper">
+    <h1>Edit User - {{ user.username }}</h1>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <ul class="flash-messages">
+          {% for category, message in messages %}
+            <li class="{{ category }}">{{ message }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+
+    <!-- 🟡 Add onsubmit attribute here -->
+    <form action="{{ url_for('user_bp.edit_user', user_id=user.id) }}" method="post" class="edit-user-form" onsubmit="return confirmUpdate();">
+      <label>
+        Username:
+        <input type="text" name="username" required maxlength="25" value="{{ user.username }}">
+      </label>
+
+      <label>
+        Password:
+        <input type="password" name="password" placeholder="Leave blank to keep current password" maxlength="256">
+      </label>
+
+      <label>
+        State:
+        <select name="state">
+          <option value="1" {% if user.state %}selected{% endif %}>Active</option>
+          <option value="0" {% if not user.state %}selected{% endif %}>Inactive</option>
+        </select>
+      </label>
+
+      <label>
+        Level:
+        <input type="number" name="level" value="{{ user.level }}" min="0">
+      </label>
+
+      <label>
+        Change PWD on connection:
+        <select name="change">
+          <option value="1" {% if user.change %}selected{% endif %}>Yes</option>
+          <option value="0" {% if not user.change %}selected{% endif %}>No</option>
+        </select>
+      </label>
+
+      <div class="form-buttons">
+        <button type="submit" class="btn-primary">Save</button>
+        <a href="{{ url_for('user_bp.list_users') }}" class="btn-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+
+  <!-- 🟢 Add this script block -->
+  <script>
+    function confirmUpdate() {
+      return confirm("Are you sure you want to update this user's information?");
+    }
+  </script>
+{% endblock %}

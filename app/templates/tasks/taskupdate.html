@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}TACSMA - Update task{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/task/taskregister.css') }}" />
+{% endblock %}
+
+{% block content %}
+<section class="page-content">
+        <h1>Update Task</h1>
+        <div id="dynamic-content">
+  <div class="dynamic-wrapper">
+    <div class="form-box">
+      <div class="form-header">
+        <div>Name</div>
+        <div>Detail (optional)</div>
+      </div>
+
+      <div class="form-row">
+        <div class="unit-input">
+          <input type="hidden" id="task-id" value="{{ task.IDT if task else '' }}">
+          <input type="text" class="task-name" placeholder="Task name" value="{{ task.TName if task else '' }}">
+        </div>
+        <div>
+          <input type="text" class="task-detail" placeholder="Optional detail" value="{{ task.Description if task else '' }}">
+        </div>
+      </div>
+
+      <div class="run-button-wrapper">
+        <button class="run-button">Update</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/task/taskupdate.js') }}"></script>
+{% endblock %}

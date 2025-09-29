@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}TACSMA - Register tasks{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/task/taskregister.css') }}" />
+{% endblock %}
+
+{% block content %}
+<section class="page-content">
+  <h1>Register Task(s)</h1>
+  <div id="dynamic-content">
+    <div class="dynamic-wrapper">
+      <div class="form-header-top">
+        <div></div>
+        <div class="form-actions-top">
+          <button class="icon-button" id="add-row">➕</button>
+        </div>
+      </div>
+
+      <div id="message-area" class="message-area"></div> 
+
+      <div class="form-box">
+        <div class="form-header">
+          <div>Name</div>
+          <div>Detail (optional)</div>
+          <div></div> <!-- NEW COLUMN HEADER -->
+          <div></div>
+        </div>
+
+        <div id="form-rows"></div>
+
+        <div class="run-button-wrapper">
+          <button class="run-button">Register</button>
+          <!-- The clear button will be added dynamically by JavaScript -->
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/task/taskregister.js') }}"></script>
+{% endblock %}

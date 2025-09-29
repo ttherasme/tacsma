@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Users{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/user/list.css') }}">
+{% endblock %}
+
+{% block content %}
+  <h1>Users</h1>
+
+  <div class="create-user-wrapper">
+      <a href="{{ url_for('user_bp.create_user') }}" class="btn-primary">Create New User</a>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <ul class="flash-messages">
+        {% for category, message in messages %}
+          <li class="{{ category }}">{{ message }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+<div class="table-align-wrapper">
+  <div class="search-container">
+      <input type="text" id="userSearchInput" placeholder="Search users...">
+  </div>
+  <table class="user-table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Username</th>
+        <th>State</th>
+        <th>Level</th>
+        <th>Change PWD?</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for user in users %}
+      <tr>
+        <td>{{ user.id }}</td>
+        <td>{{ user.username }}</td>
+        <td>{{ 'Active' if user.state else 'Inactive' }}</td>
+        <td>{{ user.level }}</td>
+        <td>{{ 'Yes' if user.change else 'No'}}</td>
+        <td>
+          <a href="{{ url_for('user_bp.edit_user', user_id=user.id) }}">Edit</a> |
+          <form action="{{ url_for('user_bp.delete_user', user_id=user.id) }}" method="post" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this user?');">
+            <button type="submit" style="background:none; border:none; color:#c00; cursor:pointer;">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6">No users found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table> 
+</div>
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/user/searchuser.js') }}"></script>
+{% endblock %}
+{% endblock %}

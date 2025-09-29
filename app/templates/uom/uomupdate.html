@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}TACSMA - Update Unit of measure{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/uom/uomupdate.css') }}" />
+{% endblock %}
+
+{% block content %}
+<section class="page-content">
+    <div class="uom-title-wrapper">
+        <h1 class="uom-title">Update Unit Of Measure</h1>
+        <div id="dynamic-content">
+            <div class="dynamic-wrapper">
+                <div class="form-box">
+                    <div class="form-header">
+                        <div>Name</div>
+                        <div>Unit</div>
+                        <div>State</div>
+                    </div>
+
+                    <div id="form-rows">
+                        <div class="form-row">
+                            {# Ensure uom is not None before accessing its attributes #}
+                            {% if uom %}
+                                <input type="hidden" class="uom-id" value="{{ uom.IDU }}">
+                                <input type="text" class="uom-name" placeholder="Unit name" value="{{ uom.UName }}">
+                                <input type="text" class="uom-unit" placeholder="Unit abbreviation (e.g., kg, L)" value="{{ uom.Unit }}">
+                                <select class="uom-state">
+                                    <option value="1" {% if uom.State == 1 %}selected{% endif %}>Active</option>
+                                    <option value="0" {% if uom.State == 0 %}selected{% endif %}>Inactive</option>
+                                </select>
+                            {% else %}
+                                <p>No Unit of Measure data available.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="run-button-wrapper">
+                        <button class="run-button">Update</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/uom/uomupdate.js') }}"></script>
+{% endblock %}

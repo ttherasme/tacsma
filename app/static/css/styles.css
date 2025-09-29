@@ -1,0 +1,199 @@
+/* Base Reset */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+  min-height: 100vh;
+  background: linear-gradient(to top right, #00b4db, #0083b0);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #fff;
+  padding: 20px;
+}
+
+/* Layout Wrapper */
+.page-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  min-height: 100vh;
+  padding: 20px 0;
+  width: 100%;
+}
+
+/* Title */
+.page-title {
+  margin-top: 20px;
+  margin-bottom: 10px;
+  color: #fff;
+}
+
+.page-title h1 {
+  font-size: 32px;
+  font-weight: 600;
+}
+
+/* Login Container */
+.login-container {
+  background: transparent;
+  padding: 20px 20px;
+  border-radius: 10px;
+  width: 100%;
+  max-width: 360px;
+  text-align: center;
+}
+
+/* User Icon */
+.user-icon {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 20px;
+  background: white;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Input Fields */
+input[type="text"],
+input[type="password"] {
+  width: 100%;
+  padding: 12px 40px 12px 16px;
+  margin: 10px 0;
+  border-radius: 10px;
+  border: none;
+  outline: none;
+  font-size: 16px;
+}
+
+/* Input Icon Wrapper */
+.input-icon {
+  position: relative;
+}
+
+.input-icon input {
+  padding-left: 40px;
+}
+
+.input-icon .icon {
+  position: absolute;
+  top: 50%;
+  left: 10px;
+  transform: translateY(-50%);
+  font-size: 18px;
+}
+
+/* Remember Me / Forgot */
+.remember-forgot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  margin: 10px 0 20px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.remember-forgot label,
+.remember-forgot a {
+  flex: 1 1 auto;
+  text-align: left;
+  color: #fff;
+}
+
+/* Login Button */
+.login-btn {
+  width: 100%;
+  padding: 14px;
+  background: #ffb347;
+  border: none;
+  border-radius: 25px;
+  font-size: 18px;
+  color: #00416a;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.login-btn:hover {
+  background: #ffa726;
+}
+
+/* Register Section */
+.register {
+  margin-top: 20px;
+  font-size: 14px;
+}
+
+.register a {
+  color: #fff;
+  text-decoration: underline;
+}
+
+.flash-message {
+  color: red;
+  font-size: 1.3rem;
+  margin: 10px 0;
+  padding: 0;
+  background: none;
+  border: none;
+}
+
+/* Footer */
+.footer {
+  margin-top: 30px;
+  padding: 20px 0;
+  font-size: 14px;
+  color: #e0e0e0;
+}
+
+/* Responsive Design */
+@media (max-width: 480px) {
+  .page-title h1 {
+    font-size: 26px;
+  }
+
+  .login-container {
+    padding: 15px;
+  }
+
+  input[type="text"],
+  input[type="password"] {
+    font-size: 15px;
+    padding: 10px 36px 10px 14px;
+  }
+
+  .login-btn {
+    font-size: 16px;
+    padding: 12px;
+  }
+
+  .input-icon .icon {
+    font-size: 16px;
+  }
+
+  .footer {
+    font-size: 12px;
+  }
+}
+
+/* Change Password Page Specific Styles */
+.change-password-container {
+  width: 100%;
+  max-width: 460px; /* Adjusted width to make the container wider */
+  background: transparent;
+  padding: 20px 20px;
+  border-radius: 10px;
+}
+
+/* Optional: You can also modify the header, if necessary */
+.change-password-container .page-title h1 {
+  font-size: 30px; /* You can adjust the title size here if you want */
+}
+

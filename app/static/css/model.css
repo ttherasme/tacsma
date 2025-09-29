@@ -1,0 +1,331 @@
+/* ---------- GLOBAL RESET ---------- */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body, html {
+  font-family: Arial, sans-serif;
+  min-height: 100vh;
+  background-color: #fff;
+  position: relative;
+}
+
+.page-content > h1 {
+  margin: 0;
+  font-size: 2rem;
+  margin-left: 20px;
+  margin-bottom: -20px;
+  position: relative;
+  top: 20px;
+  z-index: 1;
+}
+
+.page-wrapper {
+  max-width: 1200px;
+  margin: 40px auto;
+  padding: 0 20px;
+  box-sizing: border-box;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+}
+
+
+/* ---------- LAYOUT CONTAINER ---------- */
+.container {
+  display: flex;
+  min-height: calc(100vh - 80px); /* Adjusted for taller top bar */
+}
+
+/* ---------- SIDEBAR ---------- */
+.sidebar {
+  width: 180px;
+  background: #e0e0e0;
+  padding: 20px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  flex-shrink: 0;
+}
+
+.sidebar button {
+  background-color: #d4e2f0;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: bold;
+  font-size: 1rem;
+  color: #333;
+  transition: background 0.2s;
+}
+
+.sidebar button:hover {
+  background-color: #c0d8ec;
+}
+
+.sidebar .icon-wrapper {
+  display: flex;
+  align-items: center;
+  cursor: default; /* no pointer on icon itself */
+}
+
+.sidebar .icon-wrapper img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  transition: transform 0.3s ease, filter 0.3s ease;
+}
+
+/* Sidebar icon hover scale only */
+.sidebar button:hover .icon-wrapper img {
+  transform: scale(1.2);
+  filter: brightness(1.2) sepia(0.2) hue-rotate(10deg);
+}
+
+/* ---------- MAIN CONTENT ---------- */
+.main-content {
+  flex: 1;
+  padding: 20px;
+  position: relative;
+}
+
+/* ---------- TOP BAR ---------- */
+.top-bar {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background: #e0e0e0;
+  padding: 15px 20px;
+  min-height: 70px;
+  flex-wrap: wrap; /* allow wrapping on small screens */
+}
+
+/* Topbar logo (icon + text) */
+.topbar-logo {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-right: 20px;
+}
+
+.topbar-logo img {
+  height: 36px;
+  width: auto;
+}
+
+.topbar-logo span {
+  font-weight: bold;
+  font-size: 1.2rem;
+  color: #2d5d35;
+}
+
+/* Topbar icons container */
+.topbar-icons {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+/* Shared icon-wrapper styles (topbar only) */
+.icon-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  transition: filter 0.3s ease, transform 0.3s ease;
+  color: #333;
+  font-weight: bold;
+  font-size: 0.75rem;
+}
+
+.icon-wrapper img {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  transition: transform 0.3s ease, filter 0.3s ease;
+}
+
+/* Hover and focus animation for topbar icons */
+.icon-wrapper:hover img,
+.icon-wrapper:focus img {
+  transform: scale(1.2);
+  filter: brightness(1.2) sepia(0.2) hue-rotate(10deg);
+}
+
+/* Tooltip styling (topbar only) */
+.tooltip {
+  position: absolute;
+  top: 120%;        /* Position below the icon */
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #2d5d35;
+  color: white;
+  padding: 5px 8px;
+  border-radius: 5px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  z-index: 10;
+  user-select: none;
+}
+
+/* Tooltip arrow */
+.tooltip::after {
+  content: "";
+  position: absolute;
+  top: -5px; /* Arrow points upward */
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 5px;
+  border-style: solid;
+  border-color: transparent transparent #2d5d35 transparent;
+}
+
+
+/* Show tooltip on hover or focus */
+.icon-wrapper:hover .tooltip,
+.icon-wrapper:focus .tooltip {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* User icons (bell + profile) */
+.user-icons {
+  margin-left: auto;
+  display: flex;
+  gap: 10px;
+}
+
+.user-icons img {
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  transition: transform 0.3s ease, filter 0.3s ease;
+}
+
+.user-icons img:hover,
+.user-icons img:focus {
+  transform: scale(1.2);
+  filter: brightness(1.2) sepia(0.2) hue-rotate(10deg);
+}
+
+/* --------- User menu ------------ */
+/* User menu container */
+.user-menu {
+  position: relative;
+  display: inline-block;
+}
+
+.user-menu .dropdown {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: 110%;
+  background-color: white;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  min-width: 150px;
+  z-index: 100;
+  list-style: none;
+  padding: 8px 0;
+}
+
+.user-menu .dropdown li {
+  padding: 8px 16px;
+}
+
+.user-menu .dropdown li a {
+  text-decoration: none;
+  color: #333;
+  display: block;
+}
+
+.user-menu .dropdown li:hover {
+  background-color: #f2f2f2;
+}
+
+.user-menu:hover .dropdown {
+  display: block;
+}
+
+.dropdown {
+  display: none;
+}
+
+.dropdown.show {
+  display: block;
+}
+
+/* ---------- CHAT ICON ---------- */
+.chat-icon {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+}
+
+.chat-icon img {
+  width: 48px;
+  height: 48px;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+.chat-icon img:hover {
+  transform: scale(1.1);
+}
+
+/* ---------- FOOTER ---------- */
+footer {
+  position: absolute;
+  bottom: 10px;
+  width: 100%;
+  text-align: center;
+  font-size: 0.8rem;
+  color: #666;
+}
+
+/* ---------- RESPONSIVE (MOBILE) ---------- */
+@media (max-width: 768px) {
+  .container {
+    flex-direction: column;
+    min-height: auto;
+  }
+  
+  .sidebar {
+    width: 100%;
+    flex-direction: row;
+    padding: 10px;
+    overflow-x: auto;
+    gap: 10px;
+  }
+  
+  .sidebar button {
+    flex: 1 0 auto;
+    font-size: 0.9rem;
+    padding: 8px;
+    white-space: nowrap;
+  }
+
+  .top-bar {
+    justify-content: space-between;
+    flex-wrap: nowrap;
+  }
+  
+  .topbar-logo {
+    margin-right: 0;
+  }
+  
+  .main-content {
+    padding: 15px 10px;
+  }
+}

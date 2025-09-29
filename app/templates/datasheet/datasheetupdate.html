@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}TACSMA - Data Sheet Register{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/datasheet/datasheetupdate.css') }}" />
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+{% endblock %}
+
+{% block content %}
+<section class="page-content">
+  <h1>Data Sheet - Update</h1>
+  <div class="page-wrapper">
+  <div class="top-tabs">
+    <div class="tabs-left-controls">
+      <label for="taskSelect">Select Task:</label>
+      <select class="task-select" id="taskSelect"></select>
+    </div>
+
+    <div class="tabs-center">
+      <button class="module-tab active" data-sname="Forest Operation">Forest Operation</button>
+      <button class="module-tab" data-sname="Transportation">Transportation</button>
+      <button class="module-tab" data-sname="Wood Processing">Wood Processing</button>
+      <select class="module-tab" id="activeStepsSelect"></select>
+      <!-- <button title="Add Step" class="step-button" data-url="{{ url_for('stepofprocess_bp.registersop') }}">+</button> -->
+    </div>
+  </div>
+
+  <div class="main-layout">
+    <div class="left-panel" id="categoryPanel">
+      <button class="category selected" data-category="Product">+ Product</button>
+      <button class="category" data-category="Co-Products">+ Co-Products</button>
+      <button class="category" data-category="Input Materials and Resources">+ Input Materials and Resources</button>
+      <button class="category" data-category="Input Energy">+ Input Energy</button>
+      <button class="category" data-category="Emissions">+ Emissions</button>
+      <button class="category" data-category="Waste Treatment">+ Waste Treatment</button>
+    </div>
+
+    <div class="right-panel" id="rightPanel">
+      <!-- Form will load here dynamically -->
+    </div>
+  </div>
+</div>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/datasheet/datasheetupdate.js') }}"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="{{ url_for('static', filename='js/datasheet/elementmodal.js') }}"></script>
+{% endblock %}
