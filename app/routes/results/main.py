@@ -18,7 +18,6 @@ import io
 import matplotlib.pyplot as plt
 from app.models import MatrixARaw, MatrixB 
 
-
 def run_analysis(rows):
     try:
         # 1. Import Data
@@ -41,10 +40,41 @@ def run_analysis(rows):
         adjusted_B_pd=pd.DataFrame(adjusted_B)
         adjusted_A=pd.DataFrame(adjusted_A)
 
+
+        functional_unit = next(iter({row['functional_unit'] for row in rows}))
+        try:
+            functional_unit = float(functional_unit)
+        except ValueError:
+            logger.error("Invalid functional unit; must be a number.")
+            functional_unit = 0
+
+        flow = next(iter({row['task'] for row in rows}))
+        flow_unit = next(iter({row['unit'] for row in rows}))
+
+        flow_dict = {
+            'flow': flow,
+            'unit': flow_unit,
+            'functional_unit': functional_unit
+        }
+
+        flow_df = pd.DataFrame([flow_dict])
+        logger.warning(f"Flow DataFrame:\n{flow_df}")
+
+        flow_names=adjusted_A.iloc[0:,:2]
+        flow_names['Amount'] = flow_names['flow ID'].map(flow_df.set_index('flow')['functional_unit']).fillna(0)
+        logger.warning(f"Flow Names \n {flow_names}")
+
+        # Convert to desired vector format (NumPy array or list)
+        final_demand = flow_names['Amount'].values.astype(float)
+        logger.warning(f"Final demand: {final_demand}")
+
+
         # 3. Process names
         Process_Names = pd.DataFrame([adjusted_A.columns.tolist(), adjusted_A.columns.tolist()])
         Process_Names = Process_Names.iloc[0:1, 3:]
         logger.warning(f"Process Names \n {Process_Names}")
+
+        
 
         adjusted_A=adjusted_A.iloc[0:,3:]
         #adjusted_A_np = np.array(adjusted_A)
@@ -65,19 +95,19 @@ def run_analysis(rows):
         # 3. Final Demand Vector
         #flow_id_to_value = {row['task']: row['functional_unit'] for row in rows}
         #logger.warning(f"Flow ID : \n {flow_id_to_value}")
-        final_demand = next(iter({row['functional_unit'] for row in rows}))
+
         impact_category = next((row['impact_category'] for row in rows if 'impact_category' in row), 'GWP')
         logger.warning(f"Impact category : {impact_category}")
         #flow_id_list = A_raw.iloc[1:, 1].tolist()
         #logger.warning(f"Flow ID list (length {len(flow_id_list)}): {flow_id_list}")
         #final_demand = np.array([float(flow_id_to_value.get(fid, 0)) for fid in flow_id_list])
-        for i in range(12):
-            final_demand = final_demand +" 0"
+        # for i in range(12):
+        #     final_demand = final_demand +" 0"
 
-        final_demand = final_demand.split()
-        final_demand = np.array([float(x) for x in final_demand])
-        logger.warning(f"Final demand")
-        logger.warning(f" {final_demand}")
+        # final_demand = final_demand.split()
+        # final_demand = np.array([float(x) for x in final_demand])
+        # logger.warning(f"Final demand")
+        # logger.warning(f" {final_demand}")
 
         
         # Call the function
