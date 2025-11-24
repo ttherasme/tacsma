@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block title %}TACSMA - Permission Rules Management{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/user/level.css') }}" />
+{% endblock %}
+
+{% block content %}
+<div class="rules-panel">
+    <div class="rules-header">
+        <h2>Permission Rules</h2>
+        <!-- <p>Map access levels (1-5) to specific actions on page elements.</p> -->
+    </div>
+
+    <section class="rules-form-section">
+        <h3>Add New Rule</h3>
+        <form id="add-rule-form" class="rule-form">
+            
+            {# Wrapper for the inputs, allowing the button to sit neatly below #}
+            <div class="form-inputs-grid"> 
+                
+                <div class="form-group">
+                    <label for="level-select">Level</label>
+                    <select id="level-select" required>
+                        {# CRITICAL CHANGE: Loop over dictionary items #}
+                        {% for level_id, level_desc in levels.items() %}
+                        <option value="{{ level_id }}">Level {{ level_id }} - {{ level_desc }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="page-select">Page</label>
+                    <select id="page-select" required>
+                        <option value="">-- Select Page --</option>
+                        {% for page in pages %}
+                        <option value="{{ page }}">{{ page|capitalize }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="element-select">Element</label>
+                    <select id="element-select" required disabled>
+                        <option value="">-- Select Element --</option>
+                        {# Options will be populated by JavaScript #}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="action-select">Action</label>
+                    <select id="action-select" required>
+                        {% for action in actions %}
+                        <option value="{{ action }}">{{ action|capitalize }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+            </div>
+            
+            <div class="form-action-button">
+                <button type="submit" id="add-rule-button" class="add-rule-button">
+                    ➕ Add Rule
+                </button>
+            </div>
+        </form>
+    </section>
+    
+    <section class="rules-table-section">
+        <h3>Existing and Pending Rules</h3>
+        
+        <div class="table-toolbar filter-toolbar">
+            <label for="filter-level">Filter by : Level</label>
+            <select id="filter-level" class="filter-select">
+                <option value="">All Levels</option>
+                {% for level_id, level_desc in levels.items() %}
+                <option value="{{ level_id }}">Level {{ level_id }} - - {{ level_desc }}</option>
+                {% endfor %}
+            </select>
+
+            <label for="filter-page">Page</label>
+            <select id="filter-page" class="filter-select">
+                <option value="">All Pages</option>
+                {% for page in pages %}
+                <option value="{{ page }}">{{ page|capitalize }}</option>
+                {% endfor %}
+            </select>
+            
+            <button id="save-all-rules" class="save-all-button">Save All Rules</button>
+        </div>
+        <table class="rules-table">
+            <thead>
+                <tr>
+                    <th>Level</th>
+                    <th>Page</th>
+                    <th>Element ID</th>
+                    <th>Action</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="permission-rules-body">
+                {# Existing rules loaded from DB #}
+                {% for rule in existing_rules %}
+                <tr data-id="{{ rule.id }}" data-status="existing" data-level="{{ rule.level }}" data-page="{{ rule.page }}">
+                    <!--<td class="editable-level">{{ rule.level }}</td> -->
+                     <td class="editable-level">Level {{ rule.level }} - {{ levels.get(rule.level, 'Unknown') }}</td> 
+                    <td>{{ rule.page|capitalize }}</td>
+                    <td>{{ rule.element }}</td>
+                    <td class="editable-action">{{ rule.action|capitalize }}</td>
+                    <td>Saved</td>
+                    <td><button class="update-rule-button">Update</button><button class="delete-rule-button">Delete</button></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+</div>
+
+{# Hidden element to pass the elements map to JavaScript #}
+<script id="elements-map-data" type="application/json">
+    {{ elements_map | tojson }}
+</script>
+<script id="levels-data" type="application/json">
+    {{ levels | tojson }}
+</script>
+<script id="actions-data" type="application/json">
+    {{ actions | tojson }}
+</script>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/user/permissions.js') }}"></script>
+{% endblock %}

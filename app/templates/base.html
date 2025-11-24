@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TACSMA - {% block title %}Page Title{% endblock %}</title>
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/model.css') }}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+  {% block styles %}
+      
+  {% endblock %}
+</head>
+<body>
+
+  <!-- Top Toolbar -->
+  <header class="top-bar">
+    <div class="topbar-logo">
+      <a href="{{ url_for('index_bp.index') }}">
+        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo" />
+      </a>
+    </div>
+
+    <div class="topbar-icons">
+      <div class="icon-wrapper" tabindex="0" aria-label="Tasks" data-url="{{ url_for('tasks_bp.tasks') }}">
+        <i class="fas fa-tasks"></i>
+        <span class="tooltip">Tasks management</span>
+      </div>
+      <div class="icon-wrapper" tabindex="0" aria-label="Unit of Measure" data-url="{{ url_for('uom_bp.uom') }}">
+        <i class="fas fa-ruler-combined"></i>
+        <span class="tooltip">Unit of measure</span>
+      </div>
+      <div class="icon-wrapper" tabindex="0" aria-label="Process" data-url="{{ url_for('stepofprocess_bp.stepofprocess') }}">
+        <i class="fas fa-cogs"></i>
+        <span class="tooltip">Process</span>
+      </div>
+      <div class="icon-wrapper" tabindex="0" aria-label="Transportation Mode" data-url="{{ url_for('typeoftransportation_bp.typeoftransportation') }}">
+        <i class="fas fa-truck"></i>
+        <span class="tooltip">Transportation Mode</span>
+      </div>
+      <div class="icon-wrapper" tabindex="0" aria-label="Parameters" data-url="{{ url_for('parameters_bp.parameters') }}">
+        <i class="fas fa-sliders-h"></i>
+        <span class="tooltip">Parameters</span>
+      </div>
+
+      <!-- <div class="icon-wrapper" tabindex="0" aria-label="Save">
+        <img src="{{ url_for('static', filename='img/icon1.png')}}" alt="Save" />
+        <span class="tooltip">Save</span>
+      </div>
+      <div class="icon-wrapper" tabindex="0" aria-label="Play">
+        <img src="{{ url_for('static', filename='img/icon2.png')}}" alt="Play" />
+        <span class="tooltip">Play</span>
+      </div>
+      <div class="icon-wrapper" tabindex="0" aria-label="Folder">
+        <img src="{{ url_for('static', filename='img/icon3.png')}}" alt="Folder" />
+        <span class="tooltip">Folder</span>
+      </div>
+      <div class="icon-wrapper" tabindex="0" aria-label="Trash">
+        <img src="{{ url_for('static', filename='img/icon4.png')}}" alt="Trash" />
+        <span class="tooltip">Trash</span>
+      </div>
+      <div class="icon-wrapper" tabindex="0" aria-label="Help">
+        <img src="{{ url_for('static', filename='img/icon5.png')}}" alt="Help" />
+        <span class="tooltip">Help</span>
+      </div>
+      <div class="icon-wrapper" tabindex="0" aria-label="Plugins">
+        <img src="{{ url_for('static', filename='img/icon6.png')}}" alt="Plugins" />
+        <span class="tooltip">Plugins</span>
+      </div>
+       -->
+    </div>
+
+    <div class="user-icons">
+      <a href="{{ url_for('user_bp.list_users') }}" title="Profile">
+          <i class="fas fa-user-circle"></i> 
+      </a>
+      
+      <a href="{{ url_for('auth_bp.logout') }}" class="logout-link" title="Logout">
+          Logout
+      </a>
+  </div>
+  </header>
+
+  <!-- Layout Container -->
+  <div class="container">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <button data-url="{{ url_for('datasheet_bp.datasheet')}}">
+        <div class="icon-wrapper" tabindex="0" aria-label="Data Sheet">
+          <img src="{{ url_for('static', filename='img/datasheet.png') }}" alt="Data Sheet" />
+        </div>
+        Data Sheet
+      </button>
+      <button data-url="{{ url_for('results_bp.results')}}">
+        <div class="icon-wrapper" tabindex="0" aria-label="Results">
+          <img src="{{ url_for('static', filename='img/result.png') }}" alt="Results" />
+        </div>
+        Results
+      </button>
+      <button data-url="#">
+        <div class="icon-wrapper" tabindex="0" aria-label="Reports">
+          <img src="{{ url_for('static', filename='img/report.png') }}" alt="Reports" />
+        </div>
+        Reports
+      </button>
+      <button data-url="{{ url_for('parameters_bp.users_management')}}">
+        <div class="icon-wrapper" tabindex="0" aria-label="Users Management">
+          <img src="{{ url_for('static', filename='img/user.png') }}" alt="Users Management" />
+        </div>
+        Users
+      </button>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      {% block content %}
+      {% endblock %}
+    </main>
+  </div>
+
+  <div class="chat-icon">
+    <img src="{{ url_for('static', filename='img/chat.png') }}" alt="Live Chat" />
+  </div>
+
+  <footer>
+    &copy;2025 TACSMA. All rights reserved.
+  </footer>
+
+  <script src="{{ url_for('static', filename='js/openpage.js') }}"></script>
+  {% block scripts %}
+    
+  {% endblock %}
+</body>
+</html>

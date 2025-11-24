@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Home{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
+{% endblock %}
+
+{% block content %}
+  <section class="welcome">
+    <p>
+      Welcome, {{ session['username'] }}!<br />
+      This is the home page. Enjoy your time here.
+    </p>
+  </section>
+
+  <div class="center-image">
+    <img src="{{ url_for('static', filename='img/tacsma-flow.png') }}" alt="Home Navigation" />
+  </div>
+{% endblock %}

@@ -1,0 +1,154 @@
+/* ---------- TASK PANEL SECTION ---------- */
+.task-panel {
+  max-width: 1200px;
+  margin: 40px auto;
+  padding: 0 20px;
+  box-sizing: border-box;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+}
+
+.task-header h2 {
+  font-size: 1.4rem;
+  margin-bottom: 15px;
+}
+
+.task-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  border: 1px solid #aaa;
+  border-radius: 10px;
+  gap: 40px;
+}
+
+.task-icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 1rem;
+  color: #222;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+.task-icon img {
+  width: 50px;
+  height: 50px;
+  margin-bottom: 8px;
+  object-fit: contain;
+  transition: transform 0.3s ease;
+}
+
+.task-icon:hover {
+  transform: scale(1.05);
+}
+
+/* ---------- TASK SEARCH SECTION ---------- */
+.task-search {
+  margin-top: 25px;
+  margin-bottom: 10px;
+}
+
+.task-search label {
+  font-weight: bold;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  max-width: 100%;
+  gap: 0;
+}
+
+.search-box input {
+  padding: 6px 10px;
+  font-size: 1rem;
+  border: 1px solid #888;
+  border-radius: 4px 0 0 4px;
+  border-right: none;
+  width: 25%;
+  min-width: 180px;
+}
+
+.search-box .search-btn {
+  background-color: white;
+  border: 1px solid #888;
+  border-left: none;
+  border-radius: 0 4px 4px 0;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.search-box .search-btn img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+
+/* ---------- TASK TABLE ---------- */
+.task-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.task-table th {
+  background-color: #015c7a;
+  color: white;
+  padding: 10px;
+  text-align: left;
+}
+
+.task-table td {
+  background-color: #e0e5eb;
+  height: 40px;
+  padding: 8px;
+  border: 1px solid #ccc;
+}
+
+.task-table tr:nth-child(even) td {
+  background-color: #d2d9e0;
+}
+
+/* ✅ Checkbox column: align properly */
+.task-table th:last-child,
+.task-table td:last-child {
+  text-align: center;
+  vertical-align: middle;
+  width: 60px;
+}
+
+/* ✅ Checkbox styling */
+.task-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  transform: translateY(2px);
+}
+
+/* ---------- RESPONSIVE ADJUSTMENTS ---------- */
+@media (max-width: 768px) {
+  .task-actions {
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .task-search {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .search-box {
+    width: 100%;
+  }
+
+  .search-box input {
+    width: 100%;
+  }
+}

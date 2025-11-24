@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}TACSMA - Parameters{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/parameter/parameter.css') }}" />
+{% endblock %}
+
+{% block content %}
+<div class="param-panel">
+    <div class="param-header">
+        <h2>Parameters</h2>
+    </div>
+
+    <div class="regeneration-controls" data-initial-mode="{{ regeneration_mode }}">
+        <p>Explicit accounting for forest regeneration?</p>
+        <label>
+            <input type="radio" name="regeneration" value="yes"
+                {% if regeneration_mode == 1 %}checked{% endif %}>
+            Yes
+        </label>
+        <label>
+            <input type="radio" name="regeneration" value="no"
+                {% if regeneration_mode == 0 %}checked{% endif %}>
+             No (default)
+        </label>
+    </div>
+
+    <section class="param-panel-content">
+        <div class="table-toolbar">
+            <button class="reset-button" id="reset-to-default">Reset to default</button>
+            <div class="table-controls">
+                <button class="save-row" id="save-row" title="Save Parameter">&#x1F4BE;</button> {# SAVE ICON (💾) #}
+                <button class="add-row" 
+                        id="add-row" 
+                        title="Add New Parameter"
+                        data-url="{{ url_for('parameters_bp.parametersregistration') }}">
+                    +
+                </button>
+                <button class="delete-row" id="delete-row" title="Delete Selected Row">x</button>
+            </div>
+        </div>
+        <div class="table-filter">
+            <label for="task-filter">Filter by Task:</label>
+            <select id="task-filter">
+                <option value="">All Tasks</option>
+                <!-- Options populated dynamically from /listtasks -->
+            </select>
+            <span id="task-region-label" class="task-region-label"></span>
+        </div>
+
+        <table class="param-table">
+            <thead>
+                <tr>
+                    <th>Parameter name</th>
+                    <th>Task</th>
+                    <th class="hidden-col">IDTask</th> <!-- will be hidden by CSS -->
+                    <th>Value</th>
+                    <th>Default</th>
+                    <th>Unit</th>
+                </tr>
+            </thead>
+
+            <tbody id="parameter-table-body">
+                {% for param in parameters %}
+                <tr data-id="{{ param.id }}">
+                    <td>{{ param.name }}</td>
+
+                    <!-- Task name column (not editable, no dropdown) -->
+                    <td class="task-name-cell" data-idt="{{ param.idt }}"></td>
+
+                    <!-- IDTask column (hidden) -->
+                    <td class="hidden-col">{{ param.idt }}</td>
+
+                    <!-- Editable Value -->
+                    <td class="editable-value"
+                        contenteditable="true"
+                        data-original="{{ param.value }}">
+                        {{ param.value }}
+                    </td>
+
+                    <td>{{ param.default }}</td>
+                    <td>{{ param.unit }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/parameter/parameter.js') }}"></script>
+{% endblock %}

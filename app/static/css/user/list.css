@@ -1,0 +1,115 @@
+
+  /* Flash messages */
+  .flash-messages {
+    list-style: none;
+    padding: 0;
+    margin-bottom: 15px;
+  }
+
+  .flash-messages li {
+    padding: 10px;
+    margin-bottom: 5px;
+    border-radius: 5px;
+    font-weight: bold;
+  }
+
+  .flash-messages .success {
+    background-color: #d4edda;
+    color: #155724;
+  }
+
+  .flash-messages .error {
+    background-color: #f8d7da;
+    color: #721c24;
+  }
+
+  .create-user-wrapper {
+  text-align: right;
+  margin-bottom: 15px;
+}
+
+.search-container {
+  text-align: right;
+  margin-bottom: 10px;
+}
+
+#userSearchInput {
+  padding: 5px 10px;
+  font-size: 14px;
+  width: 250px;
+}
+
+  /* Table styling */
+  .table-align-wrapper {
+  margin-left: 40px; 
+}
+
+.user-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.user-table th {
+  background-color: #015c7a;
+  color: white;
+  padding: 10px;
+  text-align: left;
+}
+
+.user-table td {
+  background-color: #e0e5eb;
+  height: 40px;
+  padding: 8px;
+  border: 1px solid #ccc;
+}
+
+.user-table tr:nth-child(even) td {
+  background-color: #d2d9e0;
+}
+
+.user-table th:last-child,
+.user-table td:last-child {
+  text-align: center;
+  vertical-align: middle;
+  width: 120px;
+}
+
+/* Flash messages remain the same */
+.flash-messages {
+  list-style: none;
+  padding: 0;
+  margin-bottom: 15px;
+}
+
+.flash-messages li {
+  padding: 10px;
+  margin-bottom: 5px;
+  border-radius: 5px;
+  font-weight: bold;
+}
+
+.flash-messages .success {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.flash-messages .error {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+/* Primary button */
+.btn-primary {
+  background-color: #2d5d35;
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 6px;
+  text-decoration: none;
+  transition: background-color 0.2s ease;
+}
+
+.btn-primary:hover {
+  background-color: #244a2a;
+}
+

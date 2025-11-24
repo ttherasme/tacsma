@@ -1,0 +1,195 @@
+/* === Layout Container to Center the Page === */
+.page-wrapper {
+    max-width: 1200px;
+    margin: 40px auto;
+    padding: 0 20px;
+    box-sizing: border-box;
+    background-color: #f5f5f5;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+}
+
+/* === Base Reset === */
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background-color: #f5f5f5;
+}
+
+/* === Top Tabs Section === */
+.top-tabs {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 0;
+    flex-wrap: wrap;
+}
+
+/* Left select */
+.tabs-left-controls {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.task-input {
+    width: 250px;
+    padding: 0.4rem 0.6rem;
+    font-size: 1rem;
+}
+
+/* Center module tabs */
+.tabs-center {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    overflow-x: auto;
+    white-space: nowrap;
+    flex-shrink: 1;
+}
+
+.module-tab {
+    cursor: pointer;
+    border: none;
+    background: #eee;
+    padding: 0.5rem 1rem;
+    border-radius: 4px 4px 0 0;
+    font-weight: 600;
+    font-size: 1rem;
+    white-space: nowrap;
+    transition: background-color 0.3s;
+}
+
+.module-tab.active,
+.module-tab:hover {
+    background-color: #a2c0ff;
+}
+
+/* === Main Layout === */
+.main-layout {
+    display: flex;
+    gap: 1rem;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+/* Left Panel */
+.left-panel {
+    flex: 0 0 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+}
+
+.category {
+    padding: 0.5rem 0.8rem;
+    cursor: pointer;
+    border: none;
+    background: #f7f7f7;
+    border-radius: 4px;
+    text-align: left;
+    font-size: 1rem;
+    white-space: nowrap;
+    transition: background-color 0.3s;
+}
+
+.category.selected,
+.category:hover {
+    background-color: #c7d8ff;
+}
+
+/* === Right Panel === */
+.right-panel {
+    flex: 1;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    padding: 1rem;
+    overflow-y: auto;
+    max-height: 100%;
+    background: white;
+}
+
+/* ===================================================================================== */
+/* === NEW TABLE VIEW STYLES =========================================================== */
+/* ===================================================================================== */
+
+.view-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.95rem;
+    background: white;
+}
+
+.view-table thead {
+    background-color: #e6ecff;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+.view-table th {
+    padding: 10px;
+    text-align: left;
+    font-weight: bold;
+    border-bottom: 2px solid #ccc;
+}
+
+.view-table td {
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.view-table tr:nth-child(even) {
+    background-color: #fafafa;
+}
+
+.view-table tr:hover {
+    background-color: #f0f6ff;
+}
+
+/* Highlight selected rows */
+.view-table tr.selected-row {
+    background-color: #2e7d32 !important;
+    color: white !important;
+}
+
+.view-table tr.selected-row td {
+    color: white !important;
+}
+
+
+/* Responsive Table */
+@media (max-width: 900px) {
+    .view-table th,
+    .view-table td {
+        padding: 8px;
+        font-size: 0.85rem;
+    }
+
+    .main-layout {
+        flex-direction: column;
+    }
+
+    .left-panel {
+        flex: none;
+        width: 100%;
+        display: flex;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+}
+
+/* === Scrollbar Styles === */
+.left-panel::-webkit-scrollbar,
+.right-panel::-webkit-scrollbar {
+    width: 8px;
+}
+
+.left-panel::-webkit-scrollbar-thumb,
+.right-panel::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.15);
+    border-radius: 4px;
+}

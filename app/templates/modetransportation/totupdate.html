@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}TACSMA - Update transportation mode{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sop/sopupdate.css') }}" />
+{% endblock %}
+
+{% block content %}
+<section class="page-content">
+    <h1>Update transportation mode</h1>
+    <div id="dynamic-content">
+        <div class="dynamic-wrapper"> 
+            <div class="form-box">
+                <div class="form-header">
+                    <div>Name</div>
+                    <div>State</div>
+                </div>
+
+                <form id="update-form">
+                    {% if mtransp %}
+                        <div class="form-row"> 
+                            <input type="hidden" name="IDM" value="{{ mtransp.IDM }}" />
+                            <div class="mode-input"> 
+                                <input type="text" id="mtname" name="MTName" value="{{ mtransp.MTName }}" required />
+                            </div>
+                            <div>
+                                <select id="state" name="State">
+                                    <option value="0" {% if mtransp.State == 0 %}selected{% endif %}>Inactive</option>
+                                    <option value="1" {% if mtransp.State == 1 %}selected{% endif %}>Active</option>
+                                </select>
+                            </div>
+                        </div>
+                    {% else %}
+                        <p>No Transportation Mode data available for update. Please select a mode to edit from the main list.</p>
+                    {% endif %}
+
+                    <div class="run-button-wrapper"> {# Placed the button in its dedicated wrapper #}
+                        <button type="submit" class="run-button">Update</button>
+                    </div>
+                </form>
+            </div> {# End form-box #}
+        </div> {# End dynamic-wrapper #}
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/modetransportation/totupdate.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}TACSMA - Process{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sop/sop.css') }}" />
+{% endblock %}
+
+{% block content %}
+<section class="page-content">
+    <h1>Process</h1>
+    <section class="sop-panel"> 
+        <div class="sop-header"> 
+            <div class="sop-actions"> 
+                <div class="sop-icon open-icon"> 
+                    <img src="{{ url_for('static', filename='img/addtask.png') }}" alt="Add" data-url="{{ url_for('stepofprocess_bp.registersop')}}"/>
+                    <span>Add</span>
+                </div>
+                <div class="sop-icon open-icon"> 
+                    <img src="{{ url_for('static', filename='img/edittask.png') }}" alt="Edit" data-url="{{ url_for('stepofprocess_bp.updatesop')}}"/>
+                    <span>Edit</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="sop-search"> {# Changed from uom-search #}
+            <label for="sop-search-input">Search</label> {# Changed from uom-search-input #}
+            <div class="search-box">
+                <input type="text" id="sop-search-input" placeholder="Find" /> {# Changed from uom-search-input #}
+                <button class="search-btn" aria-label="Search sops">🔍</button> {# Changed aria-label #}
+                {# Removed the extra </button> tag here #}
+            </div>
+        </div>
+
+        <table class="sop-table"> {# Changed from uom-table #}
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>State</th>
+                    <th>Entry date</th> {# Added Entry date column #}
+                    <th></th> {# Header for the checkbox column #}
+                </tr>
+            </thead>
+            <tbody id="sop-table-body"> {# Added id for JavaScript #}
+                {% for step in steps %} {# Loop through 'steps' passed from Flask #}
+                <tr>
+                    <td>{{ step.IDS }}</td>
+                    <td>{{ step.SName }}</td>
+                    <td>{{ step.State }}</td>
+                    <td>{{ step.EntryDate.strftime('%Y-%m-%d %H:%M') if step.EntryDate else '' }}</td>
+                    <td>
+                        <input type="checkbox" class="sop-checkbox" data-id="{{ step.IDS }}">
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/openother.js') }}"></script>
+<script src="{{ url_for('static', filename='js/soprocess/soprocess.js') }}"></script>
+{% endblock %}

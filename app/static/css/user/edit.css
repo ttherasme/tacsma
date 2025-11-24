@@ -1,0 +1,110 @@
+.edit-user-wrapper {
+  max-width: 500px;
+  margin: 40px auto;
+  padding: 30px 25px;
+  background-color: #fff;
+  border-radius: 10px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+
+.edit-user-wrapper h1 {
+  font-size: 1.6rem;
+  margin-bottom: 20px;
+  color: #2d5d35;
+  border-bottom: 2px solid #ddd;
+  padding-bottom: 10px;
+}
+
+.edit-user-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.edit-user-form label {
+  font-weight: bold;
+  font-size: 0.95rem;
+  display: flex;
+  flex-direction: column;
+  color: #333;
+}
+
+.edit-user-form input,
+.edit-user-form select {
+  margin-top: 6px;
+  padding: 10px;
+  font-size: 0.95rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background: #f9f9f9;
+  transition: border 0.2s ease;
+}
+
+.edit-user-form input:focus,
+.edit-user-form select:focus {
+  outline: none;
+  border-color: #2d5d35;
+  background: #fff;
+}
+
+/* Flash Messages */
+.flash-messages {
+  list-style: none;
+  padding: 0;
+  margin-bottom: 20px;
+}
+
+.flash-messages li {
+  padding: 12px 16px;
+  border-radius: 6px;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.flash-messages .success {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.flash-messages .error {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+/* Buttons */
+.form-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.btn-primary {
+  background-color: #2d5d35;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  text-decoration: none;
+}
+
+.btn-primary:hover {
+  background-color: #244a2a;
+}
+
+.btn-secondary {
+  background-color: #ddd;
+  color: #333;
+  padding: 10px 16px;
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: bold;
+  transition: background-color 0.2s ease;
+}
+
+.btn-secondary:hover {
+  background-color: #ccc;
+}

@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}TACSMA - Update Process{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sop/sopupdate.css') }}" />
+{% endblock %}
+
+{% block content %}
+<section class="page-content">
+    <h1>Update Process</h1>
+    <div id="dynamic-content">
+        <div class="dynamic-wrapper">
+            <div class="form-box">
+                <div class="form-header">
+                    <div>Name</div>
+                    <div>State</div>
+                </div>
+
+                <div id="form-rows">
+                    {# Check if 'step' object exists before trying to access its properties #}
+                    {% if step %}
+                        <div class="form-row"> {# Added form-row class for consistency with other forms #}
+                            {# Hidden input for the Step ID #}
+                            <input type="hidden" class="step-id" value="{{ step.IDS }}">
+                            
+                            <div class="unit-input">
+                                <input type="text" class="step-name" value="{{ step.SName }}"/>
+                            </div>
+                            <div>
+                                <select class="sop-state">
+                                    <option value="1" {% if step.State == 1 %}selected{% endif %}>Active</option>
+                                    <option value="0" {% if step.State == 0 %}selected{% endif %}>Inactive</option>
+                                </select>
+                            </div>
+                        </div>
+                    {% else %}
+                        <p>No Step of Process data available for update. Please select a step to edit from the main list.</p>
+                    {% endif %}
+                </div>
+
+                <div class="run-button-wrapper">
+                    <button class="run-button">Update</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+{# Embed step data as JSON for JavaScript to easily access #}
+{% if step %}
+<script type="application/json" id="step-data">
+    {{ {
+        'IDS': step.IDS,
+        'SName': step.SName,
+        'State': step.State
+    }|tojson }}
+</script>
+{% endif %}
+<script src="{{ url_for('static', filename='js/soprocess/sopupdate.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,230 @@
+/* ---------- uom PANEL SECTION ---------- */
+.uom-panel {
+    max-width: 1200px;
+    margin: 40px auto;
+    padding: 0 20px;
+    box-sizing: border-box;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+}
+
+/* Adjusted spacing for the main heading */
+.page-content h1 {
+    margin-top: 5px; /* Reduce top space */
+    margin-bottom: 20px; /* Reduce bottom space */
+    text-align: left; /* Often headings are centered or left-aligned with content */
+    font-size: 2.2rem; /* Example: Adjust font size if needed for better visual balance */
+    color: #333;
+}
+
+.uom-header {
+    .uom-header h2 {
+        font-size: 1.4rem;
+        margin-bottom: 15px;
+    } 
+}
+
+.uom-actions {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    border: 1px solid #aaa;
+    border-radius: 10px;
+    gap: 40px;
+    /* Ensure consistent margin below actions for spacing with search */
+    margin-bottom: 25px; /* Added or adjusted to control space between actions and search */
+}
+
+.uom-icon {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 1rem;
+    color: #222;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+}
+
+.uom-icon img {
+    width: 50px;
+    height: 50px;
+    margin-bottom: 8px;
+    object-fit: contain;
+    transition: transform 0.3s ease;
+}
+
+.uom-icon:hover {
+    transform: scale(1.05);
+}
+
+/* ---------- uom SEARCH SECTION ---------- */
+.uom-search {
+    /* Adjusted margin-top to control space from uom-actions */
+    margin-top: 0; /* Space now primarily controlled by uom-actions margin-bottom */
+    margin-bottom: 20px; /* Adjusted to create consistent space between search and table */
+}
+
+.uom-search label {
+    font-weight: bold;
+    display: block; /* Keeps label above the input box */
+    margin-bottom: 8px;
+    /* If you want label and input on the same line, you'd need to put label AND search-box inside a flex container */
+    /* For now, assuming "display: block" is intended as it was on the tasks page */
+}
+
+.search-box {
+    display: flex;
+    align-items: center;
+    max-width: 100%; /* Ensures it doesn't overflow */
+    gap: 0;
+    /* Added this to control the input width better, ensuring button stays in line */
+    /* Flex-grow allows the input to take available space */
+}
+
+.search-box input {
+    padding: 6px 10px;
+    font-size: 1rem;
+    border: 1px solid #888;
+    border-radius: 4px 0 0 4px;
+    border-right: none;
+    /* Changed width to flex-grow to ensure it takes available space */
+    flex-grow: 1; /* Allows the input to grow and shrink */
+    min-width: 180px; /* Ensures it's not too small */
+    max-width: 400px; /* Optional: Set a max-width for the input if it gets too wide on large screens */
+}
+
+.search-box .search-btn {
+    background-color: white;
+    border: 1px solid #888;
+    border-left: none;
+    border-radius: 0 4px 4px 0;
+    padding: 5px 10px;
+    cursor: pointer;
+    /* Ensure the icon is vertically aligned */
+    line-height: 1; /* Helps with vertical alignment of text/emoji inside button */
+}
+
+.search-box .search-btn img {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+}
+
+/* ---------- uom TABLE ---------- */
+.uom-table {
+    width: 100%;
+    border-collapse: collapse;
+    /* Adjusted margin-top to create consistent space from search section */
+    margin-top: 0; /* Space now primarily controlled by uom-search margin-bottom */
+    margin-bottom: 40px; /* Add some space below the table if needed for overall page layout */
+
+    /* Crucial for consistent column widths */
+    table-layout: fixed;
+}
+
+.uom-table th {
+    background-color: #015c7a;
+    color: white;
+    padding: 10px;
+    text-align: left;
+    white-space: nowrap; /* Prevent header text from wrapping */
+}
+
+.uom-table td {
+    background-color: #e0e5eb;
+    height: 40px;
+    padding: 8px;
+    border: 1px solid #ccc;
+    word-wrap: break-word; /* Allows long words to break and wrap within the cell */
+}
+
+.uom-table tr:nth-child(even) td {
+    background-color: #d2d9e0;
+}
+
+/* Explicitly set column widths for better control */
+.uom-table th:nth-child(1),
+.uom-table td:nth-child(1) {
+    width: 10%; /* ID */
+}
+
+.uom-table th:nth-child(2),
+.uom-table td:nth-child(2) {
+    width: 25%; /* Name */
+}
+
+.uom-table th:nth-child(3),
+.uom-table td:nth-child(3) {
+    width: 15%; /* Unit */
+}
+
+.uom-table th:nth-child(4),
+.uom-table td:nth-child(4) {
+    width: 15%; /* State */
+}
+
+.uom-table th:nth-child(5),
+.uom-table td:nth-child(5) {
+    width: 25%; /* Entry Date - give more space for date string */
+}
+
+
+/* Checkbox column: align properly (already good, just confirming) */
+.uom-table th:last-child,
+.uom-table td:last-child {
+    text-align: center;
+    vertical-align: middle;
+    width: 10%; /* Adjusted for 6 columns total (10+25+15+15+25+10 = 100%) */
+}
+
+
+/* Checkbox styling (already good, just confirming) */
+.uom-checkbox {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    transform: translateY(2px);
+}
+
+/* ---------- RESPONSIVE ADJUSTMENTS ---------- */
+@media (max-width: 768px) {
+    .uom-actions {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .uom-search {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .search-box {
+        width: 100%;
+        /* Ensure input and button still appear side-by-side on small screens */
+        flex-wrap: nowrap; /* Prevent wrapping unless explicit widths force it */
+    }
+
+    .search-box input {
+        width: 100%; /* Let it take full width of its flex container (search-box) */
+        flex-grow: 1; /* Ensure it expands */
+        max-width: none; /* Remove max-width constraint for smaller screens */
+    }
+
+    /* Adjust table column widths for smaller screens if needed */
+    .uom-table th, .uom-table td {
+        white-space: normal; /* Allow text to wrap on smaller screens */
+        font-size: 0.9em; /* Slightly smaller font for compactness */
+        padding: 6px; /* Reduce padding for compactness */
+    }
+
+    /* Redistribute widths for smaller screens */
+    .uom-table th:nth-child(1), .uom-table td:nth-child(1) { width: 10%; }
+    .uom-table th:nth-child(2), .uom-table td:nth-child(2) { width: 30%; } /* Name can be wider */
+    .uom-table th:nth-child(3), .uom-table td:nth-child(3) { width: 15%; } /* Unit */
+    .uom-table th:nth-child(4), .uom-table td:nth-child(4) { width: 15%; } /* State */
+    .uom-table th:nth-child(5), .uom-table td:nth-child(5) { width: 20%; } /* Entry Date (can be narrower) */
+    .uom-table th:last-child, .uom-table td:last-child { width: 10%; } /* Checkbox */
+}

@@ -1,0 +1,285 @@
+/* ---------- PANEL WRAPPER & HEADER ---------- */
+.param-panel {
+    max-width: 1200px;
+    margin: 5px 0 5px 20px;
+    padding: 0 20px 20px 0;
+    box-sizing: border-box;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+
+    /* Controls alignment under "Parameters" 4th letter */
+    --param-content-offset: 45px;
+}
+
+.param-header {
+    padding-top: 5px;
+    margin-bottom: 20px;
+}
+
+.param-header h2 {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: #222;
+    margin-bottom: 0;
+    padding-left: 10px;
+}
+
+/* ---------- GENERIC TEXT ELEMENTS ---------- */
+.param-panel label,
+.param-panel p {
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 6px;
+}
+
+/* ---------- SECTION ALIGNMENT (under h2 letter 4) ---------- */
+.regeneration-controls,
+.task-select,
+.tab-content,
+.param-panel-content,
+.aligned-hr {
+    padding-left: calc(10px + var(--param-content-offset));
+}
+
+/* ---------- SECONDARY SECTION STYLING ---------- */
+.regeneration-controls,
+.task-select {
+    margin-bottom: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+}
+
+/* --- Radio Button Layout (Regeneration Section Only) --- */
+.regeneration-controls label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px; /* space between radio and text */
+    margin-right: 18px; /* space between the 2 radio options */
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: #333;
+}
+
+.regeneration-controls input[type="radio"] {
+    transform: scale(1.15); /* slightly bigger, optional */
+    cursor: pointer;
+}
+
+.tab-content {
+    margin-bottom: 25px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.tab-content input[type="number"],
+.tab-content input[type="text"] {
+    width: 120px;         /* About half-size */
+    padding: 4px 6px;
+    font-size: 1rem;
+    box-sizing: border-box;
+}
+
+.tab-content .add-row {
+    margin-left: auto; /* pushes button to the right */
+}
+
+.tab-reg-task {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* ---------- INPUT & SELECT STYLE UNIFICATION ---------- */
+.param-panel select,
+.param-panel input {
+    font-family: inherit;
+    font-size: 1rem;
+    padding: 4px 8px;
+    border: 1px solid #aaa;
+    border-radius: 4px;
+    background-color: #f9f9f9;
+    height: 34px;
+    box-sizing: border-box;
+}
+
+/* ---------- HR ALIGNMENT ---------- */
+.tab-divider {
+    padding-left: calc(10px + var(--param-content-offset)); /* Align with table */
+    padding-right: 20px; /* Matches panel padding */
+    margin: 15px 0;
+}
+
+.tab-divider hr {
+    border: none;
+    height: 1px;
+    background-color: #333;
+    width: 100%;      /* EXACT width of table */
+    margin: 0;        /* No offset */
+}
+
+
+/* ---------- TOOLBAR ---------- */
+.table-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+/* RESET BUTTON - YELLOW */
+.reset-button {
+    background-color: #f6e05e;      /* Yellow */
+    border: 1px solid #d4b53a;
+    padding: 5px 12px;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 1rem;
+}
+.reset-button:hover {
+    background-color: #ecc94b;
+}
+
+/* ACTION BUTTONS (Save, Delete) */
+.table-controls {
+    display: flex;
+    gap: 5px;
+}
+
+/* General action button style */
+.table-controls button {
+    position: relative;
+    color: white;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    padding: 5px 10px;
+    font-size: 1rem;
+    font-weight: bold;
+    transition: background-color 0.2s;
+}
+
+/* Tooltip for icons */
+.table-controls button[title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 120%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #333;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 4px;
+    white-space: nowrap;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    z-index: 100;
+    font-size: 0.85rem;
+}
+
+/* SAVE (Green) */
+.save-row {
+    background-color: #4CAF50;
+    border-color: #4CAF50;
+}
+.save-row:hover {
+    background-color: #45a049;
+}
+
+/* DELETE (Red) */
+.delete-row {
+    background-color: #f44336;
+    border-color: #f44336;
+}
+.delete-row:hover {
+    background-color: #d32f2f;
+}
+
+/* ---------- ADD ROW BUTTON (BLUE) ---------- */
+#add-row {
+    background-color: #007bff;
+    color: white;
+    border: 1px solid #006fe6;
+    padding: 6px 14px;
+    font-size: 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+}
+#add-row:hover {
+    background-color: #0066cc;
+}
+
+/* ---------- PARAMETER TABLE ---------- */
+.param-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    border: 1px solid #ccc;
+}
+
+.param-table th {
+    background-color: #015c7a;
+    color: white;
+    padding: 10px;
+    text-align: left;
+}
+
+.param-table td {
+    background-color: #e0e5eb;
+    height: 40px;
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+}
+
+.param-table tr:nth-child(even) td {
+    background-color: #d2d9e0;
+}
+
+/* Selected row highlight */
+/* .param-table tr.selected-row {
+    background-color: #ffcccc !important; 
+    cursor: pointer;
+} */
+
+
+/* Highlight selected row */
+/* FORCE green background + white text on selected rows */
+.param-table tbody tr.selected-row td {
+    background-color: #2e7d32 !important;
+    color: white !important;
+}
+
+/* Editable cell must also turn green (it overrides with its own white bg) */
+.param-table tbody tr.selected-row td.editable-value {
+    background-color: #2e7d32 !important;
+    color: white !important;
+}
+
+/* Editable cells */
+.editable-value {
+    background-color: #fff;
+    cursor: text;
+}
+.editable-value:focus {
+    outline: 2px solid #015c7a;
+    background-color: #fff;
+}
+
+/* ---------- STATUS COLORS ---------- */
+.status-cell {
+    font-weight: bold;
+    text-align: center;
+}
+
+.status-new { color: #d97700; }
+.status-saved { color: #15803d; }
+.status-updated { color: #1d4ed8; }
+
+/* ---------- REGION LABEL ---------- */
+.task-region-label {
+    margin-left: 10px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #015c7a;
+}

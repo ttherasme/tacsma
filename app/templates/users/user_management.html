@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}TACSMA - User Management{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/task/tasks.css') }}" />
+{% endblock %}
+
+{% block content %}
+<section class="page-content">
+       <h1>User Management</h1>
+      <section class="task-panel">
+        <div class="task-header">
+          <div class="task-actions">
+            <div class="task-icon open-icon">
+              <img src="{{ url_for('static', filename='img/addtask.png') }}" alt="Add" data-url="{{ url_for('user_bp.list_users')}}"/>
+              <span>Users</span>
+            </div>
+            <div class="task-icon open-icon">
+              <img src="{{ url_for('static', filename='img/edittask.png') }}" alt="Edittask" data-url="{{ url_for('parameters_bp.permission_rules')}}"/>
+              <span>Access</span>
+            </div>
+          </div>
+        </div>
+
+      </section>
+      </section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/openother.js') }}"></script> 
+{% endblock %}
