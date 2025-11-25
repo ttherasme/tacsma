@@ -408,16 +408,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Populate chart and theme selects
         vizChartSelect.innerHTML = `
-            <option value="" disabled selected>Chart type...</option>
-            <option value="pie">Pie</option>
+            <!-- <option value="" disabled selected>Chart type...</option> -->
+            <option value="pie" selected>Pie</option>
             <option value="bar">Bar</option>
             <option value="line">Line</option>
             <option value="scatter">Scatter</option>
         `;
 
          vizThemeSelect.innerHTML = `
-            <option value="" disabled selected>Theme...</option>
-            <option value="vibrant">Vibrant</option>
+            <!-- <option value="" disabled selected>Theme...</option> -->
+            <option value="vibrant" selected>Vibrant</option>
             <option value="pastel">Pastel</option>
             <option value="grayscale">Grayscale</option>
         `;
@@ -495,6 +495,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
+                        task_id: selectedTaskId,
                         task_name: selectedTaskName,
                         process_contribution: selectedTaskContribution,
                         chart_type: selectedChartType,

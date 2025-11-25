@@ -166,7 +166,7 @@ def run_analysis(rows):
             all_contributions_data.extend(current_row_contributions.to_dict('records'))
             
             # --- 2. Append result for individual row ---
-            graph_data[task_text] = {
+            graph_data[task_id] = {
                 "task_name": task_text,
                 "contribution_table_values": (
                     contribution_table_df.values if not contribution_table_df.empty else None
@@ -223,11 +223,12 @@ def run_analysis(rows):
         "combined_contribution_table": final_contribution_table
     }
 
-def graph_results_single(chart_type='pie', theme='vibrant', task_name=None):
+def graph_results_single(chart_type='pie', theme='vibrant', task_name=None, task_id=None):
     logging.debug("Task : %s", task_name)
     logging.debug("Chart type : %s", chart_type)
-    data_contribution = graph_data[task_name]["contribution_table_values"]
-    data_nameTask = graph_data[task_name]["task_name"]
+    task_id = int(task_id)
+    data_contribution = graph_data[task_id]["contribution_table_values"]
+    data_nameTask = graph_data[task_id]["task_name"]
     graph =None
     if data_contribution is not None:
        graph = create_graph_wt(

@@ -67,6 +67,7 @@ def graph_results_single_route():
     payload = request.get_json()
     logging.debug("Payload : %s", payload)
     task_name = payload.get('task_name', 'Task')
+    task_id = payload.get('task_id', '0')
     process_contribution = payload.get('process_contribution', [])
     chart_type = payload.get('chart_type', 'pie')
     theme = payload.get('theme', 'vibrant')
@@ -75,7 +76,7 @@ def graph_results_single_route():
         return jsonify({"error": "No contribution data provided"}), 400
 
     try:
-        chart_base64 = graph_results_single(chart_type, theme, task_name) 
+        chart_base64 = graph_results_single(chart_type, theme, task_name, task_id) 
         if chart_base64 is None:
             return jsonify({"error": "No data available"}), 400
         return jsonify({"chart_base64": chart_base64})

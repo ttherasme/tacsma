@@ -111,7 +111,7 @@ def forest_growth_function ():
     
 def forest_growth_newA(matrix, value, tmatrix):
 
-    new_col_name = 'Forest_growth'
+    new_col_name = 'Forest growth'
     df_A = matrix.copy()
     df_A[new_col_name] = pd.NA
 

@@ -43,7 +43,8 @@ ELEMENTS_MAP = {
         {'id': 'report_generator', 'type': 'form', 'desc': 'Report Generation Form'}
     ]
     # You will need to add mappings for 'user_levels' and 'data_sheet' elements as well.
-}
+} 
+
 
 # 3. List of actions that can be controlled
 ACTIONS = [

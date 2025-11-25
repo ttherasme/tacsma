@@ -175,6 +175,7 @@
 /* 3. Main two-column layout */
 .results-flex-container {
     display: flex;
+    flex-direction: column; /* to display in one column */
     gap: 20px;
     align-items: flex-start;
 }
