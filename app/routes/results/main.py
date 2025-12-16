@@ -14,6 +14,7 @@ from .calculate import (
 from .multifunctionality import adjust_matrix_for_multiple_outputs
 from .create_graph import create_graph, create_graph_wt
 from .Forest_growth_model import forest_growth_newA, forest_growth_function
+from .unit_conversion import unit_conversion
 import base64
 import io
 import matplotlib.pyplot as plt
@@ -106,6 +107,8 @@ def run_analysis(rows):
             flow_names['flow ID'] = flow_names['flow ID'].astype(str)
             flow_df['flow'] = flow_df['flow'].astype(str)
 
+            functional_unit = unit_conversion(functional_unit, unit_text, 'SI')
+            logger.error(f"Task {task_id}: last functional unit '{functional_unit}'; defaulting to 1.0")
             flow_names['Amount'] = flow_names['flow ID'].map(
                 flow_df.set_index('flow')['functional_unit']
             ).fillna(0)

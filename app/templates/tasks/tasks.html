@@ -3,6 +3,7 @@
 {% block title %}TACSMA - Tasks{% endblock %}
 
 {% block styles %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/task/tasks.css') }}" />
 {% endblock %}
 
@@ -17,7 +18,7 @@
               <img src="{{ url_for('static', filename='img/addtask.png') }}" alt="Add" data-url="{{ url_for('tasks_bp.registertask')}}"/>
               <span>Add</span>
             </div>
-            <div class="task-icon open-icon">
+            <div class="task-icon edit-icon">
               <img src="{{ url_for('static', filename='img/edittask.png') }}" alt="Edit" data-url="{{ url_for('tasks_bp.updatetask')}}"/>
               <span>Edit</span>
             </div>
@@ -30,17 +31,27 @@
 
         <div class="task-search">
             <label for="task-search-input">Search</label>
-            <div class="search-box">
-                <input type="text" id="task-search-input" placeholder="Find" />
-                <button class="search-btn" aria-label="Search Tasks">🔍</button>
-                </button>
+
+            <div class="task-search-row">
+                <div class="search-box">
+                    <input type="text" id="task-search-input" placeholder="Find" />
+                    <button class="search-btn" aria-label="Search Tasks">🔍</button>
+                </div>
+
+                <div class="table-actions">
+                  <label class="check-all-label">
+                    <input type="checkbox" id="check-all"> Check All
+                  </label>
+                  <span class="separator">|</span>
+                  <button class="delete-all-btn">Delete All</button>
+                </div>
             </div>
         </div>
-
 
         <table class="task-table">
           <thead>
             <tr>
+              <th></th>
               <th>ID</th>
               <th>Name</th>
               <th>Region</th>
@@ -52,13 +63,18 @@
           <tbody id="task-table-body">
             {% for task in tasks %}
               <tr>
+                <td>
+                    <input type="checkbox" class="task-checkbox" data-id="{{ task.IDT }}">
+                </td>
                 <td>{{ task.IDT }}</td>
                 <td>{{ task.TName }}</td>
                 <td>{{ task.Region }}</td>  
                 <td>{{ task.Description }}</td>
                 <td>{{ task.EntryDate.strftime('%Y-%m-%d %H:%M') if task.EntryDate else '' }}</td>
                 <td>
-                    <input type="checkbox" class="task-checkbox" data-id="{{ task.IDT }}">
+                  <button class="delete-task-btn" data-id="{{ task.IDT }}">
+                      <img src="{{ url_for('static', filename='img/trash-red.png') }}" alt="Delete">
+                  </button>
                 </td>
               </tr>
             {% endfor %}

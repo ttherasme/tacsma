@@ -3,35 +3,85 @@
 {% block title %}TACSMA - Data Sheet{% endblock %}
 
 {% block styles %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/task/tasks.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/datasheet/main.css') }}" />
 {% endblock %}
 
 {% block content %}
 <section class="page-content">
        <h1>Data Sheet</h1>
-      <section class="task-panel">
-        <div class="task-header">
+      <section class="ds-panel">
+        <div class="ds-header">
            <!-- <h2>New Task</h2> -->
-          <div class="task-actions">
-            <div class="task-icon open-icon">
+          <div class="ds-actions">
+            <div class="ds-icon open-icon">
               <img src="{{ url_for('static', filename='img/addtask.png') }}" alt="Add" data-url="{{ url_for('datasheet_bp.datasheetregister')}}"/>
               <span>Add</span>
             </div>
-            <div class="task-icon open-icon">
+            <div class="ds-icon edit-icon">
               <img src="{{ url_for('static', filename='img/edittask.png') }}" alt="Edittask" data-url="{{ url_for('datasheet_bp.datasheetupdate')}}"/>
               <span>Edit</span>
             </div>
-            <div class="task-icon open-icon">
+            <div class="ds-icon view-icon">
               <img src="{{ url_for('static', filename='img/viewtask.png') }}" alt="View" data-url="{{ url_for('datasheet_bp.datasheetview')}}"/>
               <span>View</span>
             </div>
           </div>
         </div>
 
+        <div class="ds-search"> 
+            <label for="ds-search-input">Search</label>
+            <div class="search-row"> 
+                <div class="search-box">
+                    <input type="text" id="ds-search-input" placeholder="Find" />
+                    <button class="search-btn" aria-label="Search Tasks">🔍</button>
+                </div>
+                <div class="table-actions"> 
+                    <label class="check-all-label">
+                        <input type="checkbox" id="check-all"> Check All
+                    </label>
+                    <span class="separator">|</span>
+                    <button class="delete-all-btn">Delete All</button>
+                </div>
+            </div>
+        </div>
+
+        <table class="ds-table">
+          <thead>
+            <tr>
+              <th></th>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Region</th>
+              <th>Description</th>
+              <th>Entry date</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="ds-table-body">
+              {% for task in tasks %}
+              <tr>
+                <td>
+                    <input type="checkbox" class="ds-checkbox" data-id="{{ task.IDT }}">
+                </td>
+                <td>{{ task.IDT }}</td>
+                <td>{{ task.TName }}</td>
+                <td>{{ task.Region }}</td>  
+                <td>{{ task.Description }}</td>
+                <td>{{ task.EntryDate.strftime('%Y-%m-%d %H:%M') if task.EntryDate else '' }}</td>
+                <td>
+                  <button class="delete-ds-btn" data-id="{{ task.IDT }}">
+                      <img src="{{ url_for('static', filename='img/trash-red.png') }}" alt="Delete">
+                  </button>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </section>
-      </section>
+</section>
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/datasheet/main.js') }}"></script>
 <script src="{{ url_for('static', filename='js/openother.js') }}"></script> 
 {% endblock %}

@@ -52,6 +52,14 @@
   margin-bottom: 10px;
 }
 
+/* New wrapper for search + actions */
+.task-search-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+
 .task-search label {
   font-weight: bold;
   display: block;
@@ -71,8 +79,8 @@
   border: 1px solid #888;
   border-radius: 4px 0 0 4px;
   border-right: none;
-  width: 25%;
-  min-width: 180px;
+  width: 50%;         /* slightly increased width */
+  min-width: 300px;
 }
 
 .search-box .search-btn {
@@ -88,6 +96,46 @@
   width: 18px;
   height: 18px;
   object-fit: contain;
+}
+
+/* Actions container: Check All + Separator + Delete All */
+.table-actions {
+  display: flex;
+   /*align-items: center;   vertically center all items */
+  gap: 10px;             /* spacing between elements */
+  white-space: nowrap;   /* prevent wrapping to next line */
+}
+
+.check-all-label {
+  display: flex;
+  align-items: center;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.check-all-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin-right: 5px;
+}
+
+.separator {
+  color: blue;
+  margin: 0 10px;
+  user-select: none;
+  font-weight: bold;
+  flex-shrink: 0;        /* prevent shrinking */
+}
+
+.delete-all-btn {
+  background: none;
+  border: none;
+  color: red;
+  text-decoration: underline;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0;
+  white-space: nowrap;   /* keep button text on one line */
 }
 
 /* ---------- TASK TABLE ---------- */
@@ -115,7 +163,14 @@
   background-color: #d2d9e0;
 }
 
-/* ✅ Checkbox column: align properly */
+/* Selected Row Highlight */
+.selected-row td {
+  background-color: #04a229 !important; /* Green highlight */
+  color: #ffffff !important;             /* White text */
+  transition: 0.2s ease-in-out;
+}
+
+/* Checkbox column alignment */
 .task-table th:last-child,
 .task-table td:last-child {
   text-align: center;
@@ -123,13 +178,38 @@
   width: 60px;
 }
 
-/* ✅ Checkbox styling */
+/* Checkbox styling */
 .task-checkbox {
   width: 16px;
   height: 16px;
   cursor: pointer;
   transform: translateY(2px);
 }
+
+/* Delete button inside table */
+.task-table tbody tr td button.delete-task-btn {
+    background: none;       /* no background */
+    border: none;           /* no border */
+    padding: 0;             /* remove default padding */
+    cursor: pointer;        /* pointer on hover */
+    display: inline-flex;   /* ensure proper alignment */
+    align-items: center;
+    justify-content: center;
+}
+
+/* Delete icon image inside table button */
+.task-table tbody tr td button.delete-task-btn img {
+    width: 20px;            /* adjust size as needed */
+    height: 20px;
+    object-fit: contain;
+}
+
+.task-icon.edit-icon.disabled {
+  opacity: 0.4;      /* make it look disabled */
+  pointer-events: none; /* prevent clicking */
+  cursor: not-allowed;
+}
+
 
 /* ---------- RESPONSIVE ADJUSTMENTS ---------- */
 @media (max-width: 768px) {
@@ -142,6 +222,11 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .task-search-row {
+    flex-direction: column;
+    gap: 10px;
   }
 
   .search-box {

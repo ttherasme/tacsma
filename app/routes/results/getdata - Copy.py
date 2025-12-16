@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 import logging
 from sqlalchemy.orm import aliased
-from sqlalchemy import and_
 from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 from app import db
@@ -22,8 +21,7 @@ def get_matrix_a(idt_param: int):
         UOM1 = aliased(UOM)
         UOM2 = aliased(UOM)
 
-        # Base query
-        base_query = (
+        query = (
             db.session.query(
                 Datasheet.IDD.label('IDD'),
                 Element.IDE.label('Flow_id'),
@@ -32,7 +30,6 @@ def get_matrix_a(idt_param: int):
                 Datasheet.ValueD1.label('ValueD1'),
                 UOM1.Unit.label('UnitD1'),
                 Datasheet.ValueD2.label('ValueD2'),
-                Datasheet.CHK.label('CHK'),
                 UOM2.Unit.label('UnitD2'),
                 Item.IName.label('IName')
             )
@@ -42,21 +39,10 @@ def get_matrix_a(idt_param: int):
             .join(UOM1, Datasheet.IDU1 == UOM1.IDU)
             .outerjoin(UOM2, Datasheet.IDU2 == UOM2.IDU)
             .filter(Datasheet.IDT == idt_param)
+            .filter(Item.IName.in_(['Product', 'Co-Products']))
         )
 
-        # Filter all Products
-        query_product = base_query.filter(Item.IName == 'Product')
-
-        # Filter all Co-Products with CHK=0
-        query_coproduct = base_query.filter(
-            and_(Item.IName == 'Co-Products', Datasheet.CHK == 0)
-        )
-
-        # Combine queries using UNION (Products first)
-        query_final = query_product.union_all(query_coproduct)
-
-        # Execute
-        results = query_final.all()
+        results = query.all()
 
         if not results:
             logger.warning(f"No records found for IDT={idt_param}.")
@@ -154,10 +140,7 @@ def get_matrix_b(idt_param: int):
     try:
         all_processes = get_all_processes()
 
-        # -----------------------------
-        # Query 1: Products (exclude 'Product' and 'Co-Products')
-        # -----------------------------
-        query_product = (
+        query = (
             db.session.query(
                 Datasheet.IDD.label('IDD'),
                 Element.IDE.label('Flow_id'),
@@ -176,36 +159,7 @@ def get_matrix_b(idt_param: int):
             .filter(Item.IName.notin_(['Product', 'Co-Products']))
         )
 
-        # -----------------------------
-        # Query 2: Co-Products with CHK = 1 (negate values)
-        # -----------------------------
-        query_coproduct = (
-            db.session.query(
-                Datasheet.IDD.label('IDD'),
-                Element.IDE.label('Flow_id'),
-                Element.EName.label('Flow'),
-                Step.SName.label('Process'),
-                (-Datasheet.ValueD1).label('ValueD1'),
-                UOM.Unit.label('UnitD1'),
-                (-Datasheet.ValueD2).label('ValueD2'),
-                Item.IName.label('IName')
-            )
-            .join(Element, Datasheet.IDE == Element.IDE)
-            .join(Item, Element.IDI == Item.IDI)
-            .join(Step, Datasheet.IDS == Step.IDS)
-            .join(UOM, Datasheet.IDU1 == UOM.IDU)
-            .filter(Datasheet.IDT == idt_param)
-            .filter(and_(Item.IName == 'Co-Products', Datasheet.CHK == 1))
-        )
-
-        # -----------------------------
-        # Combine both queries using UNION ALL
-        # -----------------------------
-        query_final = query_product.union_all(query_coproduct)
-
-        # Execute
-        results = query_final.all()
-
+        results = query.all()
 
         if not results:
             logger.warning(f"No records found for IDT={idt_param}.")

@@ -1,8 +1,8 @@
-"""Remove cascading constraint
+"""Update Element Model
 
-Revision ID: e619a58a88d2
+Revision ID: 2b59c1f69e0f
 Revises: 
-Create Date: 2025-11-18 09:56:18.418960
+Create Date: 2025-12-15 19:59:08.344253
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import mysql
 
 # revision identifiers, used by Alembic.
-revision = 'e619a58a88d2'
+revision = '2b59c1f69e0f'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -23,6 +23,9 @@ def upgrade():
                existing_type=mysql.CHAR(length=6),
                type_=sa.String(length=6),
                existing_nullable=False)
+        batch_op.alter_column('Enterby',
+               existing_type=mysql.VARCHAR(length=25),
+               nullable=True)
         batch_op.drop_index(batch_op.f('idx_ename_idi'))
 
     with op.batch_alter_table('item', schema=None) as batch_op:
@@ -102,12 +105,12 @@ def upgrade():
         batch_op.drop_index(batch_op.f('idx_uname_unit'))
 
     with op.batch_alter_table('user_parameter_value', schema=None) as batch_op:
-        batch_op.drop_constraint(batch_op.f('fk_user'), type_='foreignkey')
         batch_op.drop_constraint(batch_op.f('fk_parameter'), type_='foreignkey')
         batch_op.drop_constraint(batch_op.f('fk_task'), type_='foreignkey')
-        batch_op.create_foreign_key(None, 'tasks', ['IDT'], ['IDT'])
-        batch_op.create_foreign_key(None, 'user', ['user_id'], ['id'])
+        batch_op.drop_constraint(batch_op.f('fk_user'), type_='foreignkey')
         batch_op.create_foreign_key(None, 'parameter', ['parameter_id'], ['id'])
+        batch_op.create_foreign_key(None, 'user', ['user_id'], ['id'])
+        batch_op.create_foreign_key(None, 'tasks', ['IDT'], ['IDT'])
 
     # ### end Alembic commands ###
 
@@ -118,9 +121,9 @@ def downgrade():
         batch_op.drop_constraint(None, type_='foreignkey')
         batch_op.drop_constraint(None, type_='foreignkey')
         batch_op.drop_constraint(None, type_='foreignkey')
+        batch_op.create_foreign_key(batch_op.f('fk_user'), 'user', ['user_id'], ['id'], ondelete='CASCADE')
         batch_op.create_foreign_key(batch_op.f('fk_task'), 'tasks', ['IDT'], ['IDT'], ondelete='CASCADE')
         batch_op.create_foreign_key(batch_op.f('fk_parameter'), 'parameter', ['parameter_id'], ['id'], ondelete='CASCADE')
-        batch_op.create_foreign_key(batch_op.f('fk_user'), 'user', ['user_id'], ['id'], ondelete='CASCADE')
 
     with op.batch_alter_table('uom', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('idx_uname_unit'), ['UName', 'Unit'], unique=False)
@@ -200,6 +203,9 @@ def downgrade():
 
     with op.batch_alter_table('element', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('idx_ename_idi'), ['EName', 'IDI'], unique=False)
+        batch_op.alter_column('Enterby',
+               existing_type=mysql.VARCHAR(length=25),
+               nullable=False)
         batch_op.alter_column('IDI',
                existing_type=sa.String(length=6),
                type_=mysql.CHAR(length=6),

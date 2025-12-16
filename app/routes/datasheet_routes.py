@@ -1,6 +1,8 @@
 from flask import Blueprint, render_template, session, redirect, url_for, request, jsonify
+from sqlalchemy import func
 from app import db
-from app.models import Datasheet, Element, Step, UOM, Tasks, Item
+from app.models import Datasheet, Element, Step, UOM, Tasks, Item, UserParameterValue
+
 
 import logging
 logging.basicConfig(level=logging.DEBUG)
@@ -25,21 +27,69 @@ def datasheetregister():
 
 @datasheet_bp.route('/datasheetupdate')
 def datasheetupdate():
+    # 1. Retrieve the parameters from the URL
+    task_id = request.args.get('id', type=int)
+    task_name = request.args.get('name')
+    
     if 'username' not in session:
         return redirect(url_for('auth_bp.login'))
-    return render_template('datasheet/datasheetupdate.html')
+    
+    
+    # 2. Use the ID to fetch all data for the Task (e.g., datasheet entries)
+    if task_id is None or task_name is None:
+        # Handle case where parameters are missing
+        return redirect(url_for('datasheet_bp.datasheet')) 
+        pass 
+
+    # Example: Query the datasheet entries for this specific task
+    # datasheet_entries = Datasheet.query.filter_by(IDT=task_id).all() 
+    
+    return render_template('datasheet/datasheetupdate.html', 
+                           task_id=task_id, 
+                           task_name=task_name,
+                           # datasheet_entries=datasheet_entries # pass the data to the template
+                           )
+
 
 @datasheet_bp.route('/datasheetview')
 def datasheetview():
+    # 1. Retrieve the parameters from the URL
+    task_id = request.args.get('id', type=int)
+    task_name = request.args.get('name')
+    
     if 'username' not in session:
         return redirect(url_for('auth_bp.login'))
-    return render_template('datasheet/datasheetview.html')
+    
+     # 2. Use the ID to fetch all data for the Task (e.g., datasheet entries)
+    if task_id is None or task_name is None:
+        # Handle case where parameters are missing
+        return redirect(url_for('datasheet_bp.datasheet')) 
+        pass 
+    
+    return render_template('datasheet/datasheetview.html', 
+                           task_id=task_id, 
+                           task_name=task_name,
+                           # datasheet_entries=datasheet_entries # pass the data to the template
+                           )
 
 
 # ----------- API: Get Data -----------
 @datasheet_bp.route('/get_all_tasks')
 def get_all_tasks():
-    tasks = Tasks.query.order_by(Tasks.TName).all()
+    if 'username' not in session:
+        return jsonify({"success": False, "tasks": []})
+
+    username = session['username']
+
+    # Base query for tasks without datasheet
+    query = db.session.query(Tasks)
+
+    # Apply visibility rules
+    if username.lower() != "admin":
+        query = query.filter(Tasks.EnterBy == username)
+
+    tasks = query.order_by(Tasks.TName.asc()).all()
+
     return jsonify({
         "success": True,
         "tasks": [{"IDT": t.IDT, "TName": t.TName} for t in tasks]
@@ -63,10 +113,52 @@ def get_all_uoms():
         "uoms": [{"IDU": u.IDU, "Unit": u.Unit, "UName": u.UName} for u in uoms]
     })
 
+@datasheet_bp.route('/get_all_uoms_by_element/<string:ide>')
+def get_all_uoms_by_element(ide):
+    # Check if Datasheet exists for this element
+    datasheet = Datasheet.query.filter_by(IDE=ide).first()
+
+    if not datasheet:
+        # No datasheet → return all UOMs
+        uoms = UOM.query.order_by(UOM.Unit).all()
+    else:
+        # Datasheet exists → return only linked UOM(s)
+        uoms = (
+            UOM.query
+            .filter(UOM.IDU == datasheet.IDU1)
+            .order_by(UOM.Unit)
+            .all()
+        )
+
+    return jsonify({
+        "success": True,
+        "uoms": [
+            {
+                "IDU": u.IDU,
+                "Unit": u.Unit,
+                "UName": u.UName
+            }
+            for u in uoms
+        ]
+    })
+
 
 @datasheet_bp.route('/get_all_elements')
 def get_all_elements():
-    elements = Element.query.order_by(Element.EName).all()
+    if 'username' not in session:
+        return jsonify({"success": False, "elements": []})
+
+    username = session['username']
+
+    # Base query for tasks without datasheet
+    query = db.session.query(Element)
+
+    # Apply visibility rules
+    if username.lower() != "admin":
+        query = query.filter(Element.Enterby == username)
+
+    elements = query.order_by(Element.EName.asc()).all()
+    
     return jsonify({
         "success": True,
         "elements": [{
@@ -75,8 +167,8 @@ def get_all_elements():
         } for e in elements]
     })
 
-@datasheet_bp.route('/get_elements_by_category/<category_name>')
-def get_elements_by_category(category_name):
+@datasheet_bp.route('/get_elements_by_category_old/<category_name>')
+def get_elements_by_category_old(category_name):
     item = Item.query.filter(Item.IName.ilike(category_name)).first()
     if not item:
         return jsonify({"success": False, "message": "Category not found", "elements": []})
@@ -96,12 +188,60 @@ def get_elements_by_category(category_name):
     })
 
 
+
+@datasheet_bp.route('/get_elements_info_by_category/<category_name>')
+def get_elements_info_by_category(category_name):
+    if 'username' not in session:
+        return jsonify({"success": False, "elements": []}), 401
+
+    username = session['username']
+    name = category_name.lower()
+
+    if 'product' in name:
+        items = Item.query.filter(Item.IName.ilike('%product%')).all()
+    else:
+        items = Item.query.filter(Item.IName.ilike(f'%{name}%')).all()
+
+    if not items:
+        return jsonify({
+            "success": False,
+            "message": "Category not found",
+            "elements": []
+        }), 404
+
+    item_ids = [item.IDI for item in items]
+
+    elements_query = Element.query.filter(Element.IDI.in_(item_ids))
+
+    if username.lower() != "admin":
+        elements_query = elements_query.filter(Element.Enterby == username)
+
+    elements = elements_query.order_by(Element.EName.asc()).all()
+
+    element_list = [{
+        "IDE": e.IDE,
+        "EName": e.EName,
+        "IDI": e.IDI,
+        "Category": category_name
+    } for e in elements]
+
+    return jsonify({
+        "success": True,
+        "elements": element_list
+    })
+
+
+
 @datasheet_bp.route('/get_datasheet_by_task/<int:task_id>', methods=['GET'])
 def get_datasheet_by_task(task_id):
-    if 'username' not in session:
+    # Authorization check
+    username = session.get('username')
+    if not username:
         return jsonify({"success": False, "message": "Unauthorized"}), 401
+
     try:
-        results = db.session.query(
+        # Base query
+        query = db.session.query(
             Datasheet.IDD,
             Datasheet.IDT,
             Datasheet.IDE,
@@ -113,8 +253,80 @@ def get_datasheet_by_task(task_id):
             Datasheet.IDM,
             Datasheet.CHK,
             UOM.UName
-        ).join(UOM, Datasheet.IDU1 == UOM.IDU)\
-         .filter(Datasheet.IDT == task_id).all()
+        ).outerjoin(
+            UOM, Datasheet.IDU1 == UOM.IDU
+        ).filter(
+            Datasheet.IDT == task_id
+        )
+
+        # Non-admin users only see their own entries
+        if username.lower() != "admin":
+            query = query.filter(Datasheet.EnterBy == username)
+
+        results = query.all()
+
+        data = [{
+            "IDD": r.IDD,
+            "IDT": r.IDT,
+            "IDE": r.IDE,
+            "IDS": r.IDS,
+            "IDU1": r.IDU1,
+            "ValueD1": r.ValueD1,
+            "IDU2": r.IDU2,
+            "ValueD2": r.ValueD2,
+            "IDM": r.IDM,
+            "CHK": r.CHK,
+            "UName": r.UName
+        } for r in results]
+
+        return jsonify({"success": True, "data": data}), 200
+
+    except Exception as e:
+        # Prefer logger.exception(...) in production
+        print(f"Error fetching datasheet data for task {task_id}: {e}")
+        return jsonify({"success": False, "message": "Internal server error"}), 500
+
+
+@datasheet_bp.route('/get_datasheet_by_task_old/<int:task_id>', methods=['GET'])
+def get_datasheet_by_task_old(task_id):
+    if 'username' not in session:
+        return jsonify({"success": False, "message": "Unauthorized"}), 401
+    
+    username = session['username']
+    
+    try:
+        # Admin sees everything
+        if username.lower() == "admin":
+            results = db.session.query(
+                Datasheet.IDD,
+                Datasheet.IDT,
+                Datasheet.IDE,
+                Datasheet.IDS,
+                Datasheet.IDU1,
+                Datasheet.ValueD1,
+                Datasheet.IDU2,
+                Datasheet.ValueD2,
+                Datasheet.IDM,
+                Datasheet.CHK,
+                UOM.UName
+            ).join(UOM, Datasheet.IDU1 == UOM.IDU)\
+            .filter(Datasheet.IDT == task_id).all()
+        else:
+            # Others only see their own tasks
+            results = db.session.query(
+                Datasheet.IDD,
+                Datasheet.IDT,
+                Datasheet.IDE,
+                Datasheet.IDS,
+                Datasheet.IDU1,
+                Datasheet.ValueD1,
+                Datasheet.IDU2,
+                Datasheet.ValueD2,
+                Datasheet.IDM,
+                Datasheet.CHK,
+                UOM.UName
+            ).join(UOM, Datasheet.IDU1 == UOM.IDU)\
+            .filter(Datasheet.IDT == task_id, Datasheet.EnterBy == username).all()
 
         data = [{
             'IDD': r.IDD,
@@ -136,6 +348,114 @@ def get_datasheet_by_task(task_id):
         db.session.rollback()
         print(f"Error fetching datasheet data for task {task_id}: {e}")
         return jsonify({"success": False, "message": "Internal server error"}), 500
+
+
+@datasheet_bp.route('/listtasks_with_out_datasheet', methods=['GET'])
+def listtasks_with_out_datasheet():
+    if 'username' not in session:
+        return jsonify({"success": False, "tasks": []})
+
+    username = session['username']
+
+    # Base query for tasks without datasheet
+    query = db.session.query(Tasks).outerjoin(Datasheet, Tasks.IDT == Datasheet.IDT)\
+                .filter(Datasheet.IDT == None)  # Only tasks with no datasheet
+
+    # Apply visibility rules
+    if username.lower() != "admin":
+        query = query.filter(Tasks.EnterBy == username)
+
+    tasks = query.order_by(Tasks.TName.asc()).all()
+
+    result = [{
+        "IDT": task.IDT,
+        "TName": task.TName,
+        "Region": task.Region,
+        "Description": task.Description,
+        "EntryDate": task.EntryDate.strftime('%Y-%m-%d %H:%M') if task.EntryDate else ""
+    } for task in tasks]
+
+    return jsonify({"success": True, "tasks": result})
+
+# ------------------------------------------
+# Route: Delete Datasheet by IDD
+# ------------------------------------------
+@datasheet_bp.route('/delete_datasheet/<int:task_id>', methods=['DELETE'])
+def delete_datasheet(task_id):
+    """
+    Deletes a Task and its associated Datasheet and UserParameterValue entries 
+    by deleting child records first.
+    """
+    if 'username' not in session:
+        return jsonify({"success": False, "message": "Not authenticated"}), 401
+
+    task = Tasks.query.get(task_id)
+    if not task:
+        return jsonify({"success": False, "message": "Task not found"}), 404
+
+    try:
+        # 1. Delete associated UserParameterValue entries
+        # These reference the Task via IDT
+        UserParameterValue.query.filter_by(IDT=task_id).delete()
+
+        # 2. Delete associated Datasheet entries
+        # These reference the Task via IDT
+        Datasheet.query.filter_by(IDT=task_id).delete()
+        
+        # 3. Delete the parent Task itself
+        db.session.delete(task)
+        
+        db.session.commit()
+        return jsonify({"success": True, "message": "Task and related data deleted successfully"})
+    except Exception as e:
+        db.session.rollback()
+        # Log the error for debugging
+        print(f"Error during single task deletion for ID {task_id}: {e}") 
+        return jsonify({"success": False, "message": "Error deleting task and data"}), 500
+    
+
+@datasheet_bp.route('/delete_datasheets', methods=['DELETE'])
+def delete_datasheets():
+    """
+    Deletes a batch of Tasks and their associated data with manual cascading.
+    """
+    if 'username' not in session:
+        return jsonify({"success": False, "message": "Not authenticated"}), 401
+
+    # Expecting 'task_ids' from the JavaScript client
+    task_ids = request.json.get("task_ids", [])
+    if not task_ids:
+        return jsonify({"success": False, "message": "No Task IDs provided"}), 400
+
+    results = []
+    
+    # Process the list of IDs
+    int_task_ids = [int(tid) for tid in task_ids if str(tid).isdigit()]
+
+    for task_id in int_task_ids:
+        task = Tasks.query.get(task_id)
+
+        if not task:
+            results.append({"id": task_id, "status": "not_found"})
+            continue
+
+        try:
+            # 1. Delete associated UserParameterValue entries
+            UserParameterValue.query.filter_by(IDT=task_id).delete()
+
+            # 2. Delete associated Datasheet entries
+            Datasheet.query.filter_by(IDT=task_id).delete()
+            
+            # 3. Delete the parent Task itself
+            db.session.delete(task)
+            db.session.commit()
+            results.append({"id": task_id, "status": "deleted"})
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error deleting Task ID {task_id}: {e}")
+            results.append({"id": task_id, "status": "error", "message": str(e)})
+
+    return jsonify({"success": True, "results": results})
 
 
 # ----------- API: Get step/item by name -----------

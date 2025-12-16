@@ -25,6 +25,7 @@ def get_current_user_data():
     session.pop('username', None)
     return None, None
 
+
 def get_user_parameter_data(user_id):
     # Get all global parameters in a map for quick access
     global_params = Parameter.query.order_by(Parameter.id).all()
@@ -78,6 +79,23 @@ def get_user_parameter_data(user_id):
 
     # Return the full list of rows to be shown in the table
     return parameter_list
+
+
+@parameters_bp.route('/get_regeneration_user')
+def get_regeneration_user():
+    logger.info("GET /get_regeneration_user called")
+    logger.warning(f"Regeneration mode :")
+    current_user, user_id = get_current_user_data()
+
+    if not current_user:
+        logger.warning("No current user found")
+        return jsonify({"error": "not_authenticated"}), 401
+
+    logger.warning(f"value : '{current_user.regeneration_mode}'")
+
+    return jsonify({
+        "value": current_user.regeneration_mode
+    })
 
 
 @parameters_bp.route('/listparameters')

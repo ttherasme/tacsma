@@ -17,7 +17,7 @@
                     <img src="{{ url_for('static', filename='img/addtask.png') }}" alt="Add" data-url="{{ url_for('uom_bp.registeruom')}}"/>
                     <span>Add</span>
                 </div>
-                <div class="uom-icon open-icon">
+                <div class="uom-icon edit-icon">
                     <img src="{{ url_for('static', filename='img/edittask.png') }}" alt="Edit" data-url="{{ url_for('uom_bp.updateuom')}}"/>
                     <span>Edit</span>
                 </div>
@@ -26,33 +26,52 @@
 
         <div class="uom-search">
             <label for="uom-search-input">Search</label>
-            <div class="search-box">
-                <input type="text" id="uom-search-input" placeholder="Find" />
-                <button class="search-btn" aria-label="Search uoms">🔍</button>
+
+            <div class="search-row">
+                <div class="search-box">
+                    <input type="text" id="uom-search-input" placeholder="Find" />
+                    <button class="search-btn" aria-label="Search uoms">🔍</button>
+                </div>
+
+                <div class="table-actions">
+                    <label class="check-all-label">
+                        <input type="checkbox" id="check-all"> Check All
+                    </label>
+                    <span class="separator">|</span>
+                    <button class="delete-all-btn">Delete All</button>
+                </div>
             </div>
+
         </div>
+
 
         <table class="uom-table">
             <thead>
                 <tr>
+                    <th></th> {# Checkbox column header #}
                     <th>ID</th>
                     <th>Name</th>
                     <th>Unit</th>
                     <th>State</th>
                     <th>Entry Date</th> {# Add Entry Date column #}
-                    <th></th> {# Checkbox column header #}
+                    <th></th> {# delete column header #}
                 </tr>
             </thead>
             <tbody id="uom-table-body">
                 {% for uom in uoms %}
                     <tr>
+                        <td>
+                            <input type="checkbox" class="uom-checkbox" data-id="{{ uom.IDU }}">
+                        </td>
                         <td>{{ uom.IDU }}</td>
                         <td>{{ uom.UName }}</td>
                         <td>{{ uom.Unit }}</td>
                         <td>{{ uom.State }}</td>
                         <td>{{ uom.EntryDate.strftime('%Y-%m-%d %H:%M') if uom.EntryDate else '' }}</td>
                         <td>
-                            <input type="checkbox" class="uom-checkbox" data-id="{{ uom.IDU }}">
+                            <button class="delete-uom-btn" data-id="{{ uom.IDU }}">
+                                <img src="{{ url_for('static', filename='img/trash-red.png') }}" alt="Delete">
+                            </button>
                         </td>
                     </tr>
                 {% endfor %}

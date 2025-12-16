@@ -18,8 +18,12 @@ document.addEventListener("DOMContentLoaded", () => {
     let currentModule = "Forest Operation";
     let currentCategory = "Product";
 
+    let stepsLoaded = false;
+    let datasheetsLoaded = false;
+
+
     /* ===============================================================
-       LOAD INITIAL DATA
+        LOAD INITIAL DATA (UOMs, MTransport, Steps)
     =============================================================== */
 
     fetch("/listTotbystatus/1")
@@ -30,25 +34,15 @@ document.addEventListener("DOMContentLoaded", () => {
         .then(res => res.json())
         .then(data => { if (data.success) allUOMs = data.uoms; });
 
-    fetch("/listtasks")
-        .then(res => res.json())
-        .then(data => {
-            taskList.innerHTML = "";
-            if (data.success && Array.isArray(data.tasks)) {
-                data.tasks.forEach(task => {
-                    const opt = document.createElement("option");
-                    opt.value = task.TName;
-                    opt.dataset.id = task.IDT;
-                    taskList.appendChild(opt);
-                });
-            }
-        });
+    // --- REMOVED: fetch("/listtasks") ---
 
     fetch("/get_all_steps")
         .then(res => res.json())
         .then(data => {
             if (data.success) {
                 allSteps = data.steps;
+                stepsLoaded = true;          // ✅ ADD
+                tryInitialRefresh();         // ✅ ADD
 
                 stepSelect.innerHTML = '<option disabled selected value="">Select Step</option>';
                 data.steps.forEach(step => {
@@ -62,8 +56,63 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
 
+
     /* ===============================================================
-       EVENT LISTENERS
+        NEW: TASK INITIALIZATION
+    =============================================================== */
+    
+    // Function to fetch datasheet data and trigger initial form refresh
+    function loadTaskData(taskId) {
+        fetch(`/get_datasheet_by_task/${taskId}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    allDatasheets = data.data;
+                    datasheetsLoaded = true;   // ✅ ADD
+                    tryInitialRefresh();       // ✅ ADD
+                } else {
+                    alert("Failed to load datasheet entries for this task.");
+                }
+            })
+            .catch(err => {
+                console.error("Error fetching datasheet:", err);
+                alert("An error occurred while loading task data.");
+            });
+    }
+
+    function tryInitialRefresh() {
+        if (stepsLoaded && datasheetsLoaded) {
+            refreshForm(); // ✅ guaranteed safe
+        }
+    }
+
+
+    // Initialization Block: Use the data passed from the backend (initialTaskId, initialTaskName)
+    const hasInitialTask = typeof initialTaskId !== 'undefined' && initialTaskId !== null;
+
+    if (hasInitialTask) {
+        // 1. Set the input field and disable it
+        taskInput.value = initialTaskName;
+        taskInput.disabled = true;
+        
+        // 2. Add the option to the list (even though it's disabled)
+        const initialTaskOption = document.createElement("option");
+        initialTaskOption.value = initialTaskName;
+        initialTaskOption.dataset.id = initialTaskId;
+        taskList.appendChild(initialTaskOption);
+
+        // 3. Immediately load the task data (Datasheet entries)
+        loadTaskData(initialTaskId);
+        
+    } else {
+        // Fallback for missing parameters
+        taskInput.placeholder = "Error: Task not selected.";
+        taskInput.disabled = true;
+        rightPanel.innerHTML = '<p>Task data could not be loaded.</p>';
+    }
+
+    /* ===============================================================
+        EVENT LISTENERS
     =============================================================== */
 
     moduleTabs.forEach(tab => {
@@ -88,20 +137,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    taskInput.addEventListener("change", () => {
-        const selected = taskList.querySelector(`option[value="${taskInput.value}"]`);
-        const taskId = selected ? selected.dataset.id : null;
-        if (!taskId) return;
-
-        fetch(`/get_datasheet_by_task/${taskId}`)
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    allDatasheets = data.data;
-                    refreshForm();
-                }
-            });
-    });
+    // --- REMOVED: taskInput.addEventListener("change", ...) ---
 
     stepSelect.addEventListener("change", () => {
         currentModule = stepSelect.options[stepSelect.selectedIndex].text.trim();
@@ -110,13 +146,12 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     /* ===============================================================
-       REFRESH UI
+        REFRESH UI
     =============================================================== */
 
     function refreshForm() {
-        const taskName = taskInput.value;
-        const opt = taskList.querySelector(`option[value="${taskName}"]`);
-        const taskId = opt ? opt.dataset.id : null;
+        // MODIFIED: Get taskId directly from the global variable
+        const taskId = initialTaskId;
 
         if (!taskId) {
             rightPanel.innerHTML = `<p>Please select a valid task.</p>`;
@@ -153,7 +188,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     /* ===============================================================
-       TABLE RENDERING
+        TABLE RENDERING
     =============================================================== */
 
     function renderTable(rows, elements) {
@@ -172,7 +207,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <th>Mass</th>
                 <th>Distance</th>
                 <th>Transport Mode</th>`;
-        } 
+        }
         else if (currentCategory === "Co-Products") {
             headerRow.innerHTML = `
                 <th>Name</th>
@@ -221,7 +256,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <td>${rowData.ValueD2} ${unit2}</td>
                 <td>${mt}</td>
             `;
-        } 
+        }
         else if (currentCategory === "Co-Products") {
             const unit = allUOMs.find(u => u.IDU == rowData.IDU1)?.Unit || "";
             tr.innerHTML = `
@@ -230,7 +265,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <td>${unit}</td>
                 <td>${rowData.CHK === 1 ? "✔" : ""}</td>
             `;
-        } 
+        }
         else {
             const unit = allUOMs.find(u => u.IDU == rowData.IDU1)?.Unit || "";
             tr.innerHTML = `
@@ -244,7 +279,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     /* ===============================================================
-       ROW SELECTION LOGIC
+        ROW SELECTION LOGIC
     =============================================================== */
 
     function enableRowSelection(table) {

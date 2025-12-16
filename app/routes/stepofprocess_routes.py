@@ -157,6 +157,61 @@ def search_sops():
     return jsonify(result)
 
 # ------------------------------------------
+# Route: Delete Steps of Process
+# ------------------------------------------
+@stepofprocess_bp.route('/delete_step/<string:step_id>', methods=['DELETE'])
+def delete_step(step_id):
+    if 'username' not in session:
+        return jsonify({"success": False, "message": "Not authenticated"}), 401
+
+    step = Step.query.get(step_id)
+
+    if not step:
+        return jsonify({"success": False, "message": "Process not found"}), 404
+
+    try:
+        db.session.delete(step)
+        db.session.commit()
+        return jsonify({"success": True, "message": "Process deleted successfully"})
+    
+    except Exception:
+        db.session.rollback()
+        return jsonify({"success": False, "message": "Error deleting the process"}), 500
+    
+
+@stepofprocess_bp.route('/delete_steps', methods=['DELETE'])
+def delete_steps():
+    if 'username' not in session:
+        return jsonify({"success": False, "message": "Not authenticated"}), 401
+
+    step_ids = request.json.get("step_ids", [])
+    if not step_ids:
+        return jsonify({"success": False, "message": "No process IDs provided"}), 400
+
+    results = []
+
+    try:
+        for step_id in step_ids:
+            step_id = str(step_id)  # ensure string
+            step= Step.query.get(step_id)
+
+            if not step:
+                results.append({"id": step_id, "status": "not_found"})
+                continue
+
+            db.session.delete(step)
+            results.append({"id": step_id, "status": "deleted"})
+
+        db.session.commit()
+
+    except Exception:
+        db.session.rollback()
+        # mark all as error for consistency
+        results = [{"id": str(uid), "status": "error"} for uid in step_ids]
+
+    return jsonify({"success": True, "results": results})
+
+# ------------------------------------------
 # Route: Get Active Step Names (Excluding Specific Values)
 # ------------------------------------------
 # stepofprocess_routes.py

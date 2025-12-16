@@ -1,0 +1,298 @@
+/* app/static/css/datasheet/datasheet.css - Full Code (ds- prefix) */
+
+/* ---------- DS PANEL SECTION ---------- */
+.ds-panel { /* Renamed from .task-panel */
+    max-width: 1400px; /* Increased max width for 10 columns */
+    margin: 40px auto;
+    padding: 0 20px;
+    box-sizing: border-box;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+}
+
+.ds-header h2 { /* Renamed from .task-header */
+    font-size: 1.4rem;
+    margin-bottom: 15px;
+}
+
+.ds-actions { /* Renamed from .task-actions */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    border: 1px solid #aaa;
+    border-radius: 10px;
+    gap: 40px;
+}
+
+.ds-icon { /* Renamed from .task-icon */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 1rem;
+    color: #222;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+}
+
+.ds-icon img { /* Renamed from .task-icon */
+    width: 50px;
+    height: 50px;
+    margin-bottom: 8px;
+    object-fit: contain;
+    transition: transform 0.3s ease;
+}
+
+.ds-icon:hover { /* Renamed from .task-icon */
+    transform: scale(1.05);
+}
+
+/* FIX: Disable the Edit Icon as requested */
+.ds-icon.edit-icon,
+.ds-icon.view-icon {
+    opacity: 1;
+    pointer-events: auto;
+    cursor: pointer;
+}
+
+/* DISABLED STATE (controlled by JS) */
+.ds-icon.disabled {
+    opacity: 0.4 !important;
+    pointer-events: none !important;
+    cursor: not-allowed !important;
+    filter: grayscale(1);
+}
+
+
+/* ---------- DS SEARCH SECTION ---------- */
+.ds-search { /* Renamed from .task-search */
+    margin-top: 25px;
+    margin-bottom: 20px; /* Adjusted spacing */
+}
+
+/* New wrapper for task input + actions */
+.search-row { /* Assuming you used .search-row in HTML */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+}
+
+.ds-search label { /* Renamed from .task-search */
+    font-weight: bold;
+    display: block;
+    margin-bottom: 8px;
+}
+
+/* FIX: Custom styling for the datalist input box */
+.search-box {
+  display: flex;
+  align-items: center;
+  max-width: 100%;
+  gap: 0;
+}
+
+.search-box input {
+  padding: 6px 10px;
+  font-size: 1rem;
+  border: 1px solid #888;
+  border-radius: 4px 0 0 4px;
+  border-right: none;
+  width: 50%;         /* slightly increased width */
+  min-width: 300px;
+}
+
+.search-box .search-btn {
+  background-color: white;
+  border: 1px solid #888;
+  border-left: none;
+  border-radius: 0 4px 4px 0;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.search-box .search-btn img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+
+/* Actions container: Check All + Separator + Delete All */
+.table-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    white-space: nowrap;
+}
+
+.check-all-label {
+    display: flex;
+    align-items: center;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.check-all-label input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    margin-right: 5px;
+}
+
+.separator {
+    color: blue;
+    margin: 0 10px;
+    user-select: none;
+    font-weight: bold;
+    flex-shrink: 0;
+}
+
+.delete-all-btn {
+    background: none;
+    border: none;
+    color: red;
+    text-decoration: underline;
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 0;
+    white-space: nowrap;
+}
+
+/* ---------- DS TABLE ---------- */
+.ds-table { /* Renamed from .task-table */
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    table-layout: fixed; /* CRITICAL for column widths */
+}
+
+.ds-table th { /* Renamed from .task-table */
+    background-color: #015c7a;
+    color: white;
+    padding: 10px;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ds-table td { /* Renamed from .task-table */
+    background-color: #e0e5eb;
+    height: 40px;
+    padding: 8px;
+    border: 1px solid #ccc;
+    word-wrap: break-word;
+    font-size: 0.9em;
+}
+
+.ds-table tr:nth-child(even) td { /* Renamed from .task-table */
+    background-color: #d2d9e0;
+}
+
+/* FIX: Column Widths for the 10-column Datasheet table (Total 100%) 
+   (CB: 3, ID: 5, Task: 15, Element: 15, Step: 10, Val1: 15, Val2: 15, Transp: 10, CHK: 5, Delete: 7 = 100%)
+*/
+.ds-table th:nth-child(1), .ds-table td:nth-child(1) { width: 3%; }  /* Checkbox */
+.ds-table th:nth-child(2), .ds-table td:nth-child(2) { width: 5%; }  /* IDD */
+.ds-table th:nth-child(3), .ds-table td:nth-child(3) { width: 15%; } /* Task */
+.ds-table th:nth-child(4), .ds-table td:nth-child(4) { width: 15%; } /* Element */
+.ds-table th:nth-child(5), .ds-table td:nth-child(5) { width: 10%; } /* Step/Process */
+.ds-table th:nth-child(6), .ds-table td:nth-child(6) { width: 15%; } /* FullValue1 */
+.ds-table th:nth-child(7), .ds-table td:nth-child(7) { width: 15%; } /* FullValue2 */
+.ds-table th:nth-child(8), .ds-table td:nth-child(8) { width: 10%; } /* Transp Mode */
+.ds-table th:nth-child(9), .ds-table td:nth-child(9) { width: 5%; }  /* CHK */
+
+/* Last column (Delete Icon) */
+.ds-table th:last-child,
+.ds-table td:last-child {
+    text-align: center;
+    vertical-align: middle;
+    width: 7%;
+}
+
+/* Selected Row Highlight */
+.ds-table .selected-row td {
+    background-color: #4CAF50 !important; /* Green highlight */
+    color: #ffffff !important;
+    transition: 0.2s ease-in-out;
+}
+
+/* Checkbox styling */
+.ds-checkbox { /* Renamed from .task-checkbox */
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    transform: translateY(2px);
+}
+
+/* Delete button inside table */
+.ds-table tbody tr td button.delete-ds-btn { /* Renamed from .delete-task-btn */
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Delete icon image inside table button */
+.ds-table tbody tr td button.delete-ds-btn img { /* Renamed from .delete-task-btn */
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+}
+
+/* Ensure the input field takes up the width and padding for the arrow */
+.task-input {
+    width: 100%;
+    /* Add padding on the right to make space for the arrow */
+    padding-right: 30px; 
+    /* All other existing styles (border, height, etc.) remain */
+}
+
+/* ---------- RESPONSIVE ADJUSTMENTS ---------- */
+@media (max-width: 1200px) {
+    /* Use horizontal scroll for smaller screens on large table */
+    .ds-table-wrapper {
+        overflow-x: auto;
+        width: 100%;
+    }
+    .ds-table {
+        min-width: 1000px; /* Ensure table doesn't shrink too much */
+    }
+}
+
+@media (max-width: 768px) {
+    .ds-actions {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .ds-search {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .search-row {
+        flex-direction: column;
+        gap: 10px;
+        align-items: flex-start;
+    }
+
+    .search-box {
+        width: 100%;
+        max-width: none;
+    }
+
+    .search-box input {
+        width: 100%;
+        min-width: 100%;
+    }
+    
+    .table-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+}

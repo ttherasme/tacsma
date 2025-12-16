@@ -116,13 +116,21 @@ def search_tasks():
     if 'username' not in session:
         return jsonify([])
 
+    username = session['username']
     query = request.args.get('q', '').strip()
+    like_query = f"%{query}%"
 
-    if not query:
-        tasks = Tasks.query.order_by(Tasks.EntryDate.desc()).limit(10).all()
+    # --- Base query: Admin sees all, others only see their own ---
+    if username.lower() == "admin":
+        base_query = Tasks.query
     else:
-        like_query = f"%{query}%"
-        tasks = Tasks.query.filter(
+        base_query = Tasks.query.filter(Tasks.EnterBy == username)
+
+    # --- Apply search filter---
+    if not query:
+        tasks = base_query.order_by(Tasks.EntryDate.desc()).limit(10).all()
+    else:
+        tasks = base_query.filter(
             db.or_(
                 Tasks.TName.ilike(like_query),
                 Tasks.Region.ilike(like_query),
@@ -142,21 +150,88 @@ def search_tasks():
 
     return jsonify(result)
 
+
 # ------------------------------------------
 # Route: list tasks
 # ------------------------------------------
 
 @tasks_bp.route('/listtasks', methods=['GET'])
 def listtasks():
-     if 'username' not in session:
-         return jsonify({"success": False, "tasks": []})
-     tasks = Tasks.query.order_by(Tasks.TName.asc()).all()
+    if 'username' not in session:
+        return jsonify({"success": False, "tasks": []})
+
+    username = session['username']
+
+    # Admin sees everything
+    if username.lower() == "admin":
+        tasks = Tasks.query.order_by(Tasks.TName.asc()).all()
+    else:
+        # Others only see their own tasks
+        tasks = Tasks.query.filter(Tasks.EnterBy == username).order_by(Tasks.TName.asc()).all()
+
+    result = [{
+        "IDT": task.IDT,
+        "TName": task.TName,
+        "Region": task.Region,
+        "Description": task.Description,
+        "EntryDate": task.EntryDate.strftime('%Y-%m-%d %H:%M') if task.EntryDate else ""
+    } for task in tasks]
+
+    return jsonify({"success": True, "tasks": result})
+
+# ------------------------------------------
+# Route: Delete a task by IDT
+# ------------------------------------------
+@tasks_bp.route('/delete_task/<int:task_id>', methods=['DELETE'])
+def delete_task(task_id):
+    if 'username' not in session:
+        return jsonify({"success": False, "message": "Not authenticated"}), 401
+
+    username = session['username']
+
+    # Fetch the task
+    task = Tasks.query.get(task_id)
+    if not task:
+        return jsonify({"success": False, "message": "Task not found"}), 404
+
+    # Admin can delete anything, other users only their own
+    #if username != "Admin" and task.EnterBy != username:
+    #    return jsonify({"success": False, "message": "Not authorized"}), 403
+
+    try:
+        db.session.delete(task)
+        db.session.commit()
+        return jsonify({"success": True, "message": "Task deleted successfully"})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": "Error deleting task"}), 500
     
-     result = [{
-         "IDT": task.IDT,
-         "TName": task.TName,
-         "Region": task.Region,
-         "Description": task.Description,
-         "EntryDate": task.EntryDate.strftime('%Y-%m-%d %H:%M') if task.EntryDate else ""
-         } for task in tasks]
-     return jsonify({"success": True, "tasks": result})
+
+@tasks_bp.route('/delete_tasks', methods=['DELETE'])
+def delete_tasks():
+    if 'username' not in session:
+        return jsonify({"success": False, "message": "Not authenticated"}), 401
+
+    task_ids = request.json.get("task_ids", [])
+    if not task_ids:
+        return jsonify({"success": False, "message": "No task IDs provided"}), 400
+
+    results = []
+    for task_id in task_ids:
+        task = Tasks.query.get(task_id)
+
+        if not task:
+            results.append({"id": task_id, "status": "not_found"})
+            continue
+
+        try:
+            db.session.delete(task)
+            db.session.commit()
+            results.append({"id": task_id, "status": "deleted"})
+        except:
+            db.session.rollback()
+            results.append({"id": task_id, "status": "error"})
+
+    return jsonify({"success": True, "results": results})
+
+

@@ -21,7 +21,7 @@
       <div class="tabs-left-controls">
         <input list="taskList" name="task" class="task-input" id="taskSelect" placeholder="Select or type a Task..." required>
         <datalist id="taskList"></datalist>
-        <button title="Add Task" class="task-button" data-url="{{ url_for('tasks_bp.registertask') }}">+</button>
+        <button title="Add Task" class="task-button" >+</button>
       </div>
 
       <div class="tabs-center">
@@ -53,6 +53,42 @@
   </div>
 </section>
 
+<!-- Task Registration Popup -->
+<div id="taskPopup" class="taskmodal">
+  <div class="taskmodal-content wide-modal">
+    <span class="close-popup">&times;</span>
+
+    <h2>Register Task(s)</h2>
+
+    <div class="form-header-top">
+      <div></div>
+      <div class="form-actions-top">
+        <button class="icon-button" id="popup-add-row">➕</button>
+      </div>
+    </div>
+
+    <div id="popup-message-area" class="message-area"></div>
+
+    <div class="form-box">
+      <div class="form-header">
+        <div>Name</div>
+        <div>Region</div>
+        <div>Detail (optional)</div>
+        <div></div>
+        <div></div>
+      </div>
+
+      <div id="popup-form-rows"></div>
+
+      <div class="run-button-wrapper">
+        <button class="run-button" id="popup-register">Register</button>
+        <button class="run-button clear-form-button" id="popup-clear">Clear Form</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal container element-->
 <div id="elementModal" class="modal">
   <div class="modal-content">
     <span class="close-button">&times;</span>
@@ -66,4 +102,5 @@
 <script src="{{ url_for('static', filename='js/datasheet/datasheet.js') }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="{{ url_for('static', filename='js/datasheet/elementmodal.js') }}"></script>
+<script src="{{ url_for('static', filename='js/datasheet/taskmodal.js') }}"></script>
 {% endblock %}

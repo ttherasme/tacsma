@@ -170,6 +170,62 @@ def search_uoms():
     return jsonify(result)
 
 # ------------------------------------------
+# Route: Delete uom by IDT
+# ------------------------------------------
+@uom_bp.route('/delete_uom/<string:uom_id>', methods=['DELETE'])
+def delete_uom(uom_id):
+    if 'username' not in session:
+        return jsonify({"success": False, "message": "Not authenticated"}), 401
+
+    uom = UOM.query.get(uom_id)
+
+    if not uom:
+        return jsonify({"success": False, "message": "Unit of measure not found"}), 404
+
+    try:
+        db.session.delete(uom)
+        db.session.commit()
+        return jsonify({"success": True, "message": "Unit of measure deleted successfully"})
+    
+    except Exception:
+        db.session.rollback()
+        return jsonify({"success": False, "message": "Error deleting unit of measure"}), 500
+    
+
+@uom_bp.route('/delete_uoms', methods=['DELETE'])
+def delete_uoms():
+    if 'username' not in session:
+        return jsonify({"success": False, "message": "Not authenticated"}), 401
+
+    uom_ids = request.json.get("uom_ids", [])
+    if not uom_ids:
+        return jsonify({"success": False, "message": "No unit of measure IDs provided"}), 400
+
+    results = []
+
+    try:
+        for uom_id in uom_ids:
+            uom_id = str(uom_id)  # ensure string
+            uom = UOM.query.get(uom_id)
+
+            if not uom:
+                results.append({"id": uom_id, "status": "not_found"})
+                continue
+
+            db.session.delete(uom)
+            results.append({"id": uom_id, "status": "deleted"})
+
+        db.session.commit()
+
+    except Exception:
+        db.session.rollback()
+        # mark all as error for consistency
+        results = [{"id": str(uid), "status": "error"} for uid in uom_ids]
+
+    return jsonify({"success": True, "results": results})
+
+
+# ------------------------------------------
 # Route: list Units of Measure
 # ------------------------------------------
 @uom_bp.route('/distinct_unames', methods=['GET'])

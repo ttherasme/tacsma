@@ -16,25 +16,34 @@
               <img src="{{ url_for('static', filename='img/addtask.png') }}" alt="Add" data-url="{{ url_for('typeoftransportation_bp.registertot')}}"/>
               <span>Add</span>
             </div>
-            <div class="tot-icon open-icon">
+            <div class="tot-icon edit-icon">
               <img src="{{ url_for('static', filename='img/edittask.png') }}" alt="Edit" data-url="{{ url_for('typeoftransportation_bp.updatetot')}}"/>
               <span>Edit</span>
             </div>
           </div>
         </div>
 
-        <div class="tot-search">
+        <div class="tot-search"> 
             <label for="tot-search-input">Search</label>
-            <div class="search-box">
-                <input type="text" id="tot-search-input" placeholder="Find" />
-                <button class="search-btn" aria-label="Search tots">🔍</button>
+            <div class="search-row"> 
+                <div class="search-box">
+                    <input type="text" id="tot-search-input" placeholder="Find" />
+                    <button class="search-btn" aria-label="Search tots">🔍</button>
+                </div>
+                <div class="table-actions"> 
+                    <label class="check-all-label">
+                        <input type="checkbox" id="check-all"> Check All
+                    </label>
+                    <span class="separator">|</span>
+                    <button class="delete-all-btn">Delete All</button>
+                </div>
             </div>
         </div>
-
 
         <table class="tot-table">
           <thead>
             <tr>
+              <th></th>
               <th>ID</th>
               <th>Name</th>
               <th>State</th>
@@ -45,12 +54,17 @@
           <tbody id="tot-table-body">
             {% for mt in modetransportions %}
               <tr>
+                 <td>
+                    <input type="checkbox" class="tot-checkbox" data-id="{{ mt.IDM }}">
+                </td>
                 <td>{{ mt.IDM }}</td>
                 <td>{{ mt.MTName }}</td> 
                 <td>{{ mt.State }}</td>
                 <td>{{ mt.EntryDate.strftime('%Y-%m-%d %H:%M') if mt.EntryDate else '' }}</td>
                 <td>
-                    <input type="checkbox" class="tot-checkbox" data-id="{{ mt.IDM }}">
+                    <button class="delete-tot-btn" data-id="{{ mt.IDM }}">
+                        <img src="{{ url_for('static', filename='img/trash-red.png') }}" alt="Delete">
+                    </button>
                 </td>
               </tr>
             {% endfor %}

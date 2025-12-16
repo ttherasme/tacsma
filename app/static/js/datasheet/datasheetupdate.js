@@ -1,6 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
     // Select HTML elements
-    //const taskSelect = document.getElementById("taskSelect");
     const taskInput = document.getElementById("taskSelect");
     const taskList = document.getElementById("taskList");
     const stepSelect = document.getElementById("activeStepsSelect");
@@ -14,13 +13,19 @@ document.addEventListener("DOMContentLoaded", () => {
     let allSteps = [];
     let allElements = [];
     let allMTransport = [];
+    let selectedElement = '';
 
     // Define special steps that are handled differently
     const specialSteps = ["Forest Operation", "Transportation", "Wood Processing"];
     let currentModule = "Forest Operation";
     let currentCategory = "Product";
 
-    // Load all Units of Measurement (UOMs) globally to access them later
+    let stepsLoaded = false;
+    let datasheetsLoaded = false;
+
+    // --- Data Fetching (UOMs, MTransport, Steps) ---
+
+    // Load all MTransport (Transportation Modes)
     fetch("/listTotbystatus/1")
     .then(response => {
         if (!response.ok) {
@@ -29,42 +34,18 @@ document.addEventListener("DOMContentLoaded", () => {
         return response.json();
     })
     .then(data => {
-        // CORRECTION: 'data' is the array of results, assign it directly
         if (Array.isArray(data)) {
             allMTransport = data;
         } 
     });
 
-    fetch("/get_all_uoms")
+    // Load all Units of Measurement (UOMs)
+    fetch("/get_all_uoms_by_element/${encodeURIComponent(selectedElement)}")
         .then(res => res.json())
         .then(data => {
             if (data.success) {
                 allUOMs = data.uoms;
             }
-        });
-
-    // Load all tasks from the server
-    fetch("/listtasks")
-        .then(response => response.json())
-        .then(data => {
-            taskList.innerHTML = ''; 
-            if (data.success && Array.isArray(data.tasks)) {
-                data.tasks.forEach(task => {
-                    const option = document.createElement("option");
-                    option.value = task.TName;
-                    option.dataset.id = task.IDT;
-                    taskList.appendChild(option);
-                });
-            } else {
-                taskList.innerHTML = '<option value="" disabled selected>No tasks available</option>';
-            }
-        })
-        .catch(err => {
-            console.error("Error fetching tasks:", err);
-            // Add a temporary option to the datalist on error
-            const option = document.createElement("option");
-            option.value = "Error loading tasks";
-            taskList.appendChild(option);
         });
 
     // Load all steps from the server
@@ -73,7 +54,9 @@ document.addEventListener("DOMContentLoaded", () => {
         .then(data => {
             if (data.success) {
                 allSteps = data.steps;
-                // Populate the step dropdown, excluding special steps
+                stepsLoaded = true;          // ✅ ADD
+                tryInitialRefresh();         // ✅ ADD
+
                 stepSelect.innerHTML = '<option disabled selected value="">Select Step</option>';
                 data.steps.forEach(step => {
                     if (!specialSteps.includes(step.SName)) {
@@ -86,6 +69,63 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
 
+
+    // --- Core Task Loading Logic ---
+
+    // Function to fetch datasheet data and trigger form refresh
+    function loadTaskData(taskId) {
+        fetch(`/get_datasheet_by_task/${taskId}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    allDatasheets = data.data;
+                    datasheetsLoaded = true;   // ✅ ADD
+                    tryInitialRefresh();       // ✅ ADD
+                } else {
+                    alert("Failed to load datasheet entries for this task.");
+                }
+            })
+            .catch(err => {
+                console.error("Error fetching datasheet:", err);
+                alert("An error occurred while loading task data.");
+            });
+    }
+
+    function tryInitialRefresh() {
+        if (stepsLoaded && datasheetsLoaded) {
+            refreshForm(); // ✅ guaranteed safe
+        }
+    }
+
+    // Initialization Block: Use the data passed from the backend
+    // Check if the variables defined in the HTML script block are available
+    const hasInitialTask = typeof initialTaskId !== 'undefined' && initialTaskId !== null;
+
+    if (hasInitialTask) {
+        // 1. Set the input field to display the selected task's name
+        taskInput.value = initialTaskName;
+        
+        // 2. Populate the datalist with ONLY the selected task as an option.
+        const initialTaskOption = document.createElement("option");
+        initialTaskOption.value = initialTaskName;
+        initialTaskOption.dataset.id = initialTaskId;
+        taskList.appendChild(initialTaskOption);
+        
+        // 3. Prevent the user from changing the task
+        taskInput.disabled = true;
+
+        // 4. Immediately load the task data (Datasheet entries)
+        loadTaskData(initialTaskId);
+        
+    } else {
+        // Fallback for missing parameters
+        taskInput.placeholder = "Error: Task not selected.";
+        taskInput.disabled = true;
+        rightPanel.innerHTML = '<p>Task data could not be loaded. Please return to the task list.</p>';
+    }
+
+    // --- Event Listeners for Tabs/Categories/Steps ---
+    
     // Add event listeners for module tabs
     moduleTabs.forEach(tab => {
         tab.addEventListener("click", () => {
@@ -111,37 +151,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    // Add event listener for task selection change
-    taskInput.addEventListener("change", () => {
-        const selectedTaskName = taskInput.value;
-        const selectedOption = taskList.querySelector(`option[value="${selectedTaskName}"]`);
-
-        let taskId = null;
-        if (selectedOption) {
-            // Retrieve the stored ID from the custom data attribute
-            taskId = selectedOption.dataset.id; 
-        } else {
-            // If the user typed something custom or the input is empty but not in the list, 
-            // we should treat it as invalid unless your application allows new task creation here.
-            taskId = null;
-        }
-
-        if (!taskId) {
-            //showMessage("Please select a task from the list or ensure your input matches a valid task.", "error");
-            return;
-        }
-
-        // Fetch datasheet for the selected task
-        fetch(`/get_datasheet_by_task/${taskId}`)
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    allDatasheets = data.data;
-                    refreshForm();
-                }
-            });
-    });
-
     // Add event listener for step selection change
     stepSelect.addEventListener("change", () => {
         // Update current module from the selected step
@@ -150,15 +159,14 @@ document.addEventListener("DOMContentLoaded", () => {
         refreshForm();
     });
 
+    // NOTE: The previous taskInput.addEventListener("change", ...) is removed here.
+    
+    // --- Core Functions ---
+
     // Function to refresh the form content based on selections
     function refreshForm() {
-        const selectedTaskName = taskInput.value;
-        const selectedOption = taskList.querySelector(`option[value="${selectedTaskName}"]`);
-        
-        let taskId = null;
-        if (selectedOption) {
-            taskId = selectedOption.dataset.id;
-        }
+        // Get taskId directly from the initial global variable
+        const taskId = initialTaskId; 
         
         const stepName = currentModule;
         const category = currentCategory;
@@ -178,7 +186,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const stepId = stepObj.IDS;
 
         // Fetch elements for the selected category
-        fetch(`/get_elements_by_category/${encodeURIComponent(category)}`)
+        fetch(`/get_elements_info_by_category/${encodeURIComponent(category)}`)
             .then(res => res.json())
             .then(data => {
                 if (!data.success) {
@@ -218,7 +226,7 @@ document.addEventListener("DOMContentLoaded", () => {
         header.className = "form-header";
         
         // Adjust the header based on the category
-        if ((currentModule.trim() === 'Transportation' && (currentCategory.trim() === 'Input Energy' || currentCategory.trim() === 'Emissions'))) {
+        if ((currentModule.trim() === 'Transportation' && (currentCategory.trim() === 'Input Energy' || currentCategory.trim() === 'Co-Products' || currentCategory.trim() === 'Emissions'))) {
              header.innerHTML = ``;
         } else if (currentModule.trim() === 'Transportation') {
             header.innerHTML = `
@@ -259,6 +267,15 @@ document.addEventListener("DOMContentLoaded", () => {
             rowsContainer.appendChild(createRow(r, elements));
         });
 
+        // ✅ Auto-add one row for Product if no data exists
+        if (
+            rows.length === 0 &&
+            currentCategory.trim() === "Product"
+        ) {
+            const emptyRow = createRow({}, elements);
+            rowsContainer.appendChild(emptyRow);
+        }
+
         rightPanel.appendChild(rowsContainer);
 
         // Create the footer with "Add Row" and "Save" buttons
@@ -270,11 +287,8 @@ document.addEventListener("DOMContentLoaded", () => {
         addBtn.textContent = "Add Row";
 
         // Disable the "Add Row" button if the category is "Product"
-        if ((currentCategory.trim() === 'Product') || (currentModule.trim() === 'Transportation' && (currentCategory.trim() === 'Input Energy' || currentCategory.trim() === 'Emissions'))) {
+        if ((currentCategory.trim() === 'Product') || (currentModule.trim() === 'Transportation' && (currentCategory.trim() === 'Input Energy' || currentCategory.trim() === 'Co-Products' || currentCategory.trim() === 'Emissions'))) {
             addBtn.style.display = 'none';
-            /* addBtn.disabled = true;
-            addBtn.style.backgroundColor = '#ccc';
-            addBtn.style.cursor = 'not-allowed'; */
         }
 
         addBtn.onclick = () => {
@@ -286,7 +300,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const saveBtn = document.createElement("button");
         saveBtn.className = "action-button check-button";
         saveBtn.textContent = "Save Changes";
-         if ((currentModule.trim() === 'Transportation' && (currentCategory.trim() === 'Input Energy' || currentCategory.trim() === 'Emissions'))) {
+        if ((currentModule.trim() === 'Transportation' && (currentCategory.trim() === 'Input Energy' || currentCategory.trim() === 'Co-Products' || currentCategory.trim() === 'Emissions'))) {
             saveBtn.style.display = 'none';
         }
         saveBtn.addEventListener("click", () => {
@@ -305,7 +319,7 @@ document.addEventListener("DOMContentLoaded", () => {
         row.className = "form-row";
 
         const rowCells = [];
-        if (currentModule.trim() === 'Transportation' && (currentCategory.trim() === 'Input Energy' || currentCategory.trim() === 'Emissions')){
+        if (currentModule.trim() === 'Transportation' && (currentCategory.trim() === 'Input Energy' || currentCategory.trim() === 'Co-Products' || currentCategory.trim() === 'Emissions')){
             row.append(...rowCells);
             return row;
         }
@@ -336,14 +350,31 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (rowData.IDE == el.IDE) opt.selected = true;
                 elementSelect.appendChild(opt);
             });
-            rowCells.push(createCell(elementSelect)); 
+            rowCells.push(createCell(elementSelect));
+
+            elementSelect.addEventListener("change", (event) => {
+                selectedElement = event.target.value;
+
+                if (!selectedElement) {
+                    allUOMs = [];
+                    return;
+                }
+
+                fetch(`/get_all_uoms_by_element/${encodeURIComponent(selectedElement)}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            allUOMs = data.uoms;
+                        }
+                    })
+                    .catch(err => console.error("UOM fetch failed:", err));
+            });
+
 
             // ==== TRANSPORTATION MODE ====
             if (currentModule.trim() === 'Transportation') {
                 
                 // --- Mass (ValueD1 + UOM) - Column 2 ---
-                // Create the cell container for the unit-container
-                //const massCell = document.createElement("div"); 
                 
                 const massContainer = document.createElement("div");
                 massContainer.className = "trans-container"; // <-- USING trans-container
@@ -363,12 +394,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 massContainer.appendChild(massInput);
                 massContainer.appendChild(massUOM);
-                //massCell.appendChild(massContainer);
                 rowCells.push(massContainer); 
 
                 // --- Distance (ValueD2 + UOM) - Column 3 ---
-                // Create the cell container for the unit-container
-                //const distCell = document.createElement("div"); 
                 
                 const distContainer = document.createElement("div");
                 distContainer.className = "trans-container"; // <-- USING trans-container
@@ -388,7 +416,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 distContainer.appendChild(distInput);
                 distContainer.appendChild(distUOM);
-                //distCell.appendChild(distContainer);
                 rowCells.push(distContainer); 
 
                 // --- Transport Mode (MT) - Column 4 ---
@@ -400,7 +427,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     const opt = document.createElement("option");
                     opt.value = m.IDM;
                     opt.textContent = m.MTName;
-                    //if (rowData.MT == m.IDM) opt.selected = true;
                     mtSelect.appendChild(opt);
                 });
                 if (rowData.IDM) mtSelect.value = rowData.IDM;

@@ -129,8 +129,11 @@ class Element(db.Model):
     __tablename__ = 'element'
     IDE = db.Column(db.Integer, primary_key=True)
     EName = db.Column(db.String(30), nullable=False)
-    IDI = db.Column(db.String(6), db.ForeignKey('item.IDI'), nullable=False) 
+    IDI = db.Column(db.String(6), db.ForeignKey('item.IDI'), nullable=False)
+    Enterby = db.Column(db.String(25))
 
+    __table_args__ = (UniqueConstraint('EName', 'IDI', 'Enterby', 
+                                       name='_unique_element_constraint'),)
     datasheets = db.relationship('Datasheet', backref='element', lazy=True)
 
 
@@ -150,6 +153,8 @@ class Datasheet(db.Model):
     EnterBy = db.Column(db.String(25))
     UpdateDate = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     UpdateBy = db.Column(db.String(25))
+    __table_args__ = (UniqueConstraint('IDT', 'IDE', 'IDS', 
+                                       name='_unique_datasheet_constraint'),)
 
 class ForestryConversionFactorsFIA(db.Model):
     __tablename__ = 'forestry_conversion_factors_fia'

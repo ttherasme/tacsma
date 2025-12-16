@@ -1,157 +1,296 @@
+/* app/static/css/tot/tot.css - Full Code */
+
 /* ---------- tot PANEL SECTION ---------- */
 .tot-panel {
-  /* margin-top: 20px;
-  padding: 20px; */
-  max-width: 1200px;
-  margin: 40px auto;
-  padding: 0 20px;
-  box-sizing: border-box;
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+    max-width: 1200px;
+    margin: 40px auto;
+    padding: 0 20px;
+    box-sizing: border-box;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
 }
 
 .tot-header h2 {
-  font-size: 1.4rem;
-  margin-bottom: 15px;
+    font-size: 1.4rem;
+    margin-bottom: 15px;
 }
 
 .tot-actions {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 20px;
-  border: 1px solid #aaa;
-  border-radius: 10px;
-  gap: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    border: 1px solid #aaa;
+    border-radius: 10px;
+    gap: 40px;
 }
 
 .tot-icon {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  font-size: 1rem;
-  color: #222;
-  cursor: pointer;
-  transition: transform 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 1rem;
+    color: #222;
+    cursor: pointer;
+    transition: transform 0.3s ease;
 }
 
 .tot-icon img {
-  width: 50px;
-  height: 50px;
-  margin-bottom: 8px;
-  object-fit: contain;
-  transition: transform 0.3s ease;
+    width: 50px;
+    height: 50px;
+    margin-bottom: 8px;
+    object-fit: contain;
+    transition: transform 0.3s ease;
 }
 
 .tot-icon:hover {
-  transform: scale(1.05);
+    transform: scale(1.05);
 }
 
 /* ---------- tot SEARCH SECTION ---------- */
 .tot-search {
-  margin-top: 25px;
-  margin-bottom: 10px;
+    margin-top: 25px;
+    margin-bottom: 20px; /* Adjusted spacing for consistency */
 }
 
 .tot-search label {
-  font-weight: bold;
-  display: block;
-  margin-bottom: 8px;
+    font-weight: bold;
+    display: block;
+    margin-bottom: 8px;
 }
 
-.search-box {
+/* FIX: Layout container for search box and table actions */
+.search-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    margin-top: 8px;
+}
+
+/* FIX: Style the Check All / Delete All actions */
+.table-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    white-space: nowrap;
+}
+
+.check-all-label {
   display: flex;
   align-items: center;
-  max-width: 100%;
-  gap: 0;
-}
-
-.search-box input {
-  padding: 6px 10px;
-  font-size: 1rem;
-  border: 1px solid #888;
-  border-radius: 4px 0 0 4px;
-  border-right: none;
-  width: 25%;
-  min-width: 180px;
-}
-
-.search-box .search-btn {
-  background-color: white;
-  border: 1px solid #888;
-  border-left: none;
-  border-radius: 0 4px 4px 0;
-  padding: 5px 10px;
+  font-size: 0.9rem;
   cursor: pointer;
 }
 
+.check-all-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin-right: 5px;
+}
+
+.separator {
+  color: blue;
+  margin: 0 10px;
+  user-select: none;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+.delete-all-btn {
+  background: none;
+  border: none;
+  color: red;
+  text-decoration: underline;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0;
+  white-space: nowrap;
+}
+
+/* Search Box Styling (Set up for button *inside* look) */
+.search-box {
+    position: relative; /* CRITICAL: Anchor for button */
+    flex: 1;
+    max-width: 400px;
+    /* Original was display: flex, replacing with relative for 'button inside' look */
+}
+
+.search-box input {
+    padding: 6px 10px;
+    font-size: 1rem;
+    border: 1px solid #888;
+    border-radius: 4px; /* Uniform rounding */
+    
+    width: 100%; /* CRITICAL: Must take full width of container */
+    min-width: 180px;
+    
+    /* Add padding for the absolute button */
+    padding-right: 40px;
+}
+
+.search-box .search-btn {
+    position: absolute; /* CRITICAL: Positioning */
+    right: 0;
+    top: 0;
+    bottom: 0;
+    
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    background: none;
+    border: none;
+    border-radius: 0 4px 4px 0;
+    
+    padding: 5px 10px;
+    cursor: pointer;
+    line-height: 1;
+    width: 30px;
+}
+
 .search-box .search-btn img {
-  width: 18px;
-  height: 18px;
-  object-fit: contain;
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+}
+
+.tot-icon.edit-icon.disabled {
+    opacity: 0.4;      /* make it look disabled */
+    pointer-events: none; /* prevent clicking */
+    cursor: not-allowed;
 }
 
 /* ---------- tot TABLE ---------- */
 .tot-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 10px;
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px; /* Adjusted for better spacing */
+    table-layout: fixed; /* CRITICAL for consistent column widths */
 }
 
 .tot-table th {
-  background-color: #015c7a;
-  color: white;
-  padding: 10px;
-  text-align: left;
+    background-color: #015c7a;
+    color: white;
+    padding: 10px;
+    text-align: left;
+    white-space: nowrap;
 }
 
 .tot-table td {
-  background-color: #e0e5eb;
-  height: 40px;
-  padding: 8px;
-  border: 1px solid #ccc;
+    background-color: #e0e5eb;
+    height: 40px;
+    padding: 8px;
+    border: 1px solid #ccc;
+    word-wrap: break-word;
 }
 
 .tot-table tr:nth-child(even) td {
-  background-color: #d2d9e0;
+    background-color: #d2d9e0;
 }
 
-/* ✅ Checkbox column: align properly */
+/* FIX: Column Widths for the 6-column MTransp table (Total 100%) */
+/* (CB: 5, ID: 10, Name: 35, State: 15, Date: 25, Delete: 10 = 100%) */
+.tot-table th:nth-child(1), .tot-table td:nth-child(1) { width: 5%; }  /* Checkbox */
+.tot-table th:nth-child(2), .tot-table td:nth-child(2) { width: 10%; } /* IDM */
+.tot-table th:nth-child(3), .tot-table td:nth-child(3) { width: 35%; } /* MTName */
+.tot-table th:nth-child(4), .tot-table td:nth-child(4) { width: 15%; } /* State */
+.tot-table th:nth-child(5), .tot-table td:nth-child(5) { width: 25%; } /* Entry Date */
+
+/* Last column (Delete Icon) */
 .tot-table th:last-child,
 .tot-table td:last-child {
-  text-align: center;
-  vertical-align: middle;
-  width: 60px;
+    text-align: center;
+    vertical-align: middle;
+    width: 10%;
 }
 
-/* ✅ Checkbox styling */
-.tot-checkbox {
-  width: 16px;
-  height: 16px;
-  cursor: pointer;
-  transform: translateY(2px);
+/* FIX: Selected Row Highlighting */
+.tot-table .selected-row td {
+    background-color: #4CAF50 !important; /* Green background */
+    color: white !important; /* White text */
 }
+
+/* Ensure delete button remains visible (using standardized class) */
+.tot-table .selected-row td .delete-tot-btn {
+    background: none !important;
+    border: none !important;
+}
+
+.tot-checkbox {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    transform: translateY(2px);
+}
+
+/* Delete button inside table */
+.tot-table tbody tr td button.delete-tot-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Delete icon image inside table button */
+.tot-table tbody tr td button.delete-tot-btn img {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+}
+
 
 /* ---------- RESPONSIVE ADJUSTMENTS ---------- */
 @media (max-width: 768px) {
-  .tot-actions {
-    flex-direction: column;
-    gap: 15px;
-  }
+    .tot-actions {
+        flex-direction: column;
+        gap: 15px;
+    }
 
-  .tot-search {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-  }
+    .tot-search {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+    }
 
-  .search-box {
-    width: 100%;
-  }
+    /* Ensure search row stacks actions below search box */
+    .search-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
 
-  .search-box input {
-    width: 100%;
-  }
+    .search-box {
+        width: 100%;
+        max-width: none;
+    }
+
+    .search-box input {
+        width: 100%;
+        max-width: none;
+    }
+
+    .table-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    /* Redistribute widths for smaller screens (Total 100%) */
+    .tot-table th, .tot-table td {
+        white-space: normal;
+        font-size: 0.9em;
+        padding: 6px;
+    }
+
+    /* Mobile Column Widths (CB: 5, ID: 15, Name: 25, State: 15, Date: 30, Delete: 10 = 100%) */
+    .tot-table th:nth-child(1), .tot-table td:nth-child(1) { width: 5%; }
+    .tot-table th:nth-child(2), .tot-table td:nth-child(2) { width: 15%; }
+    .tot-table th:nth-child(3), .tot-table td:nth-child(3) { width: 25%; }
+    .tot-table th:nth-child(4), .tot-table td:nth-child(4) { width: 15%; }
+    .tot-table th:nth-child(5), .tot-table td:nth-child(5) { width: 30%; }
+    .tot-table th:last-child, .tot-table td:last-child { width: 10%; }
 }
-

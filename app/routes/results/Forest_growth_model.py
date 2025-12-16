@@ -12,7 +12,7 @@ from app.routes.parameters_routes import get_current_user_data, get_user_paramet
 
 #Parameter and Assumption to be defined/updated later
 loc='loc' #region where the harvest is occuring--- to be updated from CAFRI and User input data
-standing_biomass=1000 #kg/ha, to be updated with CAFRI data
+#standing_biomass=1000 #kg/ha, to be updated with CAFRI data
 
 #End of parameter list
 
@@ -41,7 +41,8 @@ def init_param_variable():
         'p_residues': param_dict.get('Residues left behind', DEFAULT_RATE),
         # Ensure T_half_decay has a non-zero default
         'T_half_decay': param_dict.get('Residues half life', DEFAULT_HALF_LIFE), 
-        'c_content': param_dict.get('Carbon content, wood', DEFAULT_RATE)
+        'c_content': param_dict.get('Carbon content, wood', DEFAULT_RATE),
+        'standing_biomass': param_dict.get('Standing biomas', DEFAULT_HALF_LIFE)
     }
     return result
 
@@ -65,6 +66,7 @@ def forest_growth_function ():
     p_residues = float(params['p_residues'] or 0.0)
     T_half_decay = float(params['T_half_decay'] or 1.0) # Ensure a minimum of 1.0 as a final safeguard
     c_content = float(params['c_content'] or 0.0)
+    standing_biomass = float(params['standing_biomass'] or 0.0)
 
     HWP_tree=1000 #kg, amount of biomass harvested, excluding residues left for decay. summ of all wood products extracted from the forest
     
@@ -119,7 +121,7 @@ def forest_growth_newA(matrix, value, tmatrix):
     new_row = {col: 0 for col in df_A.columns}  # default to 0
 
     if tmatrix == 'A':
-        new_row[df_A.columns[0]] = 'HWP_tree'
+        new_row[df_A.columns[0]] = 'Tree'
     elif tmatrix == 'B':
         new_row[df_A.columns[0]] = 'Carbon dioxide'
     else:

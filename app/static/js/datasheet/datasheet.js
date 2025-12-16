@@ -5,6 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const categoryTabs = document.querySelectorAll(".category");
     const rightPanel = document.getElementById("rightPanel");
     const activeStepsSelect = document.getElementById("activeStepsSelect");
+    let selectedelement = '';
     //const taskSelect = document.getElementById("taskSelect");
     const taskInput = document.getElementById("taskSelect");
     const taskList = document.getElementById("taskList");
@@ -127,8 +128,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 ];
             }
         }),
-        "Transportation|+ Co-Products": makeFormConfig({
-            category: "+ Co-Products",
+        "Transportation|+ Co-Products": {
+            header: [" "],
+            row: () => ['']
+        },/* category: "+ Co-Products",
             selectClass: "coproductSelect",
             elementType: "Co-Products",
             customHeader: ["Materials", "Mass", "Distance", "Transportation mode", " ", " "],
@@ -149,7 +152,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     `<button title="Delete Row" class="delete-row">🗑️</button>`
                 ];
             }
-        }),
+        }), */
         "Transportation|+ Input Energy": {
             header: [" "],
             row: () => ['']
@@ -262,7 +265,7 @@ document.addEventListener("DOMContentLoaded", () => {
         let showDeleteButton = !categoryName.endsWith("Product");
 
         // Dynamic mapping to get the correct CSS class and element type
-        if(module ==="Transportation" && (categoryName =="Emissions" || categoryName =="Input Energy")){
+        if(module ==="Transportation" && (categoryName =="Emissions" || categoryName.trim() === 'Co-Products' || categoryName =="Input Energy")){
             return formConfigs["default"];
         } else if (categoryName.includes("Materials and Resources")) {
             selectClass = "materielSelect";
@@ -327,7 +330,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // Create group icons (e.g., "Add Row" button)
         const groupIcons = document.createElement("div");
         groupIcons.className = "group-icons";
-        groupIcons.innerHTML = `<button title="Add Row" class="add-row" ${(state.activeCategory === "+ Product") || (state.activeModule ==="Transportation" && (state.activeCategory ==="+ Emissions" || state.activeCategory ==="+ Input Energy")) ? "disabled" : ""}>➕</button>`;
+        groupIcons.innerHTML = `<button title="Add Row" class="add-row" ${(state.activeCategory === "+ Product") || (state.activeModule ==="Transportation" && (state.activeCategory ==="+ Emissions" || state.activeCategory ==="+ Co-Products" || state.activeCategory ==="+ Input Energy")) ? "disabled" : ""}>➕</button>`;
         //groupIcons.innerHTML = `<button title="Add Row" class="add-row" ${state.activeCategory === "+ Product" ? "disabled" : ""}>➕</button>`;
         //groupIcons.innerHTML = `<button title="Add Row" class="add-row">➕</button>`;
         groupBox.appendChild(groupIcons);
@@ -503,7 +506,7 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        fetch("/get_all_uoms")
+        fetch("/get_all_uoms_by_element/${encodeURIComponent(selectedElement)}")
             .then(res => res.json())
             .then(data => {
                 if (!data || !Array.isArray(data.uoms)) {
@@ -533,7 +536,7 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        fetch("/get_all_uoms")
+        fetch("/get_all_uoms_by_element/${encodeURIComponent(selectedElement)}")
             .then(res => res.json())
             .then(data => {
                 if (!data || !Array.isArray(data.uoms)) {
@@ -559,7 +562,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!uomNameSelect || !uomUnitSelect) return;
 
         // Fetch UOM names
-        fetch("/get_all_uoms")
+        fetch("/get_all_uoms_by_element/${encodeURIComponent(selectedElement)}")
             .then(res => res.json())
             .then(data => {
                 const uoms = data.uoms;
@@ -583,7 +586,7 @@ document.addEventListener("DOMContentLoaded", () => {
         uomNameSelect.addEventListener("change", (event) => {
             const selectedUName = event.target.value;
             if (selectedUName) {
-                fetch("/get_all_uoms")
+                fetch("/get_all_uoms_by_element/${encodeURIComponent(selectedElement)}")
                     .then(res => res.json())
                     .then(data => {
                         const uoms = data.uoms;
@@ -615,9 +618,11 @@ document.addEventListener("DOMContentLoaded", () => {
      */
     function populateElementSelect(rowElement, selectClass, categoryName) {
         const elementSelect = rowElement.querySelector(`.${selectClass}`);
+        const uomNameSelect = rowElement.querySelector(".uom-name-select");
+        const uomUnitSelect = rowElement.querySelector(".uom-unit-select");
         if (!elementSelect) return;
 
-        fetch(`/get_elements_by_category/${encodeURIComponent(categoryName)}`)
+        fetch(`/get_elements_info_by_category/${encodeURIComponent(categoryName)}`)
             .then(res => res.json())
             .then(data => {
                 const elements = data.elements || [];
@@ -637,6 +642,25 @@ document.addEventListener("DOMContentLoaded", () => {
             .catch(err => {
                 console.error(`Error loading ${categoryName} options:`, err);
             });
+
+        // Event listener for UOM name change to populate UOM units
+        elementSelect.addEventListener("change", function (event) {
+            const selectedElement = event.target.value;
+
+            fetch(`/get_all_uoms_by_element/${encodeURIComponent(selectedElement)}`)
+                .then(res => res.json())
+                .then(data => {
+                    const uoms = data.uoms || [];
+                    if (!uoms.length) return;
+
+                    uomNameSelect.value = uoms[0].UName;
+                    uomNameSelect.dispatchEvent(new Event("change"));
+                    uomUnitSelect.value = uoms[0].Unit;
+                })
+                .catch(err => console.error("Error loading units:", err));
+        });
+
+
     }
 
     // Event listeners for module tabs and category buttons
@@ -749,6 +773,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return { data: formData, isValid: isValid, submittedRows: submittedRows };
     }
 
+
     /**
      * Disables all input fields in a given row.
      * @param {HTMLElement} row The row to disable.
@@ -800,6 +825,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
     }
+
 
     // Event listener for the "Validate" button
     rightPanel.addEventListener('click', async (event) => {
@@ -909,6 +935,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
+
     /**
      * Displays a temporary message to the user.
      * @param {string} message The message to display.
@@ -956,7 +983,7 @@ document.addEventListener("DOMContentLoaded", () => {
     /**
      * Fetches and populates the list of tasks.
      */
-    fetch("/listtasks")
+    fetch("/listtasks_with_out_datasheet")
         .then(response => response.json())
         .then(data => {
             taskList.innerHTML = ''; 

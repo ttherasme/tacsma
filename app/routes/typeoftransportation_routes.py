@@ -189,3 +189,58 @@ def listTotbystatus(status):
     } for mtransp in mtransps]
 
     return jsonify(results)
+
+# ------------------------------------------
+# Route: Delete MTransport of Process
+# ------------------------------------------
+@typeoftransportation_bp.route('/delete_mtransp/<string:mtransp_id>', methods=['DELETE'])
+def delete_mtransp(mtransp_id):
+    if 'username' not in session:
+        return jsonify({"success": False, "message": "Not authenticated"}), 401
+
+    mtransp = MTransp.query.get(mtransp_id)
+
+    if not mtransp:
+        return jsonify({"success": False, "message": "Transportation mode not found"}), 404
+
+    try:
+        db.session.delete(mtransp)
+        db.session.commit()
+        return jsonify({"success": True, "message": "Transportation mode deleted successfully"})
+    
+    except Exception:
+        db.session.rollback()
+        return jsonify({"success": False, "message": "Error deleting transportation mode"}), 500
+    
+
+@typeoftransportation_bp.route('/delete_mtransps', methods=['DELETE'])
+def delete_mtransps():
+    if 'username' not in session:
+        return jsonify({"success": False, "message": "Not authenticated"}), 401
+
+    mtransp_ids = request.json.get("mtransp_ids", [])
+    if not mtransp_ids:
+        return jsonify({"success": False, "message": "No transportation IDs provided"}), 400
+
+    results = []
+
+    try:
+        for mtransp_id in mtransp_ids:
+            mtransp_id = str(mtransp_id)  # ensure string
+            mtransp= MTransp.query.get(mtransp_id)
+
+            if not mtransp:
+                results.append({"id": mtransp_id, "status": "not_found"})
+                continue
+
+            db.session.delete(mtransp)
+            results.append({"id": mtransp_id, "status": "deleted"})
+
+        db.session.commit()
+
+    except Exception:
+        db.session.rollback()
+        # mark all as error for consistency
+        results = [{"id": str(uid), "status": "error"} for uid in mtransp_ids]
+
+    return jsonify({"success": True, "results": results})

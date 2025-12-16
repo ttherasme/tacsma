@@ -17,7 +17,7 @@ def unit_conversion(value, unit, final_unit='SI'):
     conversion_dict = {
         # Mass (kg)
         'lb': 0.453592, 'ton': 907.18474, 'metric_ton': 1000.0, 'Mg': 1000.0,
-        'g': 0.001, 'kg': 1.0, 'mg': 0.000001, 'oz': 0.0283495, 'short_ton': 907.18474,
+        'g': 0.001, 'kg': 1.0, 'Kg': 1.0, 'mg': 0.000001, 'oz': 0.0283495, 'short_ton': 907.18474,
         'dry_metric_tonnes': 1000.0,
         'green_tons': 907.18474,
 
