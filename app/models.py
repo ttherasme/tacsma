@@ -27,7 +27,7 @@ class User(db.Model):
     level = db.Column(db.Integer, default=0)
     change = db.Column(db.Integer, default=1)
     # True = Yes (use Value), False = No (use Default)
-    regeneration_mode = db.Column(db.Boolean, default=False) 
+    regeneration_mode = db.Column(db.Integer, default=0) 
 
     # Define a relationship to the per-user parameter values
     param_values = db.relationship('UserParameterValue', backref='user', lazy=True)
@@ -131,7 +131,8 @@ class Element(db.Model):
     EName = db.Column(db.String(30), nullable=False)
     IDI = db.Column(db.String(6), db.ForeignKey('item.IDI'), nullable=False)
     Enterby = db.Column(db.String(25))
-
+    EntryDate = db.Column(db.DateTime, default=datetime.utcnow)
+    
     __table_args__ = (UniqueConstraint('EName', 'IDI', 'Enterby', 
                                        name='_unique_element_constraint'),)
     datasheets = db.relationship('Datasheet', backref='element', lazy=True)

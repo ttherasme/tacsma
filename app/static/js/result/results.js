@@ -227,7 +227,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     flowResponse.flows.forEach(flow => {
                         const option = document.createElement("option");
                         option.value = flow.IDE;
-                        option.textContent = flow.EName;
+                        option.textContent = `${flow.EName} (${flow.IName})`;
+                        option.dataset.ename = flow.EName;
                         flowSelect.appendChild(option);
                     });
                 } else {
@@ -547,7 +548,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 // Collecting Displayed Text
                 const taskText = taskSelect?.options[taskSelect.selectedIndex]?.text || null;
-                const flowText = flowSelect?.options[flowSelect.selectedIndex]?.text || null;
+                //const flowText = flowSelect?.options[flowSelect.selectedIndex]?.text || null;
+                const selectedFlowOption = flowSelect?.options[flowSelect.selectedIndex];
+                const flowText = selectedFlowOption?.dataset.ename || null;
                 const unitText = unitSelect?.options[unitSelect.selectedIndex]?.text || null;
 
                 return {

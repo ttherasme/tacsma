@@ -137,12 +137,35 @@ function showElementRegistrationModal(elementname) {
 }
 
 // MODIFICATION: Mettre à jour la fonction pour déclencher le bon événement
-function updateDropdownAfterRegistration(elementname) {
+/* function updateDropdownAfterRegistration(elementname) {
     if (elementname.toLowerCase() === "product") {
         document.dispatchEvent(new Event('reloadProductSelect'));
     } else if (elementname.toLowerCase().includes("input")) {
         document.dispatchEvent(new Event('reloadMaterielSelect'));
     } else if (elementname.toLowerCase().includes("co-products")) {
         document.dispatchEvent(new Event('reloadCoproductSelect'));
+    }
+} */
+
+function updateDropdownAfterRegistration(elementname) {
+    const name = elementname.toLowerCase();
+
+    if (name.includes('product') && !name.includes('co')) {
+        document.dispatchEvent(new Event('reloadProductSelect'));
+    } 
+    else if (name.includes('material')) {
+        document.dispatchEvent(new Event('reloadMaterielSelect'));
+    } 
+    else if (name.includes('co-product')) {
+        document.dispatchEvent(new Event('reloadCoproductSelect'));
+    }
+    else if (name.includes('energy')) {
+        document.dispatchEvent(new Event('reloadEnergySelect'));
+    }
+    else if (name.includes('emission')) {
+        document.dispatchEvent(new Event('reloadEmissionsSelect'));
+    }
+    else if (name.includes('waste')) {
+        document.dispatchEvent(new Event('reloadWasteSelect'));
     }
 }

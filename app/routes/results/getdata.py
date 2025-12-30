@@ -32,8 +32,8 @@ def get_matrix_a(idt_param: int):
                 Datasheet.ValueD1.label('ValueD1'),
                 UOM1.Unit.label('UnitD1'),
                 Datasheet.ValueD2.label('ValueD2'),
-                Datasheet.CHK.label('CHK'),
                 UOM2.Unit.label('UnitD2'),
+                Datasheet.CHK.label('CHK'),
                 Item.IName.label('IName')
             )
             .join(Element, Datasheet.IDE == Element.IDE)
@@ -69,7 +69,7 @@ def get_matrix_a(idt_param: int):
 
         df = pd.DataFrame(results, columns=[
             'IDD', 'Flow_id', 'Flow', 'Process',
-            'ValueD1', 'UnitD1', 'ValueD2', 'UnitD2', 'IName'
+            'ValueD1', 'UnitD1', 'ValueD2', 'UnitD2', 'CHK', 'IName'
         ])
 
         # --- Step 1: Compute Value_Final ---

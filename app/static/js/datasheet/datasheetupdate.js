@@ -164,6 +164,58 @@ document.addEventListener("DOMContentLoaded", () => {
     // --- Core Functions ---
 
     // Function to refresh the form content based on selections
+    /* function refreshForm() {
+        const taskId = initialTaskId;
+        const stepName = currentModule;
+        const category = currentCategory;
+
+        if (!taskId || !stepName || !category) {
+            rightPanel.innerHTML = `<p>Please select a task, a step (module), and a category.</p>`;
+            return;
+        }
+
+        const stepObj = allSteps.find(
+            s => s.SName.toLowerCase() === stepName.toLowerCase()
+        );
+
+        if (!stepObj) {
+            rightPanel.innerHTML = `<p>Invalid step selected.</p>`;
+            return;
+        }
+
+        const stepId = stepObj.IDS;
+
+        Promise.all([
+            fetch(`/get_elements_info_by_category/${encodeURIComponent(category)}`)
+                .then(res => res.json()),
+
+            fetch(`/get_elements_by_category_for_compare/${encodeURIComponent(category)}`)
+                .then(res => res.json())
+        ])
+        .then(([listData, compareData]) => {
+
+            if (!listData.success || !compareData.success) {
+                rightPanel.innerHTML = `<p>Category elements not found.</p>`;
+                return;
+            }
+
+            const filteredElements = listData.elements;               // for display
+            const matchingIDE = compareData.elements.map(e => e.IDE); // for filtering
+
+            const filteredRows = allDatasheets.filter(row =>
+                row.IDT == taskId &&
+                row.IDS == stepId &&
+                matchingIDE.includes(row.IDE)
+            );
+
+            renderForm(filteredRows, filteredElements, taskId, stepId);
+        })
+        .catch(err => {
+            console.error(err);
+            rightPanel.innerHTML = `<p>Error loading elements.</p>`;
+        });
+    } */
+
     function refreshForm() {
         // Get taskId directly from the initial global variable
         const taskId = initialTaskId; 
@@ -186,7 +238,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const stepId = stepObj.IDS;
 
         // Fetch elements for the selected category
-        fetch(`/get_elements_info_by_category/${encodeURIComponent(category)}`)
+        fetch(`/get_elements_by_category_for_datasheet/${encodeURIComponent(category)}`)
             .then(res => res.json())
             .then(data => {
                 if (!data.success) {
@@ -208,6 +260,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 renderForm(filteredRows, filteredElements, taskId, stepId);
             });
     }
+
+
 
     // Function to render the form and its rows
     function renderForm(rows, elements, taskId, stepId) {
@@ -576,6 +630,8 @@ document.addEventListener("DOMContentLoaded", () => {
             row.remove();
         }
     }
+
+
 
     // Function to save all data to the server
     function saveData(taskId, stepId) {

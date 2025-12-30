@@ -34,6 +34,7 @@ def calculate_allocation_factors(A, process_idx):
         return np.array([1.0]), np.where(positive_values)[0] 
 
 
+
 def adjust_matrix_for_multiple_outputs(Aa, Bb):
     """
     This function processes the technology matrix A (Aa) and emissions matrix B (Bb) by:

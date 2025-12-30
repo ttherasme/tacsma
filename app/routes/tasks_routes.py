@@ -13,7 +13,14 @@ def tasks():
     if 'username' not in session:
         return redirect(url_for('auth_bp.login'))
 
-    task_list = Tasks.query.order_by(Tasks.EntryDate.desc()).limit(10).all()
+    username = session['username']
+    task_list = Tasks.query
+
+    # --- Base query: Admin sees all, others only see their own ---
+    if username.lower() != "admin":
+        task_list = Tasks.query.filter(Tasks.EnterBy == username)
+        
+    task_list = task_list.order_by(Tasks.EntryDate.desc()).limit(10).all()
     return render_template('tasks/tasks.html', tasks=task_list)
 
 

@@ -1,0 +1,350 @@
+/* ---------- uom PANEL SECTION ---------- */
+.uom-panel {
+    max-width: 1200px;
+    margin: 40px auto;
+    padding: 0 20px;
+    box-sizing: border-box;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+}
+
+/* Adjusted spacing for the main heading */
+.page-content h1 {
+    margin-top: 5px; /* Reduce top space */
+    margin-bottom: 20px; /* Reduce bottom space */
+    text-align: left; /* Often headings are centered or left-aligned with content */
+    font-size: 2.2rem; /* Example: Adjust font size if needed for better visual balance */
+    color: #333;
+}
+
+.uom-header h2 {
+    font-size: 1.4rem;
+    margin-bottom: 15px;
+}
+
+.uom-actions {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    border: 1px solid #aaa;
+    border-radius: 10px;
+    gap: 40px;
+    /* Ensure consistent margin below actions for spacing with search */
+    margin-bottom: 25px; /* Added or adjusted to control space between actions and search */
+}
+
+.uom-icon {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 1rem;
+    color: #222;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+}
+
+.uom-icon img {
+    width: 50px;
+    height: 50px;
+    margin-bottom: 8px;
+    object-fit: contain;
+    transition: transform 0.3s ease;
+}
+
+.uom-icon:hover {
+    transform: scale(1.05);
+}
+
+/* ---------- uom SEARCH SECTION ---------- */
+/* ---------- uom SEARCH SECTION - MODIFIED FOR BUTTON INSIDE INPUT LOOK ---------- */
+.uom-search {
+    margin-top: 0; 
+    margin-bottom: 20px;
+}
+
+.uom-search label {
+    font-weight: bold;
+    display: block; 
+    margin-bottom: 8px;
+}
+
+.search-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    margin-top: 8px;
+}
+
+/* FIX 1: Set container to position: relative to anchor the button */
+.search-box {
+    position: relative; 
+    flex: 1;
+    max-width: 400px;
+    /* Removed display: flex; as we are using absolute positioning now */
+}
+
+/* FIX 2: Input takes 100% width and adds padding for the button */
+.search-box input {
+    padding: 6px 10px;
+    font-size: 1rem;
+    border: 1px solid #888;
+    border-radius: 4px; /* Uniform rounding */
+    
+    width: 100%; /* CRITICAL: Must take full width of container */
+    min-width: 180px;
+    
+    /* CRITICAL: Add padding on the right to prevent text from overlapping the button */
+    padding-right: 40px; 
+}
+
+/* FIX 3: Button is positioned absolutely inside the input area */
+.search-box .search-btn {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    
+    /* Use flex to center the content (🔍) vertically and horizontally */
+    display: flex; 
+    align-items: center;
+    justify-content: center; 
+    
+    /* Visual adjustments */
+    background: none; /* Make it blend with the input */
+    border: none; /* Remove border */
+    border-radius: 0 4px 4px 0; /* Keep only the right corners rounded */
+    
+    padding: 5px 10px;
+    cursor: pointer;
+    line-height: 1;
+    
+    /* Set a width so padding-right works correctly */
+    width: 30px; 
+}
+/* Ensure the icon is vertically aligned */
+.search-box .search-btn img {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+}
+
+
+/* Ensure actions stay compact on the right */
+.table-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    white-space: nowrap;
+}
+
+.check-all-label {
+  display: flex;
+  align-items: center;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.check-all-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin-right: 5px;
+}
+
+.separator {
+  color: blue;
+  margin: 0 10px;
+  user-select: none;
+  font-weight: bold;
+  flex-shrink: 0;       /* prevent shrinking */
+}
+
+.delete-all-btn {
+  background: none;
+  border: none;
+  color: red;
+  text-decoration: underline;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0;
+  white-space: nowrap;  /* keep button text on one line */
+}
+
+/* ---------- uom TABLE ---------- */
+.uom-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 0; 
+    margin-bottom: 40px; 
+
+    /* Crucial for consistent column widths */
+    table-layout: fixed;
+}
+
+.uom-table th {
+    background-color: #015c7a;
+    color: white;
+    padding: 10px;
+    text-align: left;
+    white-space: nowrap; /* Prevent header text from wrapping */
+}
+
+.uom-table td {
+    background-color: #e0e5eb;
+    height: 40px;
+    padding: 8px;
+    border: 1px solid #ccc;
+    word-wrap: break-word; /* Allows long words to break and wrap within the cell */
+}
+
+.uom-table tr:nth-child(even) td {
+    background-color: #d2d9e0;
+}
+
+/* FIX: Explicitly set column widths to total 100% */
+/* (7 columns: CB: 5, ID: 10, Name: 20, Unit: 15, State: 15, Date: 25, Delete: 10 = 100%) */
+.uom-table th:nth-child(1),
+.uom-table td:nth-child(1) {
+    width: 5%; /* checkbox */
+}
+.uom-table th:nth-child(2),
+.uom-table td:nth-child(2) {
+    width: 10%; /* ID */
+}
+
+.uom-table th:nth-child(3),
+.uom-table td:nth-child(3) {
+    width: 20%; /* Name (Adjusted from 25%) */
+}
+
+.uom-table th:nth-child(4),
+.uom-table td:nth-child(4) {
+    width: 15%; /* Unit */
+}
+
+.uom-table th:nth-child(5),
+.uom-table td:nth-child(5) {
+    width: 15%; /* State */
+}
+
+.uom-table th:nth-child(6),
+.uom-table td:nth-child(6) {
+    width: 25%; /* Entry Date (Kept 25%) */
+}
+
+
+/* Last Column (Delete Icon) */
+.uom-table th:last-child,
+.uom-table td:last-child {
+    text-align: center;
+    vertical-align: middle;
+    width: 10%; 
+}
+
+/* uom.css - Ensure these rules are present and correct */
+
+/* Highlighted Row Styles */
+.uom-table .selected-row td {
+    background-color: #4CAF50 !important; /* Green background */
+    color: white !important; /* White text */
+}
+
+/* Delete button itself (ensuring no unexpected background) */
+.uom-table .selected-row td .delete-uom-btn {
+    background: none !important; 
+    border: none !important;
+}
+
+
+/* Optional: Better visual feedback on the checkbox */
+.uom-table .selected-row td input[type="checkbox"] {
+    accent-color: white; 
+}
+
+/* Checkbox styling (already good, just confirming) */
+.uom-checkbox {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    transform: translateY(2px);
+}
+
+/* Delete button inside table */
+.uom-table tbody tr td button.delete-uom-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Delete icon image inside table button */
+.uom-table tbody tr td button.delete-uom-btn img {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+}
+
+.uom-icon.edit-icon.disabled {
+    opacity: 0.4;      /* make it look disabled */
+    pointer-events: none; /* prevent clicking */
+    cursor: not-allowed;
+}
+
+/* ---------- RESPONSIVE ADJUSTMENTS ---------- */
+@media (max-width: 768px) {
+    .uom-actions {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .uom-search {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .search-box {
+        width: 100%;
+        /* Ensure input and button still appear side-by-side on small screens */
+        flex-wrap: nowrap; /* Prevent wrapping unless explicit widths force it */
+        max-width: none; /* Allow search box to take full width on mobile */
+    }
+
+    .search-box input {
+        width: 100%; /* Let it take full width of its flex container (search-box) */
+        flex-grow: 1; /* Ensure it expands */
+        max-width: none; /* Remove max-width constraint for smaller screens */
+    }
+    
+    .search-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+    
+    .table-actions {
+        width: 100%;
+        justify-content: space-between; /* Spread actions across the row */
+    }
+
+    /* Adjust table column widths for smaller screens */
+    .uom-table th, .uom-table td {
+        white-space: normal; /* Allow text to wrap on smaller screens */
+        font-size: 0.9em; /* Slightly smaller font for compactness */
+        padding: 6px; /* Reduce padding for compactness */
+    }
+
+    /* FIX: Redistribute widths for smaller screens (7 columns total 100%) */
+    .uom-table th:nth-child(1), .uom-table td:nth-child(1) { width: 5%; }  /* Checkbox */
+    .uom-table th:nth-child(2), .uom-table td:nth-child(2) { width: 15%; } /* ID */
+    .uom-table th:nth-child(3), .uom-table td:nth-child(3) { width: 20%; } /* Name */
+    .uom-table th:nth-child(4), .uom-table td:nth-child(4) { width: 15%; } /* Unit */
+    .uom-table th:nth-child(5), .uom-table td:nth-child(5) { width: 15%; } /* State */
+    .uom-table th:nth-child(6), .uom-table td:nth-child(6) { width: 20%; } /* Entry Date */
+    .uom-table th:last-child, .uom-table td:last-child { width: 10%; } /* Delete Icon */
+}

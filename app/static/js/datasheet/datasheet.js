@@ -5,7 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const categoryTabs = document.querySelectorAll(".category");
     const rightPanel = document.getElementById("rightPanel");
     const activeStepsSelect = document.getElementById("activeStepsSelect");
-    let selectedelement = '';
+    let selectedElement = '';
     //const taskSelect = document.getElementById("taskSelect");
     const taskInput = document.getElementById("taskSelect");
     const taskList = document.getElementById("taskList");
@@ -131,80 +131,15 @@ document.addEventListener("DOMContentLoaded", () => {
         "Transportation|+ Co-Products": {
             header: [" "],
             row: () => ['']
-        },/* category: "+ Co-Products",
-            selectClass: "coproductSelect",
-            elementType: "Co-Products",
-            customHeader: ["Materials", "Mass", "Distance", "Transportation mode", " ", " "],
-            customRow: () => {
-                return [
-                    `<select class="coproductSelect"></select>`, // Materials
-                    `<div class="inline-selects">
-                        <input type="number" data-id="valued1" placeholder="Mass" class="styled-select2" />
-                        <select data-id="unitd1" class="styled-select2 uom-mass-select"></select>
-                    </div>`, // Mass
-                    `<div class="inline-selects">
-                        <input type="number" data-id="valued2" placeholder="Distance" class="styled-select2" />
-                        <select data-id="unitd2" class="styled-select uom-distance-select"></select>
-                    </div>`, // Distance
-                    `<select data-id="selectmodetransport" class="styled-select2 transport-mode-select">
-                    </select>`,
-                    `<div class="status-indicator"></div>`,
-                    `<button title="Delete Row" class="delete-row">🗑️</button>`
-                ];
-            }
-        }), */
+        },
         "Transportation|+ Input Energy": {
             header: [" "],
             row: () => ['']
-        },  /*makeFormConfig({
-            category: "+ Input EnergyNull",
-            selectClass: "energySelectNull",
-            elementType: "Input EnergyNull",
-            customHeader:["Materials", "Mass", "Distance", "Transportation mode", " ", " "],
-            customRow: () => {
-                return [
-                    `<select class="energySelect"></select>`, // Materials
-                    `<div class="inline-selects">
-                        <input type="number" data-id="valued1" placeholder="Mass" class="styled-select2" />
-                        <select data-id="unitd1" class="styled-select2 uom-mass-select"></select>
-                    </div>`, // Mass
-                    `<div class="inline-selects">
-                        <input type="number" data-id="valued2" placeholder="Distance" class="styled-select2" />
-                        <select data-id="unitd2" class="styled-select uom-distance-select"></select>
-                    </div>`, // Distance
-                    `<select data-id="selectmodetransport" class="styled-select2 transport-mode-select">
-                    </select>`,
-                    `<div class="status-indicator"></div>`,
-                    `<button title="Delete Row" class="delete-row">🗑️</button>`
-                ];
-            }
-        }), */
+        }, 
         "Transportation|+ Emissions": {
             header: [" "],
             row: () => ['']
-        },  /*makeFormConfig({
-            category: "+ EmissionsNull",
-            selectClass: "emissionsSelectNull",
-            elementType: "EmissionsNull",
-            customHeader:["Materials", "Mass", "Distance", "Transportation mode", " ", " "],
-            customRow: () => {
-                return [
-                    `<select class="emissionsSelect"></select>`, // Materials
-                    `<div class="inline-selects">
-                        <input type="number" data-id="valued1" placeholder="Mass" class="styled-select2" />
-                        <select data-id="unitd1" class="styled-select2 uom-mass-select"></select>
-                    </div>`, // Mass
-                    `<div class="inline-selects">
-                        <input type="number" data-id="valued2" placeholder="Distance" class="styled-select2" />
-                        <select data-id="unitd2" class="styled-select uom-distance-select"></select>
-                    </div>`, // Distance
-                    `<select data-id="selectmodetransport" class="styled-select2 transport-mode-select">
-                    </select>`,
-                    `<div class="status-indicator"></div>`,
-                    `<button title="Delete Row" class="delete-row">🗑️</button>`
-                ];
-            }
-        }), */
+        },  
         "Transportation|+ Waste Treatment": makeFormConfig({
             category: "+ Waste Treatment",
             selectClass: "wasteSelect",
@@ -236,6 +171,66 @@ document.addEventListener("DOMContentLoaded", () => {
             footer: () => `<small>Default footer for undefined combinations.</small><div><button class="check-button">Submit ✔️</button></div>`
         }
     };
+
+    // ----------------------------------------------------
+    // Reload dropdowns after element registration (MODAL)
+    // ----------------------------------------------------
+
+    document.addEventListener('reloadProductSelect', () => {
+        refreshCurrentFormSelect('productSelect', 'Product');
+    });
+
+    document.addEventListener('reloadMaterielSelect', () => {
+        refreshCurrentFormSelect('materielSelect', 'Input Materials and Resources');
+    });
+
+    document.addEventListener('reloadCoproductSelect', () => {
+        refreshCurrentFormSelect('coproductSelect', 'Co-Products');
+    });
+
+    document.addEventListener('reloadEnergySelect', () => {
+        refreshCurrentFormSelect('energySelect', 'Input Energy');
+    });
+
+    document.addEventListener('reloadEmissionsSelect', () => {
+        refreshCurrentFormSelect('emissionsSelect', 'Emissions');
+    });
+
+    document.addEventListener('reloadWasteSelect', () => {
+        refreshCurrentFormSelect('wasteSelect', 'Waste Treatment');
+    });
+
+
+    function refreshCurrentFormSelect(selectClass, categoryName) {
+        const rows = document.querySelectorAll('.form-row');
+
+        rows.forEach(row => {
+            const select = row.querySelector(`.${selectClass}`);
+            if (!select) return;
+
+            const currentValue = select.value;
+
+            fetch(`/get_elements_by_category_for_datasheet/${encodeURIComponent(categoryName)}`)
+                .then(res => res.json())
+                .then(data => {
+                    const elements = data.elements || [];
+
+                    select.innerHTML = '<option value="">Select ...</option>';
+
+                    elements.forEach(el => {
+                        const option = document.createElement('option');
+                        option.value = el.IDE;
+                        option.textContent = el.EName;
+                        select.appendChild(option);
+                    });
+
+                    // Restore previous selection if it still exists
+                    select.value = currentValue;
+                })
+                .catch(err => console.error('Error refreshing dropdown:', err));
+        });
+    }
+
 
 
     /**
@@ -378,6 +373,8 @@ document.addEventListener("DOMContentLoaded", () => {
         formRowsContainer.appendChild(initialRow);
         populateFormSelects(initialRow, configKey); // Pass configKey for logic split
 
+        autoFillForestRegeneration(formRowsContainer, configKey);
+
         groupBox.appendChild(formRowsContainer);
 
         // Create form footer
@@ -461,6 +458,58 @@ document.addEventListener("DOMContentLoaded", () => {
             populateAndLinkUomSelects(rowElement);
         }
     }
+
+    async function autoFillForestRegeneration(formRowsContainer, configKey) {
+        // Only apply to the exact condition
+        if (configKey !== "Forest Operation|+ Input Materials and Resources") return;
+
+        try {
+            // 1️⃣ Get regeneration value
+            const response = await fetch("/get_regeneration_user");
+            const data = await response.json();
+
+            if (!("value" in data)) return;
+            const regenerationValue = data.value;
+
+            // 2️⃣ Get first row
+            const firstRow = formRowsContainer.querySelector(".form-row");
+            if (!firstRow) return;
+
+            const elementSelect = firstRow.querySelector(".materielSelect");
+            const quantityInput = firstRow.querySelector('input[data-id="valued1"]');
+
+            if (!elementSelect || !quantityInput) return;
+
+            // 3️⃣ Select "Tree" once options exist
+            const selectTree = () => {
+                const options = [...elementSelect.options];
+                const treeOption = options.find(
+                    opt => opt.textContent.trim().toLowerCase() === "tree"
+                );
+
+                if (treeOption) {
+                    elementSelect.value = treeOption.value;
+                    elementSelect.dispatchEvent(new Event("change"));
+                }
+            };
+
+            // Options may load async → wait a bit
+            setTimeout(selectTree, 100);
+
+            // 4️⃣ Set regeneration value
+            quantityInput.value = regenerationValue;
+
+            // 5️⃣ Add a blank second row
+            const addRowBtn = document.querySelector(".add-row");
+            if (addRowBtn && !addRowBtn.disabled) {
+                addRowBtn.click();
+            }
+
+        } catch (err) {
+            console.error("Auto regeneration fill failed:", err);
+        }
+    }
+
 
 
     /**
@@ -602,6 +651,12 @@ document.addEventListener("DOMContentLoaded", () => {
                             option.textContent = item.Unit;
                             uomUnitSelect.appendChild(option);
                         });
+
+                        const preferredUnit = filteredUnits.find(u => u.Unit === "kg");
+                        uomUnitSelect.value = preferredUnit
+                            ? preferredUnit.IDU
+                            : filteredUnits[0].IDU;
+
                     })
                     .catch(err => console.error("Error loading units:", err));
             } else {
@@ -622,7 +677,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const uomUnitSelect = rowElement.querySelector(".uom-unit-select");
         if (!elementSelect) return;
 
-        fetch(`/get_elements_info_by_category/${encodeURIComponent(categoryName)}`)
+        fetch(`/get_elements_by_category_for_datasheet/${encodeURIComponent(categoryName)}`)
             .then(res => res.json())
             .then(data => {
                 const elements = data.elements || [];
@@ -923,7 +978,25 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (result.success) {
                     showMessage(result.message, "success");
                     updateStatusIndicators(true, submittedRows, allRows);
-                } else {
+
+                    // ------------------------------------
+                    // Ask user ONLY if ALL rows are saved
+                    // ------------------------------------
+                    if (areAllRowsSaved()) {
+                        setTimeout(() => {
+                            showYesNoConfirm(
+                                "All rows are saved successfully.\n\nDo you finish with the registration?",
+                                () => redirectToEditPage(),
+                                () => {} // stay on page
+                            );
+                        }, 300);
+                    }
+
+                }
+                /* if (result.success) {
+                    showMessage(result.message, "success");
+                    updateStatusIndicators(true, submittedRows, allRows);
+                } */ else {
                     showMessage(`Error: ${result.message}`, "error");
                     updateStatusIndicators(false, submittedRows, allRows);
                 }
@@ -934,6 +1007,62 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
     });
+
+    /* area all rows save */
+    function areAllRowsSaved() {
+        const rows = document.querySelectorAll('.form-rows .form-row');
+        return [...rows].every(row =>
+            row.querySelector('.status-icon.green-check')
+        );
+    }
+
+    /* Redirect page */
+    function redirectToEditPage() {
+        const selectedTaskName = taskInput.value;
+        const selectedOption = taskList.querySelector(
+            `option[value="${selectedTaskName}"]`
+        );
+
+        if (!selectedOption) {
+            showMessage("Unable to determine the selected task.", "error");
+            return;
+        }
+
+        const taskId = selectedOption.dataset.id;
+
+        // SAME pattern used in main.js
+        const editUrl = "/datasheetupdate";
+
+        window.location.href =
+            `${editUrl}?id=${taskId}&name=${encodeURIComponent(selectedTaskName)}`;
+    }
+
+    // Show message after success registration
+    function showYesNoConfirm(message, onYes, onNo) {
+        const modal = document.getElementById('confirmModal');
+        const messageEl = document.getElementById('confirmModalMessage');
+        const yesBtn = document.getElementById('confirmYes');
+        const noBtn = document.getElementById('confirmNo');
+
+        messageEl.textContent = message;
+        modal.style.display = 'flex';
+
+        const cleanup = () => {
+            modal.style.display = 'none';
+            yesBtn.onclick = null;
+            noBtn.onclick = null;
+        };
+
+        yesBtn.onclick = () => {
+            cleanup();
+            onYes();
+        };
+
+        noBtn.onclick = () => {
+            cleanup();
+            if (onNo) onNo();
+        };
+    }
 
 
     /**

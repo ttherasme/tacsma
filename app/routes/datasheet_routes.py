@@ -167,13 +167,22 @@ def get_all_elements():
         } for e in elements]
     })
 
-@datasheet_bp.route('/get_elements_by_category_old/<category_name>')
-def get_elements_by_category_old(category_name):
+@datasheet_bp.route('/get_elements_by_category_for_datasheet/<category_name>')
+def get_elements_by_category_for_datasheet(category_name):
+    if 'username' not in session:
+        return jsonify({"success": False, "elements": []}), 401
+
+    username = session['username']
     item = Item.query.filter(Item.IName.ilike(category_name)).first()
     if not item:
         return jsonify({"success": False, "message": "Category not found", "elements": []})
 
-    elements = Element.query.filter(Element.IDI == item.IDI).order_by(Element.EName).all()
+    elements_query = Element.query.filter(Element.IDI == item.IDI)
+
+    if username.lower() != "admin":
+        elements_query = elements_query.filter(Element.Enterby == username)
+
+    elements = elements_query.order_by(Element.EName.asc()).all()
     
     element_list = [{
         "IDE": e.IDE,
@@ -211,7 +220,17 @@ def get_elements_info_by_category(category_name):
 
     item_ids = [item.IDI for item in items]
 
-    elements_query = Element.query.filter(Element.IDI.in_(item_ids))
+    #elements_query = Element.query.filter(Element.IDI.in_(item_ids))
+    elements_query = (
+        db.session.query(
+            Element.IDE,
+            Element.EName,
+            Element.IDI,
+            Item.IName
+        )
+        .join(Item, Element.IDI == Item.IDI)
+        .filter(Element.IDI.in_(item_ids))
+    )
 
     if username.lower() != "admin":
         elements_query = elements_query.filter(Element.Enterby == username)
@@ -222,6 +241,7 @@ def get_elements_info_by_category(category_name):
         "IDE": e.IDE,
         "EName": e.EName,
         "IDI": e.IDI,
+        "IName": e.IName,
         "Category": category_name
     } for e in elements]
 

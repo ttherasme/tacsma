@@ -1,8 +1,10 @@
+import matplotlib
+matplotlib.use('Agg')  # Safe backend for non-GUI threads
 import matplotlib.pyplot as plt
 import numpy as np
 import io
 import base64
-from typing import Optional, Union
+from typing import Optional
 
 # --- Color Themes ---
 COLOR_THEMES = {
@@ -25,51 +27,29 @@ def short_label(label, max_len=25):
     label = str(label)
     return label if len(label) <= max_len else label[:max_len] + "…"
 
-#--- Create Graph without theme ------
+# --- Create Graph (basic) ---
 def create_graph(data, graph_type='line', x_column=None, y_column=None, has_header=False, **kwargs):
-    
     if not hasattr(data, 'shape') or len(data.shape) != 2:
         raise ValueError("Data should be a 2D array-like structure.")
 
     header = None
-    if isinstance(data, np.ndarray):
-        # Data slicing is correct for NumPy array
-        if has_header:
-            header = list(data[0])
-            data = data[1:]
-    else:
-        # This check is redundant since the input in run_analysis is always a NumPy array
-        # but kept for safety.
-        raise ValueError("Data is not in the expected NumPy format.")
+    if isinstance(data, np.ndarray) and has_header:
+        header = list(data[0])
+        data = data[1:]
 
-    # --- Column Indexing ---
-    
-    # 1. Handle String Column Names (only if header is present)
     if isinstance(x_column, str) and header:
-        if x_column not in header:
-            raise ValueError(f"x_column '{x_column}' not found in header.")
         x_column = header.index(x_column)
-
     if isinstance(y_column, str) and header:
-        if y_column not in header:
-            raise ValueError(f"y_column '{y_column}' not found in header.")
         y_column = header.index(y_column)
-        
-    # 2. Default to integer indexing if not a string
-    # (x_column/y_column are already integers 0 and 1 in your run_analysis call)
-    
-    # --- Data Extraction ---
-    # Ensure float conversion happens after indexing
+
     x_data = data[:, x_column]
     y_data = data[:, y_column].astype(float)
 
-    # Figure setup based on data size
     n = len(x_data)
     fig_width = max(10, min(20, n * 0.4))
     plt.figure(figsize=(fig_width, 6))
 
     if graph_type == 'pie':
-        # Pie chart logic (no changes needed, it's robust)
         total = np.sum(y_data)
         threshold = 0.01 * total
         small_mask = y_data < threshold
@@ -83,83 +63,77 @@ def create_graph(data, graph_type='line', x_column=None, y_column=None, has_head
             large_x = np.append(large_x, "Other")
             large_y = np.append(large_y, small_sum)
 
-        # Sort largest to smallest
+        # Sort descending
         sort_order = np.argsort(-large_y)
         large_x = large_x[sort_order]
         large_y = large_y[sort_order]
 
-        # Compute percentages for autopct formatting
+        # Pie autopct and scaling
         def autopct_format(pct):
-            return '%1.1f%%' % pct if pct >= 5 else '' 
+            return '%1.1f%%' % pct if pct >= 5 else ''
 
         colors = kwargs.get('color', plt.cm.tab20.colors)
         if len(large_y) > len(colors):
             import itertools
             colors = list(itertools.islice(itertools.cycle(colors), len(large_y)))
 
-        plt.pie(
+        wedges, texts, autotexts = plt.pie(
             large_y,
-            labels=large_x,
             autopct=autopct_format,
             startangle=90,
-            labeldistance=1.15,
-            colors=colors
+            colors=colors,
+            labeldistance=1.15
+        )
+
+        # Scale text for many slices
+        fontsize = min(10, max(6, 200 // len(large_y)))
+        for t in texts + autotexts:
+            t.set_fontsize(fontsize)
+
+        plt.legend(
+            wedges,
+            large_x,
+            title=kwargs.get('legend_title', 'Categories'),
+            loc='center left',
+            bbox_to_anchor=(1, 0.5),
+            fontsize=fontsize
         )
         plt.axis('equal')
 
     else:
-        # Non-pie chart logic (Bar, Line, Scatter)
-        
-        # Sort data for better visualization
+        # Sort data descending
         sort_order = np.argsort(-y_data)
         x_data = x_data[sort_order]
         y_data = y_data[sort_order]
 
         x_tick_rotation = kwargs.get('x_tick_rotation', 45)
+        fontsize = min(12, max(6, 200 // len(x_data)))
 
         if graph_type == 'bar':
             plt.bar(x_data, y_data, label=kwargs.get('label', 'Data'), color=kwargs.get('color', 'steelblue'))
         elif graph_type == 'line':
-            plt.plot(x_data, y_data, label=kwargs.get('label', 'Data'), color=kwargs.get('color', 'orange'), marker='o')
+            plt.plot(x_data, y_data, label=kwargs.get('label', 'Data'), color=kwargs.get('color', 'orange'), marker='o', linewidth=2)
         elif graph_type == 'scatter':
-            plt.scatter(x_data, y_data, label=kwargs.get('label', 'Data'), color=kwargs.get('color', 'green'))
+            plt.scatter(x_data, y_data, label=kwargs.get('label', 'Data'), color=kwargs.get('color', 'green'), s=50)
         else:
             raise ValueError(f"Unsupported graph type: {graph_type}")
 
-        plt.xticks(rotation=x_tick_rotation, ha='right')
-        
-        # FIX: Ensure axis labels fall back correctly when no header is provided
-        # Use kwargs.get() for labels, regardless of header
-        plt.xlabel(kwargs.get('xlabel', f'Column {x_column}'))
-        plt.ylabel(kwargs.get('ylabel', f'Column {y_column}'))
-        
-        plt.legend()
-        plt.grid(True)
-        # plt.tight_layout() # Removed redundant call
+        plt.xticks(rotation=x_tick_rotation, ha='right', fontsize=fontsize)
+        plt.yticks(fontsize=fontsize)
+        plt.xlabel(kwargs.get('xlabel', f'Column {x_column}'), fontsize=fontsize)
+        plt.ylabel(kwargs.get('ylabel', f'Column {y_column}'), fontsize=fontsize)
+        plt.title(kwargs.get('title', 'Graph Title'), y=1.05, fontsize=fontsize+2, fontweight='bold')
+        plt.legend(fontsize=fontsize)
 
-    # --- Final Plotting and Encoding ---
-    
-    # Title with styling
-    plt.title(
-        kwargs.get('title', 'Graph Title'),
-        y=1.05, # Adjusted y slightly
-        fontsize=14,
-        fontweight='bold'
-    )
-    
-    # FIX: Removed the redundant second call to plt.title() and plt.tight_layout()
     plt.tight_layout()
-    
-    # Save plot to buffer in PNG format and encode as base64 string
     buf = io.BytesIO()
     plt.savefig(buf, format='png')
     plt.close()
     buf.seek(0)
     img_base64 = base64.b64encode(buf.read()).decode('utf-8')
-
     return img_base64
 
-#-- Create Graph with theme ----
+# --- Create Graph with Theme ---
 def create_graph_wt(data, graph_type='line', x_column=0, y_column=1, has_header=False, return_fig=False, **kwargs):
     if not hasattr(data, 'shape') or len(data.shape) != 2:
         raise ValueError("Data should be a 2D array-like structure.")
@@ -209,13 +183,25 @@ def create_graph_wt(data, graph_type='line', x_column=0, y_column=1, has_header=
             import itertools
             colors = list(itertools.islice(itertools.cycle(colors), len(large_y)))
 
-        ax.pie(
+        wedges, texts, autotexts = ax.pie(
             large_y,
-            labels=large_x,
             autopct=autopct_format,
             startangle=90,
             labeldistance=1.15,
             colors=colors
+        )
+
+        fontsize = min(10, max(6, 200 // len(large_y)))
+        for t in texts + autotexts:
+            t.set_fontsize(fontsize)
+
+        ax.legend(
+            wedges,
+            large_x,
+            title=kwargs.get('legend_title', 'Categories'),
+            loc='center left',
+            bbox_to_anchor=(1, 0.5),
+            fontsize=fontsize
         )
         ax.axis('equal')
 
@@ -225,34 +211,33 @@ def create_graph_wt(data, graph_type='line', x_column=0, y_column=1, has_header=
         y_data = y_data[sort_order]
 
         rotation = min(90, max(0, len(str(max(x_data, key=len))) * 2))
+        fontsize = min(12, max(6, 200 // len(x_data)))
 
         if graph_type == 'bar':
             ax.bar(x_data, y_data, label=kwargs.get('label', 'Data'), color=colors[:len(y_data)])
         elif graph_type == 'line':
-            ax.plot(x_data, y_data, label=kwargs.get('label', 'Data'), color=colors[0], marker='o')
+            ax.plot(x_data, y_data, label=kwargs.get('label', 'Data'), color=colors[0], marker='o', linewidth=2)
         elif graph_type == 'scatter':
-            ax.scatter(x_data, y_data, label=kwargs.get('label', 'Data'), color=colors[0])
+            ax.scatter(x_data, y_data, label=kwargs.get('label', 'Data'), color=colors[0], s=50)
         else:
             raise ValueError(f"Unsupported graph type: {graph_type}")
 
         ax.set_xticks(range(len(x_data)))
-        ax.set_xticklabels(x_data, rotation=rotation, ha='right')
-        ax.set_xlabel(kwargs.get('xlabel', f'Column {x_column}'))
-        ax.set_ylabel(kwargs.get('ylabel', f'Column {y_column}'))
-        ax.legend()
-        ax.grid(True)
+        ax.set_xticklabels(x_data, rotation=rotation, ha='right', fontsize=fontsize)
+        ax.set_yticklabels(ax.get_yticks(), fontsize=fontsize)
+        ax.set_xlabel(kwargs.get('xlabel', f'Column {x_column}'), fontsize=fontsize)
+        ax.set_ylabel(kwargs.get('ylabel', f'Column {y_column}'), fontsize=fontsize)
+        ax.legend(fontsize=fontsize)
 
-    ax.set_title(kwargs.get('title', 'Graph Title'), y=1.05, fontsize=14, fontweight='bold')
+    ax.set_title(kwargs.get('title', 'Graph Title'), y=1.05, fontsize=fontsize+2, fontweight='bold')
     fig.tight_layout()
 
     if return_fig:
-        return fig  # return the matplotlib figure directly
+        return fig
 
-    # Save to PNG base64
     buf = io.BytesIO()
     fig.savefig(buf, format='png')
     plt.close(fig)
     buf.seek(0)
     img_base64 = base64.b64encode(buf.read()).decode('utf-8')
     return img_base64
-

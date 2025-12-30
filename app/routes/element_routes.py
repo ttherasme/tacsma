@@ -6,6 +6,112 @@ from app.models import Element, Item, Datasheet
 
 element_bp = Blueprint('element_bp', __name__)
 
+# ------------------------------------------
+# Route: Display element
+# ------------------------------------------
+@element_bp.route('/elements')
+def elements():
+    if 'username' not in session:
+        return redirect(url_for('auth_bp.login'))
+
+    username = session['username']
+
+    # Build the query FIRST (do not call .all yet)
+    query = (
+        db.session.query(
+            Element.IDE,
+            Element.EName,
+            Item.IName,
+            Element.Enterby
+        )
+        .join(Item, Element.IDI == Item.IDI)
+    )
+
+    # Admin sees all, others only their own records
+    if username.lower() != "admin":
+        query = query.filter(Element.Enterby == username)
+
+    # Apply ordering & limit, THEN execute
+    element_list = (
+        query
+        .order_by(Element.EName.desc())
+        .limit(10)
+        .all()
+    )
+
+    return render_template('element/element.html', elements=element_list)
+
+
+# ------------------------------------------
+# Route: Search element
+# ------------------------------------------
+@element_bp.route('/search_elements', methods=['GET'])
+def search_elements():
+    if 'username' not in session:
+        return jsonify([])
+
+    username = session['username']
+    query = request.args.get('q', '').strip()
+    like_query = f"%{query}%"
+
+    # Build base query (DO NOT call .all yet)
+    base_query = (
+        db.session.query(
+            Element.IDE,
+            Element.EName,
+            Item.IName,
+            Element.Enterby,
+            Element.EntryDate
+        )
+        .join(Item, Element.IDI == Item.IDI)
+    )
+
+    # Admin sees all, others only their own
+    if username.lower() != "admin":
+        base_query = base_query.filter(Element.Enterby == username)
+
+    # Apply search filter
+    if query:
+        base_query = base_query.filter(
+            db.or_(
+                Element.EName.ilike(like_query),
+                Item.IName.ilike(like_query),
+                db.cast(Element.IDE, db.String).ilike(like_query),
+                db.cast(Element.EntryDate, db.String).ilike(like_query),
+            )
+        ).order_by(Element.EntryDate.desc())
+    else:
+        base_query = base_query.order_by(Element.EName.desc())
+
+    # Execute query
+    elements = base_query.limit(10).all()
+
+    # Build JSON response
+    result = [
+        {
+            "IDE": e.IDE,
+            "EName": e.EName,
+            "IName": e.IName,
+            "EntryDate": e.EntryDate.strftime('%Y-%m-%d %H:%M') if e.EntryDate else ""
+        }
+        for e in elements
+    ]
+
+    return jsonify(result)
+
+
+@element_bp.route('/registerelement_global')
+def registerelement_global():
+    #code will come here
+    return
+
+
+@element_bp.route('/updateelement')
+def updateelement():
+    #code will come here
+    return
+
+
 
 @element_bp.route('/get_elements_by_item/<item_name>', methods=['GET'])
 def get_elements_by_item(item_name):
@@ -36,6 +142,7 @@ def register_element_post():
     if 'username' not in session:
         return jsonify({"success": False, "message": "User not authenticated."}), 401
 
+    current_user = session['username']
     data = request.get_json()
     if not data or 'elements' not in data or not isinstance(data['elements'], list) or 'elementname' not in data:
         return jsonify({"success": False, "message": "Invalid data format."}), 400
@@ -62,7 +169,7 @@ def register_element_post():
             if existing_element:
                 continue
             
-            new_element = Element(EName=e_name, IDI=item.IDI)
+            new_element = Element(EName=e_name, IDI=item.IDI, Enterby=current_user)
             db.session.add(new_element)
             added_count += 1
             
@@ -83,16 +190,27 @@ def listFlows(idtask):
     if 'username' not in session:
         return jsonify({"success": False, "flows": []})
 
-    # Query Datasheet and Element, join on IDE, filter by IDT, get distinct IDE and EName
-    flows = db.session.query(Datasheet.IDE, Element.EName).\
-        join(Element, Datasheet.IDE == Element.IDE).\
-        filter(Datasheet.IDT == idtask).\
-        distinct().\
-        order_by(Datasheet.IDE).all()
+    flows = (
+        db.session.query(
+            Datasheet.IDE,
+            Element.EName,
+            Item.IName
+        )
+        .join(Element, Datasheet.IDE == Element.IDE)
+        .join(Item, Element.IDI == Item.IDI)
+        .filter(Datasheet.IDT == idtask)
+        .distinct()
+        .order_by(Datasheet.IDE)
+        .all()
+    )
 
-    result = [{
-        "IDE": ide,
-        "EName": ename
-    } for ide, ename in flows]
+    result = [
+        {
+            "IDE": ide,
+            "EName": ename,
+            "IName": iname
+        }
+        for ide, ename, iname in flows
+    ]
 
     return jsonify({"success": True, "flows": result})

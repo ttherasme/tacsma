@@ -17,6 +17,8 @@ from .Forest_growth_model import forest_growth_newA, forest_growth_function
 from .unit_conversion import unit_conversion
 import base64
 import io
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from .Forest_growth_model import init_param_variable
 
