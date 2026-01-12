@@ -51,7 +51,7 @@ def registeruom():
                     continue # skip if name or unit is missing/empty
 
                 new_uom = UOM(
-                    IDU='U1',
+                    IDU='U1'+str(added_count),
                     UName=u_name,
                     Unit=unit,
                     State=1, # Default to 1 as per your model and client-side logic
@@ -253,6 +253,3 @@ def units_by_uname(uname):
     } for unit in units]
 
     return jsonify(result)
-
-
-

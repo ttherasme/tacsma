@@ -52,6 +52,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         opt.textContent = step.SName;
                         stepSelect.appendChild(opt);
                     }
+
                 });
             }
         });
@@ -166,25 +167,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const stepId = stepObj.IDS;
 
-        fetch(`/get_elements_by_category/${encodeURIComponent(currentCategory)}`)
+        fetch(`/get_elements_by_category_for_datasheet/${encodeURIComponent(currentCategory)}`)
             .then(res => res.json())
             .then(data => {
                 if (!data.success) {
                     rightPanel.innerHTML = `<p>No elements for category.</p>`;
                     return;
                 }
-
                 const filteredElements = data.elements;
                 const elementIDs = filteredElements.map(e => e.IDE);
-
                 const filteredRows = allDatasheets.filter(row =>
                     row.IDT == taskId &&
                     row.IDS == stepId &&
                     elementIDs.includes(row.IDE)
                 );
-
                 renderTable(filteredRows, filteredElements);
             });
+
     }
 
     /* ===============================================================
@@ -204,8 +203,8 @@ document.addEventListener("DOMContentLoaded", () => {
         if (currentModule === "Transportation") {
             headerRow.innerHTML = `
                 <th>Material</th>
-                <th>Mass</th>
-                <th>Distance</th>
+                <th>Value</th>
+                <th>Unit</th>
                 <th>Transport Mode</th>`;
         }
         else if (currentCategory === "Co-Products") {
@@ -247,13 +246,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (currentModule === "Transportation") {
             const unit1 = allUOMs.find(u => u.IDU == rowData.IDU1)?.Unit || "";
-            const unit2 = allUOMs.find(u => u.IDU == rowData.IDU2)?.Unit || "";
+            //const unit2 = allUOMs.find(u => u.IDU == rowData.IDU2)?.Unit || "";
             const mt = allMTransport.find(m => m.IDM == rowData.IDM)?.MTName || "";
 
             tr.innerHTML = `
                 <td>${elementName}</td>
-                <td>${rowData.ValueD1} ${unit1}</td>
-                <td>${rowData.ValueD2} ${unit2}</td>
+                <td>${rowData.ValueD1} </td>
+                <td>${unit1}</td>
                 <td>${mt}</td>
             `;
         }

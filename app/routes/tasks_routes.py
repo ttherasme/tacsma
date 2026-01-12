@@ -1,36 +1,46 @@
 from flask import Blueprint, render_template, session, redirect, url_for, request, jsonify
 from datetime import datetime
 from app import db
-from app.models import Tasks
+from app.models import Tasks, User
 
 tasks_bp = Blueprint('tasks_bp', __name__)
 
-# ------------------------------------------
-# Route: Display tasks (first 10)
-# ------------------------------------------
+# ----------------------------------------------------------------
+# Helper Function: Check Authentication
+# ----------------------------------------------------------------
+def get_current_user():
+    if 'user_id' not in session:
+        return None
+    return session.get('user_id')
+
+# ----------------------------------------------------------------
+# Route: Display Tasks (Dashboard View)
+# ----------------------------------------------------------------
 @tasks_bp.route('/tasks')
 def tasks():
-    if 'username' not in session:
+    user_id = get_current_user()
+    if not user_id:
         return redirect(url_for('auth_bp.login'))
 
-    username = session['username']
-    task_list = Tasks.query
-
-    # --- Base query: Admin sees all, others only see their own ---
-    if username.lower() != "admin":
-        task_list = Tasks.query.filter(Tasks.EnterBy == username)
+    username = session.get('username', '')
+    
+    # Base query: Admin sees all, regular users only see their own
+    if username.lower() == "admin":
+        task_query = Tasks.query
+    else:
+        task_query = Tasks.query.filter_by(user_id=user_id)
         
-    task_list = task_list.order_by(Tasks.EntryDate.desc()).limit(10).all()
+    task_list = task_query.order_by(Tasks.EntryDate.desc()).limit(10).all()
     return render_template('tasks/tasks.html', tasks=task_list)
 
-
-# ------------------------------------------
-# Route: Task Registration Page + Submission
-# ------------------------------------------
+# ----------------------------------------------------------------
+# Route: Task Registration (AJAX/JSON)
+# ----------------------------------------------------------------
 @tasks_bp.route('/registertask', methods=['GET', 'POST'])
 def registertask():
-    if 'username' not in session:
-        return redirect(url_for('auth_bp.login'))
+    user_id = get_current_user()
+    if not user_id:
+        return jsonify({"success": False, "message": "Authentication required"}), 401
 
     if request.method == 'POST':
         data = request.get_json()
@@ -39,73 +49,63 @@ def registertask():
 
         try:
             added_count = 0
+            # Expecting a list of tasks from the frontend
             for item in data:
                 name = item.get("TName")
-                region = item.get("Region", "")
-                desc = item.get("Description", "")
-
                 if not name:
-                    continue  # skip if name is missing
+                    continue 
 
-                task = Tasks(
+                new_task = Tasks(
+                    IDT=added_count,
                     TName=name,
-                    Region=region,
-                    Description=desc,
-                    EntryDate=datetime.now(),
-                    EnterBy=session.get('username')
+                    Region=item.get("Region", ""),
+                    Description=item.get("Description", ""),
+                    EntryDate=datetime.utcnow(),
+                    user_id=user_id  
                 )
-                db.session.add(task)
+                db.session.add(new_task)
                 added_count += 1
 
             if added_count == 0:
                 return jsonify({"success": False, "message": "No valid tasks to insert."}), 400
 
             db.session.commit()
-            return jsonify({"success": True}), 200
-
-            # Optionally: For per-task result tracking:
-            # return jsonify({
-            #     "success": True,
-            #     "results": [{"TName": item.get("TName"), "status": "ok"} for item in data]
-            # })
+            return jsonify({"success": True, "message": f"{added_count} task(s) registered."}), 200
 
         except Exception as e:
             db.session.rollback()
-            return jsonify({"success": False, "message": str(e)}), 500
+            return jsonify({"success": False, "message": f"Database error: {str(e)}"}), 500
 
     return render_template('tasks/taskregister.html')
 
-
-# ------------------------------------------
-# Route: Task Update Page + Submission
-# ------------------------------------------
+# ----------------------------------------------------------------
+# Route: Update Existing Task
+# ----------------------------------------------------------------
 @tasks_bp.route('/updatetask', methods=['GET', 'POST'])
 def updatetask():
-    if 'username' not in session:
+    user_id = get_current_user()
+    if not user_id:
         return redirect(url_for('auth_bp.login'))
 
     if request.method == 'POST':
         data = request.get_json()
-        if not data or not isinstance(data, dict):
-            return jsonify({"success": False, "message": "Invalid data."}), 400
-
         task_id = data.get("IDT")
-        name = data.get("TName")
-        desc = data.get("Description", "")
-        region = data.get("Region")
+        
+        task = Tasks.query.get(task_id)
+        if not task:
+            return jsonify({"success": False, "message": "Task not found."}), 404
+
+        # Security check: Only owner or admin can update
+        if session.get('username').lower() != "admin" and task.user_id != user_id:
+            return jsonify({"success": False, "message": "Unauthorized action."}), 403
 
         try:
-            task = Tasks.query.get(task_id)
-            if not task:
-                return jsonify({"success": False, "message": "Task not found."}), 404
-
-            task.TName = name
-            task.Region = region
-            task.Description = desc
-            task.EntryDate = datetime.now()
+            task.TName = data.get("TName")
+            task.Region = data.get("Region")
+            task.Description = data.get("Description")
+            # We keep the original EntryDate but could add an UpdateDate if needed
             db.session.commit()
-
-            return jsonify({"success": True}), 200
+            return jsonify({"success": True, "message": "Task updated successfully."}), 200
         except Exception as e:
             db.session.rollback()
             return jsonify({"success": False, "message": str(e)}), 500
@@ -114,29 +114,26 @@ def updatetask():
     task = Tasks.query.get(task_id) if task_id else None
     return render_template("tasks/taskupdate.html", task=task)
 
-
-# ------------------------------------------
-# Route: Search tasks by name
-# ------------------------------------------
+# ----------------------------------------------------------------
+# Route: Search/Filter Tasks (JSON)
+# ----------------------------------------------------------------
 @tasks_bp.route('/searchtasks', methods=['GET'])
 def search_tasks():
-    if 'username' not in session:
+    user_id = get_current_user()
+    if not user_id:
         return jsonify([])
 
-    username = session['username']
     query = request.args.get('q', '').strip()
-    like_query = f"%{query}%"
+    username = session.get('username', '')
 
-    # --- Base query: Admin sees all, others only see their own ---
+    # Admin vs User filtering
     if username.lower() == "admin":
         base_query = Tasks.query
     else:
-        base_query = Tasks.query.filter(Tasks.EnterBy == username)
+        base_query = Tasks.query.filter_by(user_id=user_id)
 
-    # --- Apply search filter---
-    if not query:
-        tasks = base_query.order_by(Tasks.EntryDate.desc()).limit(10).all()
-    else:
+    if query:
+        like_query = f"%{query}%"
         tasks = base_query.filter(
             db.or_(
                 Tasks.TName.ilike(like_query),
@@ -146,14 +143,16 @@ def search_tasks():
                 db.cast(Tasks.EntryDate, db.String).ilike(like_query),
             )
         ).order_by(Tasks.EntryDate.desc()).limit(10).all()
+    else:
+        tasks = base_query.order_by(Tasks.EntryDate.desc()).limit(10).all()
 
     result = [{
-        "IDT": task.IDT,
-        "TName": task.TName,
-        "Region": task.Region,
-        "Description": task.Description,
-        "EntryDate": task.EntryDate.strftime('%Y-%m-%d %H:%M') if task.EntryDate else ""
-    } for task in tasks]
+        "IDT": t.IDT,
+        "TName": t.TName,
+        "Region": t.Region,
+        "Description": t.Description,
+        "EntryDate": t.EntryDate.strftime('%Y-%m-%d %H:%M') if t.EntryDate else ""
+    } for t in tasks]
 
     return jsonify(result)
 
@@ -161,84 +160,141 @@ def search_tasks():
 # ------------------------------------------
 # Route: list tasks
 # ------------------------------------------
-
 @tasks_bp.route('/listtasks', methods=['GET'])
 def listtasks():
-    if 'username' not in session:
-        return jsonify({"success": False, "tasks": []})
+    """
+    Fetch a full list of tasks. 
+    Admin sees all tasks; regular users see only theirs.
+    """
+    # 1. Check if user is authenticated
+    user_id = session.get('user_id')
+    username = session.get('username')
 
-    username = session['username']
+    if not user_id:
+        return jsonify({
+            "success": False, 
+            "message": "User session not found. Please log in.",
+            "tasks": []
+        }), 401
 
-    # Admin sees everything
-    if username.lower() == "admin":
-        tasks = Tasks.query.order_by(Tasks.TName.asc()).all()
-    else:
-        # Others only see their own tasks
-        tasks = Tasks.query.filter(Tasks.EnterBy == username).order_by(Tasks.TName.asc()).all()
+    try:
+        # 2. Define logic based on user role (Admin vs Regular User)
+        if username and username.lower() == "admin":
+            # Admin retrieves all tasks ordered alphabetically
+            tasks_query = Tasks.query.order_by(Tasks.TName.asc()).all()
+        else:
+            # Regular users only retrieve tasks linked to their user_id
+            tasks_query = Tasks.query.filter_by(user_id=user_id).order_by(Tasks.TName.asc()).all()
 
-    result = [{
-        "IDT": task.IDT,
-        "TName": task.TName,
-        "Region": task.Region,
-        "Description": task.Description,
-        "EntryDate": task.EntryDate.strftime('%Y-%m-%d %H:%M') if task.EntryDate else ""
-    } for task in tasks]
+        # 3. Serialize data into JSON format
+        result = [{
+            "IDT": task.IDT,
+            "TName": task.TName,
+            "Region": task.Region,
+            "Description": task.Description,
+            "EntryDate": task.EntryDate.strftime('%Y-%m-%d %H:%M') if task.EntryDate else ""
+        } for task in tasks_query]
 
-    return jsonify({"success": True, "tasks": result})
+        return jsonify({
+            "success": True, 
+            "count": len(result),
+            "tasks": result
+        }), 200
 
-# ------------------------------------------
-# Route: Delete a task by IDT
-# ------------------------------------------
+    except Exception as e:
+        # Log error if something goes wrong with the database
+        return jsonify({
+            "success": False, 
+            "message": f"An error occurred while fetching tasks: {str(e)}"
+        }), 500
+
+
+# ----------------------------------------------------------------
+# Route: Delete a Task by ID
+# ----------------------------------------------------------------
 @tasks_bp.route('/delete_task/<int:task_id>', methods=['DELETE'])
 def delete_task(task_id):
-    if 'username' not in session:
-        return jsonify({"success": False, "message": "Not authenticated"}), 401
+    user_id = get_current_user()
+    if not user_id:
+        return jsonify({"success": False, "message": "Session expired"}), 401
 
-    username = session['username']
-
-    # Fetch the task
     task = Tasks.query.get(task_id)
     if not task:
         return jsonify({"success": False, "message": "Task not found"}), 404
 
-    # Admin can delete anything, other users only their own
-    #if username != "Admin" and task.EnterBy != username:
-    #    return jsonify({"success": False, "message": "Not authorized"}), 403
+    # Security check
+    if session.get('username').lower() != "admin" and task.user_id != user_id:
+        return jsonify({"success": False, "message": "Access denied"}), 403
 
     try:
         db.session.delete(task)
         db.session.commit()
-        return jsonify({"success": True, "message": "Task deleted successfully"})
-    except Exception as e:
+        return jsonify({"success": True, "message": "Task permanently deleted"})
+    except Exception:
         db.session.rollback()
-        return jsonify({"success": False, "message": "Error deleting task"}), 500
+        return jsonify({"success": False, "message": "Integrity error: Task is linked to data sheets"}), 500
     
 
+# ----------------------------------------------------------------
+# Route: Delete multiple Tasks by ID
+# ----------------------------------------------------------------
 @tasks_bp.route('/delete_tasks', methods=['DELETE'])
 def delete_tasks():
-    if 'username' not in session:
-        return jsonify({"success": False, "message": "Not authenticated"}), 401
+    """
+    Bulk delete tasks based on a list of IDs.
+    Ensures users can only delete their own tasks unless they are Admin.
+    """
+    # 1. Authentication check
+    user_id = session.get('user_id')
+    username = session.get('username')
 
+    if not user_id:
+        return jsonify({"success": False, "message": "Authentication required."}), 401
+
+    # 2. Data validation
     task_ids = request.json.get("task_ids", [])
     if not task_ids:
-        return jsonify({"success": False, "message": "No task IDs provided"}), 400
+        return jsonify({"success": False, "message": "No task IDs provided."}), 400
 
     results = []
-    for task_id in task_ids:
-        task = Tasks.query.get(task_id)
+    try:
+        for task_id in task_ids:
+            task = Tasks.query.get(task_id)
 
-        if not task:
-            results.append({"id": task_id, "status": "not_found"})
-            continue
+            # Check if task exists
+            if not task:
+                results.append({"id": task_id, "status": "not_found"})
+                continue
 
-        try:
+            # Security: Verify ownership (Admin bypasses this)
+            is_admin = username and username.lower() == "admin"
+            if not is_admin and task.user_id != user_id:
+                results.append({"id": task_id, "status": "unauthorized"})
+                continue
+
+            # Add to deletion queue
             db.session.delete(task)
-            db.session.commit()
-            results.append({"id": task_id, "status": "deleted"})
-        except:
-            db.session.rollback()
-            results.append({"id": task_id, "status": "error"})
+            results.append({"id": task_id, "status": "pending_deletion"})
 
-    return jsonify({"success": True, "results": results})
+        # 3. Finalize transaction
+        db.session.commit()
+        
+        # Update status to deleted for all pending items
+        for res in results:
+            if res["status"] == "pending_deletion":
+                res["status"] = "deleted"
+
+        return jsonify({
+            "success": True, 
+            "message": "Bulk deletion process completed.",
+            "results": results
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "success": False, 
+            "message": f"Critical database error: {str(e)}"
+        }), 500
 
 

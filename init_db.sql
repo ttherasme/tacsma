@@ -2,57 +2,6 @@
 CREATE DATABASE IF NOT EXISTS tacsma;
 USE tacsma;
 
--- Create Tasks table with custom IDT (no AUTO_INCREMENT)
-CREATE TABLE IF NOT EXISTS Tasks (
-    IDT INT PRIMARY KEY,
-    TName VARCHAR(150) NOT NULL,
-    Region VARCHAR(8),
-    Description VARCHAR(250),
-    EntryDate DATETIME DEFAULT CURRENT_TIMESTAMP,
-    EnterBy VARCHAR(25)
-);
-
--- Create Item table with IDI to be set by a trigger
-CREATE TABLE IF NOT EXISTS Item (
-    IDI CHAR(6) PRIMARY KEY,
-    IName VARCHAR(100) UNIQUE NOT NULL
-);
-
--- Create Step table
-CREATE TABLE IF NOT EXISTS Step (
-    IDS CHAR(6) PRIMARY KEY,
-    SName VARCHAR(50) UNIQUE NOT NULL,
-    State INT DEFAULT 1,
-    EntryDate DATETIME DEFAULT CURRENT_TIMESTAMP,
-    EnterBy VARCHAR(25),
-    UpdateDate DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    UpdateBy VARCHAR(25)
-);
-
--- Create UOM table
-CREATE TABLE IF NOT EXISTS UOM (
-    IDU CHAR(6) PRIMARY KEY,
-    UName VARCHAR(20) NOT NULL,
-    Unit CHAR(5) NOT NULL,
-    `State` INT DEFAULT 1,
-    EntryDate DATETIME DEFAULT CURRENT_TIMESTAMP,
-    EnterBy VARCHAR(25),
-    UpdateDate DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    UpdateBy VARCHAR(25),
-    INDEX idx_uname_unit (UName, Unit)
-);
-
--- Create MTransp table
-CREATE TABLE IF NOT EXISTS MTransp (
-    IDM CHAR(6) PRIMARY KEY,
-    MTName VARCHAR(50) NOT NULL,
-    State INT DEFAULT 1,
-    EntryDate DATETIME DEFAULT CURRENT_TIMESTAMP,
-    EnterBy VARCHAR(25),
-    UpdateDate DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    UpdateBy VARCHAR(25)
-);
-
 CREATE TABLE `parameter` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
     `parameter_name` VARCHAR(100) NOT NULL UNIQUE,
@@ -67,7 +16,29 @@ CREATE TABLE `user` (
     `state` BOOLEAN DEFAULT TRUE,
     `level` INT DEFAULT 0,
     `change` INT DEFAULT 1,
-    `regeneration_mode` BOOLEAN DEFAULT FALSE
+    `regeneration_mode` Int DEFAULT 0
+);
+
+CREATE TABLE `permission_rule` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `access_level` INT NOT NULL,
+    `page_name` VARCHAR(50) NOT NULL,
+    `element_id` VARCHAR(100) NOT NULL,
+    `action_type` VARCHAR(20) NOT NULL,
+
+    CONSTRAINT `_unique_permission_rule` UNIQUE (`access_level`, `page_name`, `element_id`, `action_type`)
+);
+
+CREATE TABLE tasks (
+    IDT INT PRIMARY KEY,
+    TName VARCHAR(150) NOT NULL,
+    Region VARCHAR(8),
+    Description VARCHAR(250),
+    EntryDate DATETIME DEFAULT CURRENT_TIMESTAMP,
+    user_id INT NOT NULL,
+    CONSTRAINT fk_tasks_user
+        FOREIGN KEY (user_id) REFERENCES user(id)
+        ON DELETE CASCADE
 );
 
 CREATE TABLE `user_parameter_value` (
@@ -84,117 +55,123 @@ CREATE TABLE `user_parameter_value` (
     CONSTRAINT `_user_parameter_uc` UNIQUE (`user_id`, `parameter_id`, `IDT`)
 );
 
-CREATE TABLE `permission_rule` (
-    `id` INT AUTO_INCREMENT PRIMARY KEY,
-    `access_level` INT NOT NULL,
-    `page_name` VARCHAR(50) NOT NULL,
-    `element_id` VARCHAR(100) NOT NULL,
-    `action_type` VARCHAR(20) NOT NULL,
 
-    CONSTRAINT `_unique_permission_rule` UNIQUE (`access_level`, `page_name`, `element_id`, `action_type`)
+CREATE TABLE IF NOT EXISTS item (
+    IDI CHAR(6) PRIMARY KEY,
+    IName VARCHAR(100) UNIQUE NOT NULL
 );
 
--- Create Element table
-CREATE TABLE IF NOT EXISTS Element (
-    IDE INT PRIMARY KEY,
-    EName VARCHAR(30) NOT NULL,
-    IDI CHAR(6) NOT NULL,
-    FOREIGN KEY (IDI) REFERENCES Item (IDI),
-    EnterBy VARCHAR(25),
-    EntryDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_ename_idi (EName, IDI)
-);
-
--- Create Datasheet table
-CREATE TABLE IF NOT EXISTS Datasheet (
-    IDD INT AUTO_INCREMENT PRIMARY KEY,
-    IDT Int NOT NULL,
-    IDE INT NOT NULL,
-    IDS CHAR(6) NOT NULL,
-    IDU1 CHAR(6) NOT NULL,
-    ValueD1 FLOAT DEFAULT 0,
-    IDU2 CHAR(6),
-    ValueD2 FLOAT DEFAULT 0,
-    IDM CHAR(6),
-    CHK INT DEFAULT 0,
+CREATE TABLE IF NOT EXISTS step (
+    IDS CHAR(6) PRIMARY KEY,
+    SName VARCHAR(50) UNIQUE NOT NULL,
+    State INT DEFAULT 1,
     EntryDate DATETIME DEFAULT CURRENT_TIMESTAMP,
     EnterBy VARCHAR(25),
     UpdateDate DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    UpdateBy VARCHAR(25),
-    FOREIGN KEY (IDE) REFERENCES Element (IDE),
-    FOREIGN KEY (IDU1) REFERENCES UOM (IDU),
-    FOREIGN KEY (IDU2) REFERENCES UOM (IDU),
-    FOREIGN KEY (IDS) REFERENCES Step (IDS),
-    FOREIGN KEY (IDM) REFERENCES MTransp (IDM),
-    FOREIGN KEY (IDT) References Tasks (IDT)
+    UpdateBy VARCHAR(25)
 );
 
-CREATE TABLE IF NOT EXISTS `forestry_conversion_factors_fia` (
-  ID INT AUTO_INCREMENT PRIMARY KEY,
-  `materials` varchar(17) DEFAULT NULL,
-  `species_class` varchar(9) DEFAULT NULL,
-  `species_name` varchar(12) DEFAULT NULL,
-  `input_unit` varchar(26) DEFAULT NULL,
-  `output_unit` varchar(17) DEFAULT NULL,
-  `factor` decimal(10,9) DEFAULT NULL
+CREATE TABLE IF NOT EXISTS uom (
+    IDU CHAR(6) PRIMARY KEY,
+    UName VARCHAR(20) NOT NULL,
+    Unit CHAR(5) NOT NULL,
+    `State` INT DEFAULT 1,
+    EntryDate DATETIME DEFAULT CURRENT_TIMESTAMP,
+    EnterBy VARCHAR(25),
+    INDEX idx_uname_unit (UName, Unit)
 );
 
-CREATE TABLE IF NOT EXISTS `lci` (
-  `Background_process` varchar(48) DEFAULT NULL,
-  `Code` varchar(5) NOT NULL PRIMARY KEY,
-  `Unit` varchar(4) DEFAULT NULL,
-  `GWP` decimal(10,9) DEFAULT NULL,
-  `Smog` decimal(10,9) DEFAULT NULL,
-  `Acidification` decimal(10,9) DEFAULT NULL,
-  `Eutrophication` decimal(10,9) DEFAULT NULL,
-  `Carcinogenics` decimal(7,6) DEFAULT NULL,
-  `Non_carcinogenics` decimal(7,6) DEFAULT NULL,
-  `Respiratory_effects` decimal(10,9) DEFAULT NULL,
-  `Ecotoxicity` decimal(10,9) DEFAULT NULL,
-  `Fossil_fuel_depletion` decimal(10,9) DEFAULT NULL,
-  `Ozone_depletion` decimal(7,6) DEFAULT NULL
+
+CREATE TABLE IF NOT EXISTS mtransp (
+    IDM CHAR(6) PRIMARY KEY,
+    MTName VARCHAR(50) NOT NULL,
+    State INT DEFAULT 1,
+    EntryDate DATETIME DEFAULT CURRENT_TIMESTAMP,
+    EnterBy VARCHAR(25)
 );
 
-CREATE TABLE IF NOT EXISTS `matrix_a_raw` (
-  ID INT AUTO_INCREMENT PRIMARY KEY,
-  `Flow` varchar(26) DEFAULT NULL,
-  `flow ID` varchar(5) DEFAULT NULL,
-  `Process 1` varchar(5) DEFAULT NULL,
-  `Unit 1` varchar(3) DEFAULT NULL,
-  `Process 2` varchar(5) DEFAULT NULL,
-  `Unit 2` varchar(3) DEFAULT NULL,
-  `Process 3` varchar(5) DEFAULT NULL,
-  `Unit 3` varchar(3) DEFAULT NULL,
-  `Process 4` varchar(5) DEFAULT NULL,
-  `Unit 4` varchar(3) DEFAULT NULL,
-  `Process 5` varchar(5) DEFAULT NULL,
-  `Unit 5` varchar(3) DEFAULT NULL,
-  `Process 6` varchar(5) DEFAULT NULL,
-  `Unit 6` varchar(3) DEFAULT NULL
+CREATE TABLE IF NOT EXISTS element (
+    IDE INT PRIMARY KEY,
+    EName VARCHAR(30) NOT NULL,
+    IDI VARCHAR(6) NOT NULL,
+    user_id INT NOT NULL,
+    Global_Val INT, default=0,
+    EntryDate DATETIME DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT _unique_element_constraint
+        UNIQUE (EName, IDI, user_id),
+    CONSTRAINT fk_element_item
+        FOREIGN KEY (IDI) REFERENCES item(IDI),
+    CONSTRAINT fk_element_user
+        FOREIGN KEY (user_id) REFERENCES `user` (`id`)
+); 
+
+
+CREATE TABLE datasheet (
+    IDD INT AUTO_INCREMENT PRIMARY KEY,
+    IDT INT NOT NULL,
+    IDE INT NOT NULL,
+    IDS VARCHAR(6) NOT NULL,
+    IDU VARCHAR(6) NOT NULL,
+    ValueD FLOAT DEFAULT 0,
+    IDM VARCHAR(6),
+    CHK INT DEFAULT 0,
+    EntryDate DATETIME DEFAULT CURRENT_TIMESTAMP,
+    user_id INT NOT NULL,
+    UpdateDate DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT _unique_datasheet_constraint
+        UNIQUE (IDT, IDE, IDS),
+    CONSTRAINT fk_ds_task
+        FOREIGN KEY (IDT) REFERENCES tasks(IDT),
+    CONSTRAINT fk_ds_element
+        FOREIGN KEY (IDE) REFERENCES element(IDE),
+    CONSTRAINT fk_ds_step
+        FOREIGN KEY (IDS) REFERENCES step(IDS),
+    CONSTRAINT fk_ds_uom
+        FOREIGN KEY (IDU) REFERENCES uom(IDU),
+    CONSTRAINT fk_ds_mtransp
+        FOREIGN KEY (IDM) REFERENCES mtransp(IDM),
+    CONSTRAINT fk_ds_user
+        FOREIGN KEY (user_id) REFERENCES user(id)
 );
 
-CREATE TABLE IF NOT EXISTS `matrix_b` (
-  ID INT AUTO_INCREMENT PRIMARY KEY,
-  `Background process` varchar(48) DEFAULT NULL,
-  `Code` varchar(5) DEFAULT NULL,
-  `Unit` varchar(3) DEFAULT NULL,
-  `Process_1` varchar(5) DEFAULT NULL,
-  `Process_2` varchar(5) DEFAULT NULL,
-  `Process_3` varchar(5) DEFAULT NULL,
-  `Process_4` varchar(5) DEFAULT NULL,
-  `Process_6` varchar(5) DEFAULT NULL,
-  `Process_5` varchar(5) DEFAULT NULL
-);
+
+CREATE TABLE forestry_conversion_factors_fia (
+    ID INT AUTO_INCREMENT PRIMARY KEY,
+    materials VARCHAR(17),
+    species_class VARCHAR(9),
+    species_name VARCHAR(12),
+    input_unit VARCHAR(26),
+    output_unit VARCHAR(17),
+    factor DECIMAL(10,9)
+) ENGINE=InnoDB;
+
+CREATE TABLE lci (
+    Background_process VARCHAR(48) NOT NULL,
+    Code VARCHAR(5) NOT NULL,
+    Unit VARCHAR(4),
+    GWP DECIMAL(16,10),
+    Smog DECIMAL(16,10),
+    Acidification DECIMAL(16,10),
+    Eutrophication DECIMAL(16,10),
+    Carcinogenics DECIMAL(16,10),
+    Non_carcinogenics DECIMAL(16,10),
+    Respiratory_effects DECIMAL(16,10),
+    Ecotoxicity DECIMAL(16,10),
+    Fossil_fuel_depletion DECIMAL(16,10),
+    Ozone_depletion DECIMAL(16,10),
+    PRIMARY KEY (Background_process, Code)
+) ENGINE=InnoDB;
+
 
 -- Trigger: Auto-generate IDI for Item
 DELIMITER $$
 
 CREATE TRIGGER before_insert_item
-BEFORE INSERT ON Item
+BEFORE INSERT ON item
 FOR EACH ROW
 BEGIN
     DECLARE new_id VARCHAR(6);
-    SET new_id = CONCAT('I', LPAD((SELECT IFNULL(MAX(CAST(SUBSTRING(IDI, 2) AS UNSIGNED)), 0) + 1 FROM Item), 4, '0'));
+    SET new_id = CONCAT('I', LPAD((SELECT IFNULL(MAX(CAST(SUBSTRING(IDI, 2) AS UNSIGNED)), 0) + 1 FROM item), 4, '0'));
     SET NEW.IDI = new_id;
 END $$
 
@@ -204,11 +181,11 @@ DELIMITER ;
 DELIMITER $$
 
 CREATE TRIGGER before_insert_step
-BEFORE INSERT ON Step
+BEFORE INSERT ON step
 FOR EACH ROW
 BEGIN
     DECLARE new_id VARCHAR(6);
-    SET new_id = CONCAT('S', LPAD((SELECT IFNULL(MAX(CAST(SUBSTRING(IDS, 2) AS UNSIGNED)), 0) + 1 FROM Step), 4, '0'));
+    SET new_id = CONCAT('S', LPAD((SELECT IFNULL(MAX(CAST(SUBSTRING(IDS, 2) AS UNSIGNED)), 0) + 1 FROM step), 4, '0'));
     SET NEW.IDS = new_id;
 END $$
 
@@ -218,11 +195,11 @@ DELIMITER ;
 DELIMITER $$
 
 CREATE TRIGGER before_insert_uom
-BEFORE INSERT ON UOM
+BEFORE INSERT ON uom
 FOR EACH ROW
 BEGIN
     DECLARE new_id VARCHAR(6);
-    SET new_id = CONCAT('U', LPAD((SELECT IFNULL(MAX(CAST(SUBSTRING(IDU, 2) AS UNSIGNED)), 0) + 1 FROM UOM), 4, '0'));
+    SET new_id = CONCAT('U', LPAD((SELECT IFNULL(MAX(CAST(SUBSTRING(IDU, 2) AS UNSIGNED)), 0) + 1 FROM uom), 4, '0'));
     SET NEW.IDU = new_id;
 END $$
 
@@ -232,11 +209,11 @@ DELIMITER ;
 DELIMITER $$
 
 CREATE TRIGGER before_insert_mtransp
-BEFORE INSERT ON MTransp
+BEFORE INSERT ON mtransp
 FOR EACH ROW
 BEGIN
     DECLARE new_id VARCHAR(6);
-    SET new_id = CONCAT('M', LPAD((SELECT IFNULL(MAX(CAST(SUBSTRING(IDM, 2) AS UNSIGNED)), 0) + 1 FROM MTransp), 4, '0'));
+    SET new_id = CONCAT('M', LPAD((SELECT IFNULL(MAX(CAST(SUBSTRING(IDM, 2) AS UNSIGNED)), 0) + 1 FROM mtransp), 4, '0'));
     SET NEW.IDM = new_id;
 END $$
 
@@ -246,12 +223,12 @@ DELIMITER ;
 DELIMITER $$
 
 CREATE TRIGGER before_insert_task
-BEFORE INSERT ON Tasks
+BEFORE INSERT ON tasks
 FOR EACH ROW
 BEGIN
     DECLARE new_id INT;
     DECLARE id_str VARCHAR(10);
-    SET new_id = (SELECT IFNULL(MAX(IDT), 99) + 1 FROM Tasks);
+    SET new_id = (SELECT IFNULL(MAX(IDT), 99) + 1 FROM tasks);
     SET id_str = CAST(new_id AS CHAR);
 
     WHILE LENGTH(id_str) < 3 OR id_str LIKE '%000%' OR id_str LIKE '%111%' OR id_str LIKE '%222%' OR
@@ -270,12 +247,12 @@ DELIMITER ;
 DELIMITER $$
 
 CREATE TRIGGER before_insert_element
-BEFORE INSERT ON Element
+BEFORE INSERT ON element
 FOR EACH ROW
 BEGIN
     DECLARE new_id INT;
     DECLARE id_str VARCHAR(10);
-    SET new_id = (SELECT IFNULL(MAX(IDE), 99) + 1 FROM Element);
+    SET new_id = (SELECT IFNULL(MAX(IDE), 99) + 1 FROM element);
     SET id_str = CAST(new_id AS CHAR);
 
     WHILE LENGTH(id_str) < 3 OR id_str LIKE '%000%' OR id_str LIKE '%111%' OR id_str LIKE '%222%' OR
@@ -291,17 +268,17 @@ END $$
 DELIMITER ;
 
 -- Insert data into Item table
-INSERT INTO Item (IName) VALUES
+INSERT INTO item (IName) VALUES
 ('Product'),
 ('Co-Products'),
-('Input Materials and Resources'),
-('Input Energy'),
+('Input Materials and Energy'),
 ('Emissions'),
 ('Waste Treatment'),
-('Results');
+('Results'),
+('LCI');
 
 -- Insert data into Step table
-INSERT INTO Step (SName, State) VALUES
+INSERT INTO step (SName, State) VALUES
 ('Forest Operation', 1),
 ('Transportation', 1),
 ('Wood Processing', 1);

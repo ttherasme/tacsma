@@ -4,8 +4,8 @@
         |-- results
             |-- calculate.py
             |-- create_graph.py
-            |-- database_connection_function.py
-            |-- directory.py
+            |-- Forest_growth_model.py
+            |-- getdata.py
             |-- import_rawdata.py
             |-- main.py
             |-- multifunctionality.py
@@ -14,6 +14,7 @@
         |-- datasheet_routes.py
         |-- element_routes.py
         |-- index_routes.py
+        |-- parameters_routes.py
         |-- results_routes.py
         |-- stepofprocess_routes.py
         |-- tasks_routes.py
@@ -26,8 +27,16 @@
             |-- datasheet
                 |-- datasheet.css
                 |-- datasheetupdate.css
+                |-- datasheetview.css
+                |-- main.css
             |-- element
+                |-- element.css
                 |-- elementregister.css
+                |-- elementregister_global.css
+                |-- elementupdate.css
+            |-- parameter
+                |-- parameter.css
+                |-- register.css
             |-- result
                 |-- results.css
             |-- sop
@@ -46,6 +55,7 @@
             |-- user
                 |-- create.css
                 |-- edit.css
+                |-- level.css
                 |-- list.css
             |-- index.css
             |-- model.css
@@ -71,19 +81,29 @@
             |-- report.png
             |-- result.png
             |-- tacsma-flow.png
+            |-- trash-red.png
             |-- user.png
             |-- viewtask.png
         |-- js
             |-- datasheet
                 |-- datasheet.js
                 |-- datasheetupdate.js
+                |-- datasheetview.js
                 |-- elementmodal.js
+                |-- main.js
+                |-- taskmodal.js
             |-- element
                 |-- elementregister.js
+                |-- elementregister_global.js
+                |-- elementsearch.js
+                |-- elementupdate.js
             |-- modetransportation
                 |-- totregister.js
                 |-- totsearch.js
                 |-- totupdate.js
+            |-- parameter
+                |-- parameter.js
+                |-- register.js
             |-- result
                 |-- results.js
             |-- soprocess
@@ -99,6 +119,7 @@
                 |-- uomsearch.js
                 |-- uomupdate.js
             |-- user
+                |-- permissions.js
                 |-- searchuser.js
             |-- openother.js
             |-- openpage.js
@@ -108,12 +129,19 @@
             |-- datasheet.html
             |-- datasheetregister.html
             |-- datasheetupdate.html
+            |-- datasheetview.html
         |-- element
+            |-- element.html
             |-- elementregister.html
+            |-- elementregister_global.html
+            |-- elementupdate.html
         |-- modetransportation
             |-- totregister.html
             |-- totupdate.html
             |-- typeoftransportation.html
+        |-- parameter
+            |-- parameter.html
+            |-- register.html
         |-- result
             |-- results.html
         |-- stepofprocess
@@ -131,7 +159,9 @@
         |-- users
             |-- create.html
             |-- edit.html
+            |-- level.html
             |-- list.html
+            |-- user_management.html
         |-- base.html
         |-- changepassword.html
         |-- index.html
@@ -140,6 +170,9 @@
     |-- __init__.py
 |-- .env
 |-- config.py
+|-- init_db - New.sql
 |-- init_db.sql
+|-- Procfile
 |-- requirements.txt
 |-- run.py
+|-- structure.txt

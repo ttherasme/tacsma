@@ -1,3 +1,4 @@
+//results.js
 document.addEventListener("DOMContentLoaded", () => {
     const container = document.getElementById("dynamic-content");
 

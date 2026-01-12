@@ -321,7 +321,7 @@ body {
 .transportations-form .form-row {
     display: grid;
     /* Materials (4fr), Mass (1.2fr), Distance (1.2fr), Mode (1.2fr), Status (30px), Delete (30px) */
-    grid-template-columns: 3fr 2fr 2fr 1.5fr 30px 30px; 
+    grid-template-columns: 3fr 1fr 2fr 30px 30px; 
     gap: 1rem;
     align-items: center;
 }

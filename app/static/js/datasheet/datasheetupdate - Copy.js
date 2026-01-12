@@ -159,6 +159,62 @@ document.addEventListener("DOMContentLoaded", () => {
         refreshForm();
     });
 
+    // NOTE: The previous taskInput.addEventListener("change", ...) is removed here.
+    
+    // --- Core Functions ---
+
+    // Function to refresh the form content based on selections
+    /* function refreshForm() {
+        const taskId = initialTaskId;
+        const stepName = currentModule;
+        const category = currentCategory;
+
+        if (!taskId || !stepName || !category) {
+            rightPanel.innerHTML = `<p>Please select a task, a step (module), and a category.</p>`;
+            return;
+        }
+
+        const stepObj = allSteps.find(
+            s => s.SName.toLowerCase() === stepName.toLowerCase()
+        );
+
+        if (!stepObj) {
+            rightPanel.innerHTML = `<p>Invalid step selected.</p>`;
+            return;
+        }
+
+        const stepId = stepObj.IDS;
+
+        Promise.all([
+            fetch(`/get_elements_info_by_category/${encodeURIComponent(category)}`)
+                .then(res => res.json()),
+
+            fetch(`/get_elements_by_category_for_compare/${encodeURIComponent(category)}`)
+                .then(res => res.json())
+        ])
+        .then(([listData, compareData]) => {
+
+            if (!listData.success || !compareData.success) {
+                rightPanel.innerHTML = `<p>Category elements not found.</p>`;
+                return;
+            }
+
+            const filteredElements = listData.elements;               // for display
+            const matchingIDE = compareData.elements.map(e => e.IDE); // for filtering
+
+            const filteredRows = allDatasheets.filter(row =>
+                row.IDT == taskId &&
+                row.IDS == stepId &&
+                matchingIDE.includes(row.IDE)
+            );
+
+            renderForm(filteredRows, filteredElements, taskId, stepId);
+        })
+        .catch(err => {
+            console.error(err);
+            rightPanel.innerHTML = `<p>Error loading elements.</p>`;
+        });
+    } */
 
     function refreshForm() {
         // Get taskId directly from the initial global variable
@@ -231,6 +287,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <span>Materials</span>
                 <span>Quantity</span>
                 <span>Unit</span>
+                <span>Transportation Mode</span>
                 <span></span>
                 <span></span>
             `;
@@ -284,7 +341,7 @@ document.addEventListener("DOMContentLoaded", () => {
         addBtn.textContent = "Add Row";
 
         // Disable the "Add Row" button if the category is "Product"
-        if ((currentCategory.trim() === 'Product') || (currentModule.trim() === 'Transportation' && (currentCategory.trim() === 'Co-Products' || currentCategory.trim() === 'Emissions'))) {
+        if ((currentCategory.trim() === 'Product') || (currentModule.trim() === 'Transportation' && (currentCategory.trim() === 'Input Energy' || currentCategory.trim() === 'Co-Products' || currentCategory.trim() === 'Emissions'))) {
             addBtn.style.display = 'none';
         }
 
@@ -297,7 +354,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const saveBtn = document.createElement("button");
         saveBtn.className = "action-button check-button";
         saveBtn.textContent = "Save Changes";
-        if ((currentModule.trim() === 'Transportation' && (currentCategory.trim() === 'Co-Products' || currentCategory.trim() === 'Emissions'))) {
+        if ((currentModule.trim() === 'Transportation' && (currentCategory.trim() === 'Input Energy' || currentCategory.trim() === 'Co-Products' || currentCategory.trim() === 'Emissions'))) {
             saveBtn.style.display = 'none';
         }
         saveBtn.addEventListener("click", () => {
@@ -316,7 +373,7 @@ document.addEventListener("DOMContentLoaded", () => {
         row.className = "form-row";
 
         const rowCells = [];
-        if (currentModule.trim() === 'Transportation' && (currentCategory.trim() === 'Co-Products' || currentCategory.trim() === 'Emissions')){
+        if (currentModule.trim() === 'Transportation' && (currentCategory.trim() === 'Input Energy' || currentCategory.trim() === 'Co-Products' || currentCategory.trim() === 'Emissions')){
             row.append(...rowCells);
             return row;
         }
@@ -443,22 +500,22 @@ document.addEventListener("DOMContentLoaded", () => {
                     rowCells.push(createCell(chkContainer)); 
                 }
             // ==== TRANSPORTATION MODE ====
-            // if (currentModule.trim() === 'Transportation') {
+            if (currentModule.trim() === 'Transportation') {
 
-            //     // --- Transport Mode (MT) - Column 4 ---
-            //     const mtSelect = document.createElement("select");
-            //     mtSelect.name = "MT";
-            //     mtSelect.classList.add("select-common");
+                // --- Transport Mode (MT) - Column 4 ---
+                const mtSelect = document.createElement("select");
+                mtSelect.name = "MT";
+                mtSelect.classList.add("select-common");
 
-            //     allMTransport.forEach(m => {
-            //         const opt = document.createElement("option");
-            //         opt.value = m.IDM;
-            //         opt.textContent = m.MTName;
-            //         mtSelect.appendChild(opt);
-            //     });
-            //     if (rowData.IDM) mtSelect.value = rowData.IDM;
-            //     rowCells.push(createCell(mtSelect)); 
-            // }
+                allMTransport.forEach(m => {
+                    const opt = document.createElement("option");
+                    opt.value = m.IDM;
+                    opt.textContent = m.MTName;
+                    mtSelect.appendChild(opt);
+                });
+                if (rowData.IDM) mtSelect.value = rowData.IDM;
+                rowCells.push(createCell(mtSelect)); 
+            }
 
             // Status - Column 5 (or 4 for default, 5 for Transportation)
             const statusSpan = document.createElement("span");
@@ -557,14 +614,14 @@ document.addEventListener("DOMContentLoaded", () => {
             if (currentModule.trim() === 'Transportation') {
                 // IDU2 = row.querySelector('[name="IDU2"]')?.value || null;
                 // ValueD2 = parseFloat(row.querySelector('[name="ValueD2"]')?.value) || null;
-                 //MT = row.querySelector('[name="MT"]')?.value || null;
+                 MT = row.querySelector('[name="MT"]')?.value || null;
 
                 // Transportation validation (Mass, Distance, and Mode must be present) if (!IDE || !IDU1 || isNaN(ValueD1) || !IDU2 || isNaN(ValueD2) || !MT)
-                if (!IDE || !IDU1 || isNaN(ValueD1)) {
+                if (!IDE || !IDU1 || isNaN(ValueD1) || !MT) {
                     return; // Skip rows with invalid data
                 }
 
-                rows.push({ IDE, IDU1, ValueD1, CHK: null, IDD }); // Added IDD to the object  rows.push({ IDE, IDU1, ValueD1, IDU2, ValueD2, IDM: MT, CHK: null, IDD })
+                rows.push({ IDE, IDU1, ValueD1, IDM: MT, CHK: null, IDD }); // Added IDD to the object  rows.push({ IDE, IDU1, ValueD1, IDU2, ValueD2, IDM: MT, CHK: null, IDD })
                 return; // Go to next row
             }
 

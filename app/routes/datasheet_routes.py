@@ -80,13 +80,14 @@ def get_all_tasks():
         return jsonify({"success": False, "tasks": []})
 
     username = session['username']
+    user_id = session.get('user_id')
 
     # Base query for tasks without datasheet
     query = db.session.query(Tasks)
 
     # Apply visibility rules
     if username.lower() != "admin":
-        query = query.filter(Tasks.EnterBy == username)
+        query = query.filter(Tasks.user_id == user_id)
 
     tasks = query.order_by(Tasks.TName.asc()).all()
 
@@ -149,13 +150,14 @@ def get_all_elements():
         return jsonify({"success": False, "elements": []})
 
     username = session['username']
+    user_id = session.get('user_id')
 
     # Base query for tasks without datasheet
     query = db.session.query(Element)
 
     # Apply visibility rules
     if username.lower() != "admin":
-        query = query.filter(Element.Enterby == username)
+        query = query.filter(Element.user_id == user_id)
 
     elements = query.order_by(Element.EName.asc()).all()
     
@@ -167,35 +169,111 @@ def get_all_elements():
         } for e in elements]
     })
 
+
+
+@datasheet_bp.route('/get_in_datasheet/<int:idtask>/<category_name>/<module_name>')
+def get_in_datasheet(idtask, category_name, module_name):
+    if 'username' in session:
+        user_id = session.get('user_id')
+        moduleQuery = module_name
+        
+        # Logic for module mapping
+        if module_name == 'Transportation':
+            moduleQuery = 'Forest Operation'
+        elif module_name == 'Wood Processing':
+            moduleQuery = 'Transportation'
+        elif module_name != 'Forest Operation':
+            moduleQuery = 'Wood Processing'
+        
+        # DEBUG LOGS: Check incoming parameters and the mapped moduleQuery
+        #logging.debug(f"DEBUG: Fetching data for Task: {idtask}, User: {user_id}")
+        #logging.debug(f"DEBUG: Category: {category_name}, Original Module: {module_name}")
+        #logging.debug(f"DEBUG: Mapped moduleQuery: {moduleQuery}")
+
+        if category_name == 'Input Materials and Energy':
+            result = db.session.query(
+                    Element.EName,
+                    Datasheet.IDE,
+                    Datasheet.ValueD,
+                    Datasheet.IDU,
+                    UOM.UName,
+                    UOM.Unit,
+                    Item.IDI,
+                    Item.IName
+                ).join(Item, Item.IDI == Element.IDI
+                ).join(Datasheet, Element.IDE == Datasheet.IDE
+                ).join(Step, Datasheet.IDS == Step.IDS
+                ).join(UOM, Datasheet.IDU == UOM.IDU
+                ).filter(
+                    Item.IName == 'Product',
+                    Step.SName == moduleQuery,
+                    Datasheet.IDT == idtask,
+                    Datasheet.user_id == user_id
+                ).first()
+        
+            if result:
+                logging.debug(f"DEBUG: Database Result Found - EName: {result.EName}, Value: {result.ValueD}")
+                return jsonify(
+                    success=True,
+                    result=[{
+                        "IDE": result.IDE,
+                        "EName": result.EName,
+                        "IDI": result.IDI,
+                        "UName" : result.UName,
+                        "Unit": result.Unit,
+                        "ValueD": result.ValueD,
+                        "Category": result.IName 
+                    }]
+                )
+            else:
+                logging.warning(f"DEBUG: No record found for Task {idtask} in module {moduleQuery}")
+                return jsonify(success=False, message="No data found"), 404
+
+    return jsonify(success=False, message="Unauthorized"), 401
+
+
 @datasheet_bp.route('/get_elements_by_category_for_datasheet/<category_name>')
 def get_elements_by_category_for_datasheet(category_name):
     if 'username' not in session:
-        return jsonify({"success": False, "elements": []}), 401
+        return jsonify(success=False, elements=[]), 401
 
-    username = session['username']
-    item = Item.query.filter(Item.IName.ilike(category_name)).first()
+    user_id = session.get('user_id')
+    is_admin = session.get('is_admin', False)
+
+    item = Item.query.filter(Item.IName == category_name).first()
     if not item:
-        return jsonify({"success": False, "message": "Category not found", "elements": []})
+        return jsonify(success=False, message="Category not found", elements=[])
 
-    elements_query = Element.query.filter(Element.IDI == item.IDI)
+    query = Element.query.filter(Element.IDI == item.IDI)
 
-    if username.lower() != "admin":
-        elements_query = elements_query.filter(Element.Enterby == username)
+    if not is_admin:
+        query = query.filter(Element.user_id == user_id)
 
-    elements = elements_query.order_by(Element.EName.asc()).all()
-    
-    element_list = [{
-        "IDE": e.IDE,
-        "EName": e.EName,
-        "IDI": e.IDI,
-        "Category": item.IName
-    } for e in elements]
-    
-    return jsonify({
-        "success": True,
-        "elements": element_list
-    })
+    if category_name == 'Input Materials and Energy':
+        
+        global_items = Item.query.filter(
+            Item.IName.in_(['Input Materials and Energy', 'LCI'])
+        ).all()
 
+        for g_item in global_items:
+            query = query.union(
+                Element.query.filter(
+                    Element.IDI == g_item.IDI,
+                    Element.Global_Val == 1
+                )
+            )
+
+    elements = query.order_by(Element.EName.asc()).all()
+
+    return jsonify(
+        success=True,
+        elements=[{
+            "IDE": e.IDE,
+            "EName": e.EName,
+            "IDI": e.IDI,
+            "Category": e.item.IName
+        } for e in elements]
+    )
 
 
 @datasheet_bp.route('/get_elements_info_by_category/<category_name>')
@@ -204,6 +282,7 @@ def get_elements_info_by_category(category_name):
         return jsonify({"success": False, "elements": []}), 401
 
     username = session['username']
+    user_id = session.get('user_id')
     name = category_name.lower()
 
     if 'product' in name:
@@ -233,7 +312,7 @@ def get_elements_info_by_category(category_name):
     )
 
     if username.lower() != "admin":
-        elements_query = elements_query.filter(Element.Enterby == username)
+        elements_query = elements_query.filter(Element.user_id == user_id)
 
     elements = elements_query.order_by(Element.EName.asc()).all()
 
@@ -256,6 +335,7 @@ def get_elements_info_by_category(category_name):
 def get_datasheet_by_task(task_id):
     # Authorization check
     username = session.get('username')
+    user_id = session.get('user_id')
     if not username:
         return jsonify({"success": False, "message": "Unauthorized"}), 401
 
@@ -266,22 +346,20 @@ def get_datasheet_by_task(task_id):
             Datasheet.IDT,
             Datasheet.IDE,
             Datasheet.IDS,
-            Datasheet.IDU1,
-            Datasheet.ValueD1,
-            Datasheet.IDU2,
-            Datasheet.ValueD2,
+            Datasheet.IDU,
+            Datasheet.ValueD,
             Datasheet.IDM,
             Datasheet.CHK,
             UOM.UName
         ).outerjoin(
-            UOM, Datasheet.IDU1 == UOM.IDU
+            UOM, Datasheet.IDU == UOM.IDU
         ).filter(
             Datasheet.IDT == task_id
         )
 
         # Non-admin users only see their own entries
         if username.lower() != "admin":
-            query = query.filter(Datasheet.EnterBy == username)
+            query = query.filter(Datasheet.user_id == user_id)
 
         results = query.all()
 
@@ -290,10 +368,8 @@ def get_datasheet_by_task(task_id):
             "IDT": r.IDT,
             "IDE": r.IDE,
             "IDS": r.IDS,
-            "IDU1": r.IDU1,
-            "ValueD1": r.ValueD1,
-            "IDU2": r.IDU2,
-            "ValueD2": r.ValueD2,
+            "IDU1": r.IDU,
+            "ValueD1": r.ValueD,
             "IDM": r.IDM,
             "CHK": r.CHK,
             "UName": r.UName
@@ -307,68 +383,6 @@ def get_datasheet_by_task(task_id):
         return jsonify({"success": False, "message": "Internal server error"}), 500
 
 
-@datasheet_bp.route('/get_datasheet_by_task_old/<int:task_id>', methods=['GET'])
-def get_datasheet_by_task_old(task_id):
-    if 'username' not in session:
-        return jsonify({"success": False, "message": "Unauthorized"}), 401
-    
-    username = session['username']
-    
-    try:
-        # Admin sees everything
-        if username.lower() == "admin":
-            results = db.session.query(
-                Datasheet.IDD,
-                Datasheet.IDT,
-                Datasheet.IDE,
-                Datasheet.IDS,
-                Datasheet.IDU1,
-                Datasheet.ValueD1,
-                Datasheet.IDU2,
-                Datasheet.ValueD2,
-                Datasheet.IDM,
-                Datasheet.CHK,
-                UOM.UName
-            ).join(UOM, Datasheet.IDU1 == UOM.IDU)\
-            .filter(Datasheet.IDT == task_id).all()
-        else:
-            # Others only see their own tasks
-            results = db.session.query(
-                Datasheet.IDD,
-                Datasheet.IDT,
-                Datasheet.IDE,
-                Datasheet.IDS,
-                Datasheet.IDU1,
-                Datasheet.ValueD1,
-                Datasheet.IDU2,
-                Datasheet.ValueD2,
-                Datasheet.IDM,
-                Datasheet.CHK,
-                UOM.UName
-            ).join(UOM, Datasheet.IDU1 == UOM.IDU)\
-            .filter(Datasheet.IDT == task_id, Datasheet.EnterBy == username).all()
-
-        data = [{
-            'IDD': r.IDD,
-            'IDT': r.IDT,
-            'IDE': r.IDE,
-            'IDS': r.IDS,
-            'IDU1': r.IDU1,
-            'ValueD1': r.ValueD1,
-            'IDU2': r.IDU2,
-            'ValueD2': r.ValueD2,
-            'IDM': r.IDM,
-            'CHK': r.CHK,
-            'UName': r.UName
-        } for r in results]
-
-        return jsonify({"success": True, "data": data}), 200
-
-    except Exception as e:
-        db.session.rollback()
-        print(f"Error fetching datasheet data for task {task_id}: {e}")
-        return jsonify({"success": False, "message": "Internal server error"}), 500
-
 
 @datasheet_bp.route('/listtasks_with_out_datasheet', methods=['GET'])
 def listtasks_with_out_datasheet():
@@ -376,6 +390,7 @@ def listtasks_with_out_datasheet():
         return jsonify({"success": False, "tasks": []})
 
     username = session['username']
+    user_id = session.get('user_id')
 
     # Base query for tasks without datasheet
     query = db.session.query(Tasks).outerjoin(Datasheet, Tasks.IDT == Datasheet.IDT)\
@@ -383,7 +398,7 @@ def listtasks_with_out_datasheet():
 
     # Apply visibility rules
     if username.lower() != "admin":
-        query = query.filter(Tasks.EnterBy == username)
+        query = query.filter(Tasks.user_id == user_id)
 
     tasks = query.order_by(Tasks.TName.asc()).all()
 
@@ -541,6 +556,7 @@ def save_datasheetregister():
 
     try:
         current_user = session['username']
+        user_id = session.get('user_id')
         
        # Datasheet.query.filter_by(IDT=task_id, IDS=step_id).delete()
        # db.session.commit()
@@ -551,8 +567,6 @@ def save_datasheetregister():
             idu1 = row.get('IDU1')
             value_d1 = row.get('ValueD1')
             chk = row.get('CHK', 0)  # Default to 0 if not provided
-            idu2 = row.get('IDU2')
-            value_d2 = row.get('ValueD2')
             idm = row.get('IDM')
             
             if ide is not None and idu1 is not None and value_d1 is not None:
@@ -560,13 +574,11 @@ def save_datasheetregister():
                     IDE=ide,
                     IDS=step_id,
                     IDT=task_id,
-                    IDU1=idu1,
-                    ValueD1=value_d1,
-                    IDU2=idu2,
-                    ValueD2=value_d2,
+                    IDU=idu1,
+                    ValueD=value_d1,
                     IDM=idm,
                     CHK=chk,
-                    EnterBy=current_user
+                    user_id=user_id
                 )
                 new_entries.append(new_datasheet_entry)
             else:
@@ -601,6 +613,7 @@ def save_datasheet():
 
     try:
         current_user = session['username']
+        user_id = session.get('user_id')
         changes = 0
         rows_status = []  
 
@@ -609,8 +622,6 @@ def save_datasheet():
             ide = row.get('IDE')
             idu1 = row.get('IDU1')
             value_d1 = row.get('ValueD1')
-            idu2 = row.get('IDU2')
-            value_d2 = row.get('ValueD2')
             idm = row.get('IDM')
             chk = row.get('CHK',None)
 
@@ -624,12 +635,10 @@ def save_datasheet():
                     
                     if existing.IDE != ide or existing.IDU1 != idu1 or existing.ValueD1 != value_d1:
                         existing.IDE = ide
-                        existing.IDU1 = idu1
-                        existing.ValueD1 = value_d1
+                        existing.IDU = idu1
+                        existing.ValueD = value_d1
                         existing.UpdateBy = current_user
                         existing.CHK = chk
-                        existing.IDU2=idu2
-                        existing.ValueD2=value_d2
                         existing.IDM=idm
                         rows_status.append("success")  
                         changes += 1
@@ -642,12 +651,10 @@ def save_datasheet():
                     IDE=ide,
                     IDS=step_id,
                     IDT=task_id,
-                    IDU1=idu1,
-                    ValueD1=value_d1,
-                    EnterBy=current_user,
+                    IDU=idu1,
+                    ValueD=value_d1,
+                    user_id=user_id,
                     CHK=chk,
-                    IDU2=idu2,
-                    ValueD2=value_d2,
                     IDM=idm
                 )
                 db.session.add(new_ds)

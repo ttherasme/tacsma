@@ -86,43 +86,33 @@ document.addEventListener("DOMContentLoaded", () => {
             category: "+ Product",
             selectClass: "productSelect",
             elementType: "Product",
-            customHeader: ["Materials", "Mass", "Distance", "Transportation mode", " ", " "],
+            customHeader: ["Materials", "Quantity", "Unit", " ", " "],
             customRow: () => {
                 return [
                     `<select class="productSelect"></select>`, // Materials
+                    `<input type="number" data-id="valued1" placeholder="0" />`,
                     `<div class="inline-selects">
-                        <input type="number" data-id="valued1" placeholder="Mass" class="styled-select2" />
-                        <select data-id="unitd1" class="styled-select2 uom-mass-select"></select>
-                    </div>`, // Mass
-                    `<div class="inline-selects">
-                        <input type="number" data-id="valued2" placeholder="Distance" class="styled-select2" />
-                        <select data-id="unitd2" class="styled-select uom-distance-select"></select>
-                    </div>`, // Distance
-                    `<select data-id="selectmodetransport" class="styled-select2 transport-mode-select">
-                    </select>`,
+                        <select class="styled-select uom-name-select"></select>
+                        <select data-id="unitd1" class="styled-select uom-unit-select"></select>
+                    </div>`,
                     `<div class="status-indicator"></div>`,
                     `` // No delete button for Product
                 ];
             }
         }),
-        "Transportation|+ Input Materials and Resources": makeFormConfig({
-            category: "+ Input Materials and Resources",
+        "Transportation|+ Input Materials and Energy": makeFormConfig({
+            category: "+ Input Materials and Energy",
             selectClass: "materielSelect",
-            elementType: "Input Materials and Resources",
-            customHeader: ["Materials", "Mass", "Distance", "Transportation mode", " ", " "],
+            elementType: "Input Materials and Energy",
+            customHeader: ["Materials", "Quantity", "Unit", " ", " "],
             customRow: () => {
                 return [
                     `<select class="materielSelect"></select>`, // Materials
+                    `<input type="number" data-id="valued1" placeholder="0" />`,
                     `<div class="inline-selects">
-                        <input type="number" data-id="valued1" placeholder="Mass" class="styled-select2" />
-                        <select data-id="unitd1" class="styled-select2 uom-mass-select"></select>
-                    </div>`, // Mass
-                    `<div class="inline-selects">
-                        <input type="number" data-id="valued2" placeholder="Distance" class="styled-select2" />
-                        <select data-id="unitd2" class="styled-select uom-distance-select"></select>
-                    </div>`, // Distance
-                    `<select data-id="selectmodetransport" class="styled-select2 transport-mode-select">
-                    </select>`,
+                        <select class="styled-select uom-name-select"></select>
+                        <select data-id="unitd1" class="styled-select uom-unit-select"></select>
+                    </div>`,
                     `<div class="status-indicator"></div>`,
                     `<button title="Delete Row" class="delete-row">🗑️</button>`
                 ];
@@ -144,20 +134,15 @@ document.addEventListener("DOMContentLoaded", () => {
             category: "+ Waste Treatment",
             selectClass: "wasteSelect",
             elementType: "Waste Treatment",
-            customHeader: ["Materials", "Mass", "Distance", "Transportation mode", " ", " "],
+            customHeader: ["Materials", "Quantity", "Unit", " ", " "],
             customRow: () => {
                 return [
                     `<select class="wasteSelect"></select>`, // Materials
+                    `<input type="number" data-id="valued1" placeholder="0" />`,
                     `<div class="inline-selects">
-                        <input type="number" data-id="valued1" placeholder="Mass" class="styled-select2" />
-                        <select data-id="unitd1" class="styled-select2 uom-mass-select"></select>
-                    </div>`, // Mass
-                    `<div class="inline-selects">
-                        <input type="number" data-id="valued2" placeholder="Distance" class="styled-select2" />
-                        <select data-id="unitd2" class="styled-select uom-distance-select"></select>
-                    </div>`, // Distance
-                    `<select data-id="selectmodetransport" class="styled-select2 transport-mode-select">
-                    </select>`,
+                        <select class="styled-select uom-name-select"></select>
+                        <select data-id="unitd1" class="styled-select uom-unit-select"></select>
+                    </div>`,
                     `<div class="status-indicator"></div>`,
                     `<button title="Delete Row" class="delete-row">🗑️</button>`
                 ];
@@ -181,7 +166,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     document.addEventListener('reloadMaterielSelect', () => {
-        refreshCurrentFormSelect('materielSelect', 'Input Materials and Resources');
+        refreshCurrentFormSelect('materielSelect', 'Input Materials and Energy');
     });
 
     document.addEventListener('reloadCoproductSelect', () => {
@@ -262,12 +247,10 @@ document.addEventListener("DOMContentLoaded", () => {
         // Dynamic mapping to get the correct CSS class and element type
         if(module ==="Transportation" && (categoryName =="Emissions" || categoryName.trim() === 'Co-Products' || categoryName =="Input Energy")){
             return formConfigs["default"];
-        } else if (categoryName.includes("Materials and Resources")) {
+        } else if (categoryName.includes("Materials and Energy")) {
             selectClass = "materielSelect";
         } else if (categoryName.includes("Co-Products")) {
             selectClass = "coproductSelect";
-        } else if (categoryName.includes("Energy")) {
-            selectClass = "energySelect";
         } else if (categoryName.includes("Emissions")) {
             selectClass = "emissionsSelect";
         } else if (categoryName.includes("Waste Treatment")) {
@@ -299,38 +282,25 @@ document.addEventListener("DOMContentLoaded", () => {
         rightPanel.innerHTML = "";
 
         const configKey = `${activeModule}|${activeCategory}`;
-        // Use the new dynamic config function
         const config = getFormConfig(activeModule, activeCategory); 
 
         const groupBox = document.createElement("div");
         groupBox.className = "group-box";
 
-        // Determine the number of columns and apply the corresponding CSS class
         const numColumns = config.header.length;
-
-        // Transportation is the unique custom layout
         if (configKey.startsWith("Transportation|+")) {
             groupBox.classList.add('transport-columns');
-        } 
-        // All categories with a checkbox (Co-Products) use 6 columns
-        else if (numColumns === 6) { 
+        } else if (numColumns === 6) { 
             groupBox.classList.add('six-columns');
-        } 
-        // All other standard categories (Product, Energy, Waste, etc.) use 5 columns
-        else if (numColumns === 5) {
+        } else if (numColumns === 5) {
             groupBox.classList.add('five-columns');
         }
 
-
-        // Create group icons (e.g., "Add Row" button)
         const groupIcons = document.createElement("div");
         groupIcons.className = "group-icons";
         groupIcons.innerHTML = `<button title="Add Row" class="add-row" ${(state.activeCategory === "+ Product") || (state.activeModule ==="Transportation" && (state.activeCategory ==="+ Emissions" || state.activeCategory ==="+ Co-Products" || state.activeCategory ==="+ Input Energy")) ? "disabled" : ""}>➕</button>`;
-        //groupIcons.innerHTML = `<button title="Add Row" class="add-row" ${state.activeCategory === "+ Product" ? "disabled" : ""}>➕</button>`;
-        //groupIcons.innerHTML = `<button title="Add Row" class="add-row">➕</button>`;
         groupBox.appendChild(groupIcons);
 
-        // Create form header
         const header = document.createElement("div");
         header.className = "form-header";
         config.header.forEach(h => {
@@ -340,14 +310,9 @@ document.addEventListener("DOMContentLoaded", () => {
         });
         groupBox.appendChild(header);
 
-        // Create container for form rows
         const formRowsContainer = document.createElement("div");
         formRowsContainer.className = "form-rows";
 
-        /**
-         * Creates a new form row and attaches event listeners.
-         * @returns {HTMLElement} The new row element.
-         */
         const createFormRow = () => {
             const row = document.createElement("div");
             row.className = "form-row";
@@ -368,16 +333,33 @@ document.addEventListener("DOMContentLoaded", () => {
             return row;
         };
 
-        // Add the initial form row and populate its selects
         const initialRow = createFormRow();
         formRowsContainer.appendChild(initialRow);
-        populateFormSelects(initialRow, configKey); // Pass configKey for logic split
+        populateFormSelects(initialRow, configKey);
 
         autoFillForestRegeneration(formRowsContainer, configKey);
 
+        // Inside updateContent function
+        const currentCategory = activeCategory.replace("+ ", "").trim(); // Cleans "+ Input Materials..." to "Input Materials..."
+
+        if (activeModule !== "Forest Operation" && currentCategory === "Input Materials and Energy") {
+            const selectedTaskName = taskInput.value;
+            const selectedOption = taskList.querySelector(`option[value="${selectedTaskName}"]`);
+            
+            if (selectedOption) {
+                const taskID = selectedOption.dataset.id;
+                const moduleName = activeModule;
+                
+                // Use a small timeout to ensure the DOM elements from updateContent are rendered
+                setTimeout(() => {
+                    autoFillInputMaterials(formRowsContainer, taskID, currentCategory, moduleName);
+                }, 100);
+            }
+        }
+       
+
         groupBox.appendChild(formRowsContainer);
 
-        // Create form footer
         if (typeof config.footer === "function") {
             const footer = document.createElement("div");
             footer.className = "form-footer";
@@ -385,7 +367,6 @@ document.addEventListener("DOMContentLoaded", () => {
             groupBox.appendChild(footer);
         }
 
-        // Event listener for the "Add Row" button
         groupIcons.querySelector(".add-row").addEventListener("click", () => {
             const newRow = createFormRow();
             formRowsContainer.appendChild(newRow);
@@ -394,13 +375,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
         rightPanel.appendChild(groupBox);
 
-        // Event listeners for "Add new Name" buttons (opens a modal)
         const registerButtons = rightPanel.querySelectorAll(".register-element-button");
         registerButtons.forEach(button => {
             button.addEventListener("click", (event) => {
                 event.preventDefault();
                 const elementType = button.dataset.elementType;
-                // Assumes showElementRegistrationModal is defined in elementmodal.js
                 if (typeof showElementRegistrationModal === "function") {
                     showElementRegistrationModal(elementType);
                 } else {
@@ -409,6 +388,7 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         });
     }
+
 
     /**
      * Populates the form selects in a given row with appropriate data,
@@ -422,16 +402,14 @@ document.addEventListener("DOMContentLoaded", () => {
         if (parts.length < 2) return; 
 
         const activeModule = parts[0];
-        const categoryName = parts[1]; // e.g., "Product", "Input Materials and Resources"
+        const categoryName = parts[1]; // e.g., "Product", "Input Materials and Energy"
 
         // Map Category name to the appropriate select class for the element name dropdown
         let selectClass;
-        if (categoryName.includes("Materials and Resources")) {
+        if (categoryName.includes("Materials and Energy")) {
             selectClass = "materielSelect";
         } else if (categoryName.includes("Co-Products")) {
             selectClass = "coproductSelect";
-        } else if (categoryName.includes("Input Energy")) {
-            selectClass = "energySelect";
         } else if (categoryName.includes("Emissions")) {
             selectClass = "emissionsSelect";
         } else if (categoryName.includes("Waste Treatment")) {
@@ -445,23 +423,100 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // 1. All modules need the element select populated
         populateElementSelect(rowElement, selectClass, categoryName);
-
+        populateAndLinkUomSelects(rowElement);
         // 2. Handle specific unit of measure (UOM) logic based on the module
-        if (activeModule === "Transportation") {
-            // Transportation has a unique data row (Mass/Distance/Mode)
-            populateAndLinkMassUnit(rowElement);
-            populateAndLinkDistanceUnit(rowElement);
-            populateAndLinkTransportationMode(rowElement);
-        } else {
-            // All other standard modules (Forest Operation, Wood Processing, Construction, etc.)
-            // use the Name/Quantity/Unit structure.
-            populateAndLinkUomSelects(rowElement);
+        // if (activeModule === "Transportation") {
+        //     // Transportation has a unique data row (Mass/Distance/Mode)
+        //     populateAndLinkMassUnit(rowElement);
+        //     populateAndLinkDistanceUnit(rowElement);
+        //     populateAndLinkTransportationMode(rowElement);
+        // } else {
+        //     // All other standard modules (Forest Operation, Wood Processing, Construction, etc.)
+        //     // use the Name/Quantity/Unit structure.
+        //     populateAndLinkUomSelects(rowElement);
+        // }
+    }
+
+    /**
+     * Auto-fills the first row with data and adds a new blank row below it.
+     */
+    async function autoFillInputMaterials(formRowsContainer, taskID, categoryName, moduleName) {
+        // Only proceed if we have a valid taskID
+        if (!taskID) return;
+
+        try {
+            const response = await fetch(`/get_in_datasheet/${encodeURIComponent(taskID)}/${encodeURIComponent(categoryName)}/${encodeURIComponent(moduleName)}`);
+            const data = await response.json();
+
+            if (!data.success || !data.result || data.result.length === 0) return;
+            const autoData = data.result[0]; // Get the "Tree" data object
+
+            const firstRow = formRowsContainer.querySelector(".form-row");
+            if (!firstRow) return;
+
+            const elementSelect = firstRow.querySelector(".materielSelect");
+            const uomNameSelect = firstRow.querySelector(".uom-name-select");
+            const uomUnitSelect = firstRow.querySelector(".uom-unit-select");
+            const quantityInput = firstRow.querySelector('input[data-id="valued1"]');
+
+            // Helper: Observes a select element and selects the target text once it appears
+            const selectWhenReady = (selectEl, targetText) => {
+                return new Promise((resolve) => {
+                    const triggerSelection = () => {
+                        const options = [...selectEl.options];
+                        const match = options.find(opt => opt.textContent.trim() === targetText.trim());
+                        if (match) {
+                            selectEl.value = match.value;
+                            selectEl.dispatchEvent(new Event("change"));
+                            return true;
+                        }
+                        return false;
+                    };
+
+                    // Try immediately
+                    if (triggerSelection()) {
+                        resolve();
+                        return;
+                    }
+
+                    // If not ready, observe changes
+                    const observer = new MutationObserver(() => {
+                        if (triggerSelection()) {
+                            observer.disconnect();
+                            resolve();
+                        }
+                    });
+                    observer.observe(selectEl, { childList: true });
+                });
+            };
+
+            // Execution Chain:
+            // 1. Set Quantity
+            quantityInput.value = autoData.ValueD;
+
+            // 2. Select Material (EName) -> This triggers UOM Name population via your existing listeners
+            await selectWhenReady(elementSelect, autoData.EName);
+
+            // 3. Select UOM Name (UName) -> This triggers UOM Unit population
+            await selectWhenReady(uomNameSelect, autoData.UName);
+
+            // 4. Select UOM Unit (Unit)
+            await selectWhenReady(uomUnitSelect, autoData.Unit);
+
+            // 5. Add a blank second row (matching your working function)
+            const addRowBtn = document.querySelector(".add-row");
+            if (addRowBtn && !addRowBtn.disabled) {
+                addRowBtn.click();
+            }
+
+        } catch (err) {
+            console.error("Auto fill materials failed:", err);
         }
     }
 
     async function autoFillForestRegeneration(formRowsContainer, configKey) {
         // Only apply to the exact condition
-        if (configKey !== "Forest Operation|+ Input Materials and Resources") return;
+        if (configKey !== "Forest Operation|+ Input Materials and Energy") return;
 
         try {
             // 1️⃣ Get regeneration value
@@ -494,7 +549,26 @@ document.addEventListener("DOMContentLoaded", () => {
             };
 
             // Options may load async → wait a bit
-            setTimeout(selectTree, 100);
+            const selectTreeWhenReady = () => {
+                const observer = new MutationObserver(() => {
+                    const options = [...elementSelect.options];
+                    const treeOption = options.find(
+                        opt => opt.textContent.trim().toLowerCase() === "tree"
+                    );
+
+                    if (treeOption) {
+                        elementSelect.value = treeOption.value;
+                        elementSelect.dispatchEvent(new Event("change"));
+
+                        observer.disconnect(); // ✅ stop watching once done
+                    }
+                });
+
+                observer.observe(elementSelect, { childList: true });
+            };
+
+            selectTreeWhenReady();
+
 
             // 4️⃣ Set regeneration value
             quantityInput.value = regenerationValue;
@@ -509,8 +583,6 @@ document.addEventListener("DOMContentLoaded", () => {
             console.error("Auto regeneration fill failed:", err);
         }
     }
-
-
 
     /**
      * Populates and links the UOM (Unit of Measure) name and unit selects.
@@ -784,17 +856,17 @@ document.addEventListener("DOMContentLoaded", () => {
             const quantityInput = row.querySelector('input[data-id="valued1"]');
             const unitSelect = row.querySelector('select[data-id="unitd1"]');
             const checkbox = row.querySelector('input[type="checkbox"]');
-            const quantityInput2 = row.querySelector('input[data-id="valued2"]');
-            const unitSelect2 = row.querySelector('select[data-id="unitd2"]');
-            const modetransportation = row.querySelector('select[data-id="selectmodetransport"]');
+            //const quantityInput2 = row.querySelector('input[data-id="valued2"]');
+            //const unitSelect2 = row.querySelector('select[data-id="unitd2"]');
+            //const modetransportation = row.querySelector('select[data-id="selectmodetransport"]');
 
             const ide = selectElement ? selectElement.value : null;
             const quantity = quantityInput ? quantityInput.value : null;
             const unitId = unitSelect ? unitSelect.value : null;
             const isChecked = checkbox ? checkbox.checked : null;
-            const quantity2 = quantityInput2 ? quantityInput2.value : null;
-            const unitId2 = unitSelect2 ? unitSelect2.value : null;
-            const modtransport = modetransportation ? modetransportation.value : null;
+            //const quantity2 = quantityInput2 ? quantityInput2.value : null;
+            //const unitId2 = unitSelect2 ? unitSelect2.value : null;
+            const modtransport = null;
 
             // Basic validation: Check if Quantity/Unit are filled if anything is entered
             if (quantity && unitId) { // ide &&
@@ -804,16 +876,16 @@ document.addEventListener("DOMContentLoaded", () => {
                     IDU1: unitId
                 };
 
-                if (quantity2 && unitId2){
-                    rowData.ValueD2 = parseFloat(quantity2);
-                    rowData.IDU2 = unitId2
-                } else if (quantity2 || unitId2) {
-                    // Fail validation if only one of ValueD2 or IDU2 is present
-                    isValid = false; 
-                }
+                // if (quantity2 && unitId2){
+                //     rowData.ValueD2 = parseFloat(quantity2);
+                //     rowData.IDU2 = unitId2
+                // } else if (quantity2 || unitId2) {
+                //     // Fail validation if only one of ValueD2 or IDU2 is present
+                //     isValid = false; 
+                // }
 
                 if (modtransport){
-                    rowData.IDM = modtransport;
+                     rowData.IDM = modtransport;
                 }
 
                 if (isChecked !== null) {
@@ -892,7 +964,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const selectedTaskName = taskInput.value;
             const selectedOption = taskList.querySelector(`option[value="${selectedTaskName}"]`);
-
+            
             let taskId = null;
             if (selectedOption) {
                 // Retrieve the stored ID from the custom data attribute

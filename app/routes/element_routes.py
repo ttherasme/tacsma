@@ -15,6 +15,7 @@ def elements():
         return redirect(url_for('auth_bp.login'))
 
     username = session['username']
+    user_id = session.get('user_id')
 
     # Build the query FIRST (do not call .all yet)
     query = (
@@ -22,14 +23,14 @@ def elements():
             Element.IDE,
             Element.EName,
             Item.IName,
-            Element.Enterby
+            Element.user_id
         )
         .join(Item, Element.IDI == Item.IDI)
     )
 
     # Admin sees all, others only their own records
     if username.lower() != "admin":
-        query = query.filter(Element.Enterby == username)
+        query = query.filter(Element.user_id == user_id)
 
     # Apply ordering & limit, THEN execute
     element_list = (
@@ -51,6 +52,7 @@ def search_elements():
         return jsonify([])
 
     username = session['username']
+    user_id = session.get('user_id')
     query = request.args.get('q', '').strip()
     like_query = f"%{query}%"
 
@@ -60,7 +62,7 @@ def search_elements():
             Element.IDE,
             Element.EName,
             Item.IName,
-            Element.Enterby,
+            Element.user_id,
             Element.EntryDate
         )
         .join(Item, Element.IDI == Item.IDI)
@@ -68,7 +70,7 @@ def search_elements():
 
     # Admin sees all, others only their own
     if username.lower() != "admin":
-        base_query = base_query.filter(Element.Enterby == username)
+        base_query = base_query.filter(Element.user_id == user_id)
 
     # Apply search filter
     if query:
@@ -143,6 +145,8 @@ def register_element_post():
         return jsonify({"success": False, "message": "User not authenticated."}), 401
 
     current_user = session['username']
+    user_id = session.get('user_id')
+    
     data = request.get_json()
     if not data or 'elements' not in data or not isinstance(data['elements'], list) or 'elementname' not in data:
         return jsonify({"success": False, "message": "Invalid data format."}), 400
@@ -151,33 +155,48 @@ def register_element_post():
     elements_to_add = data['elements']
     
     try:
-        item = db.session.query(Item).filter(db.func.lower(Item.IName) == db.func.lower(elementname)).first()
-        if not item:
-            return jsonify({"success": False, "message": f"Item '{elementname}' not found."}), 404
+        # 1. Define the target items
+        target_item_names = [elementname]
+        # If it's Product or Co-Products, we want BOTH IDs
+        if elementname.lower() in ['product', 'co-products']:
+            target_item_names = ['Product', 'Co-Products', 'Input Materials and Energy', 'Wood Processing']
+
+        #item = db.session.query(Item).filter(db.func.lower(Item.IName) == db.func.lower(elementname)).first()
+        items = db.session.query(Item).filter(Item.IName.in_(target_item_names)).all()
+        if not items:
+            return jsonify({"success": False, "message": "Category items not found."}), 404
 
         added_count = 0
+        added_element = 0
         for element_data in elements_to_add:
             e_name = element_data.get("EName", "").strip()
             if not e_name:
                 continue
 
-            existing_element = db.session.query(Element).filter(
-                Element.EName == e_name,
-                Element.IDI == item.IDI
-            ).first()
-            
-            if existing_element:
-                continue
-            
-            new_element = Element(EName=e_name, IDI=item.IDI, Enterby=current_user)
-            db.session.add(new_element)
-            added_count += 1
-            
+            for item in items:
+                # Check if this specific name/IDI combo already exists
+                existing_element = db.session.query(Element).filter(
+                    Element.EName == e_name,
+                    Element.IDI == item.IDI,
+                    Element.user_id ==user_id
+                ).first()
+                
+                if not existing_element:
+                    new_element = Element(
+                        IDE=added_count,
+                        EName=e_name, 
+                        IDI=item.IDI, 
+                        user_id=user_id
+                    )
+                    db.session.add(new_element)
+                    
+                    added_count += 1
+            added_element += 1
         if added_count == 0:
             return jsonify({"success": False, "message": "No new valid elements to insert."}), 400
 
         db.session.commit()
-        return jsonify({"success": True, "message": f"{added_count} element(s) registered successfully."}), 200
+        return jsonify({"success": True, "message": f"{added_element} element(s) registered successfully."}), 200
 
     except Exception as e:
         db.session.rollback()

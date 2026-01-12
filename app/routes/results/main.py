@@ -22,7 +22,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from .Forest_growth_model import init_param_variable
 
-graph_data ={}  # dictionary indexed by task_id
+graph_data = {}  # dictionary indexed by task_id
 
 def run_analysis(rows):
     """
@@ -30,9 +30,8 @@ def run_analysis(rows):
     and generates a single pivoted contribution table comparing tasks.
     Returns a dictionary: { "individual_results": [...], "combined_contribution_table": [...] }
     """
-    results = [] 
-    # List to collect contributions from ALL rows for final pivot table
-    all_contributions_data = []
+    results = []  # List to collect individual results
+    all_contributions_data = []  # List to collect contributions from ALL rows for final pivot table
 
     logger.warning("--- STARTING run_analysis ---")
 
@@ -72,15 +71,15 @@ def run_analysis(rows):
             # 1. Import Data
             A_raw = format_rawdata_a(task_id, A='A')
             if growth_regrowth == True:
-                value_B, value_A=forest_growth_function()
-                A_raw=forest_growth_newA(A_raw, value_A, 'A')
-                 
+                value_B, value_A = forest_growth_function()
+                A_raw = forest_growth_newA(A_raw, value_A, 'A')
+                
             else: 
                 logger.error(f"No growth regrowth model")
 
             B_raw = import_matrix_b(task_id, sort='yes', sort_row=1, sort_column=3)
             if growth_regrowth == True:
-                B_raw=forest_growth_newA(B_raw, value_B, 'B')
+                B_raw = forest_growth_newA(B_raw, value_B, 'B')
             else: 
                 logger.error(f"No growth regrowth model")
 
@@ -94,8 +93,8 @@ def run_analysis(rows):
                 results.append({"error": f"Error adjusting matrices: {str(e)}", "task_name": task_text})
                 continue
 
-            adjusted_B_pd=pd.DataFrame(adjusted_B)
-            adjusted_A=pd.DataFrame(adjusted_A)
+            adjusted_B_pd = pd.DataFrame(adjusted_B)
+            adjusted_A = pd.DataFrame(adjusted_A)
 
             flow_dict = {
                 'flow': flow,
@@ -119,13 +118,13 @@ def run_analysis(rows):
             final_demand = flow_names['Amount'].values.astype(float)
             
             # 3. Process names
-            Process_Names_df = adjusted_A.iloc[:0, 3:].copy() # Get header for process names
+            Process_Names_df = adjusted_A.iloc[:0, 3:].copy()  # Get header for process names
             Process_Names = Process_Names_df.columns.tolist()
 
-            adjusted_A=adjusted_A.iloc[0:,3:]
+            adjusted_A = adjusted_A.iloc[0:, 3:]
             adjusted_A_np = np.nan_to_num(np.array(adjusted_A, dtype=float), nan=0.0)
 
-            adjusted_B=adjusted_B.iloc[0:,3:]
+            adjusted_B = adjusted_B.iloc[0:, 3:]
             adjusted_B_np = np.nan_to_num(np.array(adjusted_B, dtype=float), nan=0.0)
 
             # 4. Scaling Vector
@@ -184,15 +183,15 @@ def run_analysis(rows):
                 "impact_category": impact_category,
                 "total_impact": total_impact,
                 "chart_base64": create_graph(
-                     contribution_table_df.values,
-                     graph_type='pie',
-                     x_column=0,
-                     y_column=1,
-                     has_header=False,
-                     xlabel="Process",
-                     ylabel="Contribution",
-                     title=f"Contribution Analysis: {task_text}"
-                 ) if not contribution_table_df.empty else None,
+                    contribution_table_df.values,
+                    graph_type='pie',
+                    x_column=0,
+                    y_column=1,
+                    has_header=False,
+                    xlabel="Process",
+                    ylabel="Contribution",
+                    title=f"Contribution Analysis: {task_text}"
+                ) if not contribution_table_df.empty else None,
                 "contribution_table": contribution_table_df.to_dict('records')
             })
 
@@ -234,9 +233,9 @@ def graph_results_single(chart_type='pie', theme='vibrant', task_name=None, task
     task_id = int(task_id)
     data_contribution = graph_data[task_id]["contribution_table_values"]
     data_nameTask = graph_data[task_id]["task_name"]
-    graph =None
+    graph = None
     if data_contribution is not None:
-       graph = create_graph_wt(
+        graph = create_graph_wt(
             data_contribution,
             graph_type=chart_type,
             x_column=0,
@@ -246,16 +245,16 @@ def graph_results_single(chart_type='pie', theme='vibrant', task_name=None, task
             ylabel="Contribution",
             title=f"Contribution Analysis: {data_nameTask}"
         )
-
-       """ graph= create_graph(
-                     data_contribution,
-                     graph_type=chart_type,
-                     x_column=0,
-                     y_column=1,
-                     has_header=False,
-                     xlabel="Process",
-                     ylabel="Contribution",
-                     title=f"Contribution Analysis: {data_nameTask}"
-                 ) """
+    
+    """ graph = create_graph(
+        data_contribution,
+        graph_type=chart_type,
+        x_column=0,
+        y_column=1,
+        has_header=False,
+        xlabel="Process",
+        ylabel="Contribution",
+        title=f"Contribution Analysis: {data_nameTask}"
+    ) """
     
     return graph

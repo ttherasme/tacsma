@@ -1,24 +1,25 @@
 from app import db
 from datetime import datetime
-
-
-# app/models.py (Updated)
-from app import db
 from sqlalchemy.schema import UniqueConstraint
-from sqlalchemy.orm import aliased
 
+# ----------------------------------------------------------------
+# USER AND SYSTEM PARAMETERS MODELS
+# ----------------------------------------------------------------
 
 class Parameter(db.Model):
+    """Stores global LCA parameters and their default values."""
     __tablename__ = 'parameter'
     id = db.Column(db.Integer, primary_key=True)
     parameter_name = db.Column(db.String(100), unique=True, nullable=False)
     parameter_default = db.Column(db.Float, default=0)
     parameter_unit = db.Column(db.String(20), nullable=False)
     
+    # Relationship to user-specific overrides
     user_values = db.relationship('UserParameterValue', backref='parameter', lazy=True)
 
 
 class User(db.Model):
+    """User management and access control."""
     __tablename__ = 'user'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(25), unique=True, nullable=False)
@@ -26,14 +27,18 @@ class User(db.Model):
     state = db.Column(db.Boolean, default=True)
     level = db.Column(db.Integer, default=0)
     change = db.Column(db.Integer, default=1)
-    # True = Yes (use Value), False = No (use Default)
+    # 0 = Use Defaults, 1 = Use User-Defined Values
     regeneration_mode = db.Column(db.Integer, default=0) 
 
-    # Define a relationship to the per-user parameter values
+    # Relationships to track user-created content
     param_values = db.relationship('UserParameterValue', backref='user', lazy=True)
+    tasks = db.relationship('Tasks', backref='user', lazy=True)
+    elements = db.relationship('Element', backref='user', lazy=True)
+    datasheets = db.relationship('Datasheet', backref='user', lazy=True)
 
 
 class UserParameterValue(db.Model):
+    """Stores custom parameter values defined by specific users for specific tasks."""
     __tablename__ = 'user_parameter_value'
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -43,50 +48,49 @@ class UserParameterValue(db.Model):
 
     __table_args__ = (UniqueConstraint('user_id', 'parameter_id', 'IDT', name='_user_parameter_uc'),)
 
+
 class PermissionRule(db.Model):
+    """Defines UI permissions based on user access levels."""
     __tablename__ = 'permission_rule'
     id = db.Column(db.Integer, primary_key=True)
-    
-    # The Level this rule applies to (1, 2, 3, 4, 5)
     access_level = db.Column(db.Integer, nullable=False)
-    
-    # The page the rule applies to (e.g., 'parameters', 'results', 'user_levels')
     page_name = db.Column(db.String(50), nullable=False)
-    
-    # The specific element/field ID on that page (e.g., 'reset-to-default', 'editable-value')
     element_id = db.Column(db.String(100), nullable=False)
-    
-    # The type of action granted: 'view', 'click', 'enable', 'dropdown'
     action_type = db.Column(db.String(20), nullable=False)
     
-    # Ensures no duplicate rule exists for the same combination
     __table_args__ = (UniqueConstraint('access_level', 'page_name', 'element_id', 'action_type', 
                                        name='_unique_permission_rule'),)
 
+# ----------------------------------------------------------------
+# LCA CORE MODELS (PROCESSES AND INVENTORY)
+# ----------------------------------------------------------------
+
 class Tasks(db.Model):
+    """Specific LCA project or case study."""
     __tablename__ = 'tasks'
-    IDT = db.Column(db.Integer, primary_key=True)
+    IDT = db.Column(db.Integer, primary_key=True, autoincrement=False)
     TName = db.Column(db.String(150), nullable=False)
     Region = db.Column(db.String(8))
     Description = db.Column(db.String(250))
     EntryDate = db.Column(db.DateTime, default=datetime.utcnow)
-    EnterBy = db.Column(db.String(25))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
-    datasheets = db.relationship('Datasheet', backref='tasks', lazy=True)
+    datasheets = db.relationship('Datasheet', backref='task', lazy=True)
 
 
 class Item(db.Model):
+    """Categorization of elements (e.g., Raw Materials, Energy)."""
     __tablename__ = 'item'
-    IDI = db.Column(db.String(6), primary_key=True)
+    IDI = db.Column(db.String(6), primary_key=True, autoincrement=False)
     IName = db.Column(db.String(100), unique=True, nullable=False)
 
-    # Relationships
     elements = db.relationship('Element', backref='item', lazy=True)
 
 
 class Step(db.Model):
+    """Life cycle stages (e.g., Production, Transport, End-of-Life)."""
     __tablename__ = 'step'
-    IDS = db.Column(db.String(6), primary_key=True)
+    IDS = db.Column(db.String(6), primary_key=True, autoincrement=False)
     SName = db.Column(db.String(50), unique=True, nullable=False)
     State = db.Column(db.Integer, default=1)
     EntryDate = db.Column(db.DateTime, default=datetime.utcnow)
@@ -98,65 +102,68 @@ class Step(db.Model):
 
 
 class UOM(db.Model):
+    """Units of Measure (e.g., kg, kWh, tkm)."""
     __tablename__ = 'uom'
-    IDU = db.Column(db.String(6), primary_key=True)
+    IDU = db.Column(db.String(6), primary_key=True, autoincrement=False)
     UName = db.Column(db.String(20), nullable=False)
     Unit = db.Column(db.String(5), nullable=False)
     State = db.Column(db.Integer, default=1)
     EntryDate = db.Column(db.DateTime, default=datetime.utcnow)
     EnterBy = db.Column(db.String(25))
-    UpdateDate = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    UpdateBy = db.Column(db.String(25))
 
-    datasheets_u1 = db.relationship('Datasheet', foreign_keys='Datasheet.IDU1', backref='uom1', lazy=True)
-    datasheets_u2 = db.relationship('Datasheet', foreign_keys='Datasheet.IDU2', backref='uom2', lazy=True)
+    datasheets = db.relationship('Datasheet', backref='uom', lazy=True)
 
 
 class MTransp(db.Model):
+    """Modes of Transportation."""
     __tablename__ = 'mtransp'
-    IDM = db.Column(db.String(6), primary_key=True)
+    IDM = db.Column(db.String(6), primary_key=True, autoincrement=False)
     MTName = db.Column(db.String(50), nullable=False)
     State = db.Column(db.Integer, default=1)
     EntryDate = db.Column(db.DateTime, default=datetime.utcnow)
     EnterBy = db.Column(db.String(50))
-    UpdateDate = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    UpdateBy = db.Column(db.String(50))
 
     datasheets = db.relationship('Datasheet', backref='mtransp', lazy=True)
 
 
 class Element(db.Model):
+    """Inventory items belonging to a specific Task and Category (Item)."""
     __tablename__ = 'element'
-    IDE = db.Column(db.Integer, primary_key=True)
+    IDE = db.Column(db.Integer, primary_key=True, autoincrement=False)
     EName = db.Column(db.String(30), nullable=False)
     IDI = db.Column(db.String(6), db.ForeignKey('item.IDI'), nullable=False)
-    Enterby = db.Column(db.String(25))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    Global_Val = db.Column(db.Integer, default=0)
     EntryDate = db.Column(db.DateTime, default=datetime.utcnow)
     
-    __table_args__ = (UniqueConstraint('EName', 'IDI', 'Enterby', 
+    # CONSTRAINT FIXED: Changed 'Enterby' to 'user_id'
+    __table_args__ = (UniqueConstraint('EName', 'IDI', 'user_id', 
                                        name='_unique_element_constraint'),)
+    
     datasheets = db.relationship('Datasheet', backref='element', lazy=True)
 
 
 class Datasheet(db.Model):
+    """Primary data entry table linking elements to quantities and processes."""
     __tablename__ = 'datasheet'
     IDD = db.Column(db.Integer, primary_key=True, autoincrement=True)
     IDT = db.Column(db.Integer, db.ForeignKey('tasks.IDT'), nullable=False)
     IDE = db.Column(db.Integer, db.ForeignKey('element.IDE'), nullable=False) 
     IDS = db.Column(db.String(6), db.ForeignKey('step.IDS'), nullable=False) 
-    IDU1 = db.Column(db.String(6), db.ForeignKey('uom.IDU'), nullable=False) 
-    ValueD1 = db.Column(db.Float, default=0)
-    IDU2 = db.Column(db.String(6), db.ForeignKey('uom.IDU'))
-    ValueD2 = db.Column(db.Float, default=0)
+    IDU = db.Column(db.String(6), db.ForeignKey('uom.IDU'), nullable=False) 
+    ValueD = db.Column(db.Float, default=0)
     IDM = db.Column(db.String(6), db.ForeignKey('mtransp.IDM'))  
     CHK = db.Column(db.Integer, default=0)
     EntryDate = db.Column(db.DateTime, default=datetime.utcnow)
-    EnterBy = db.Column(db.String(25))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     UpdateDate = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    UpdateBy = db.Column(db.String(25))
+
     __table_args__ = (UniqueConstraint('IDT', 'IDE', 'IDS', 
                                        name='_unique_datasheet_constraint'),)
 
+# ----------------------------------------------------------------
+# LIFE CYCLE INVENTORY (LCI) BACKGROUND DATA
+# ----------------------------------------------------------------
 class ForestryConversionFactorsFIA(db.Model):
     __tablename__ = 'forestry_conversion_factors_fia'
 
@@ -169,56 +176,21 @@ class ForestryConversionFactorsFIA(db.Model):
     ID = db.Column(db.Integer, primary_key=True, autoincrement=True)
 
 class LCI(db.Model):
+    """Standardized environmental impact factors (TRACI or similar)."""
     __tablename__ = 'lci'
 
-    Background_process = db.Column(db.String(48))
+    Background_process = db.Column(db.String(48), primary_key=True)
     Code = db.Column(db.String(5), primary_key=True)
     Unit = db.Column(db.String(4))
-    GWP = db.Column(db.Numeric(10, 9))
-    Smog = db.Column(db.Numeric(10, 9))
-    Acidification = db.Column(db.Numeric(10, 9))
-    Eutrophication = db.Column(db.Numeric(10, 9))
-    Carcinogenics = db.Column(db.Numeric(7, 6))
-    Non_carcinogenics = db.Column(db.Numeric(7, 6))
-    Respiratory_effects = db.Column(db.Numeric(10, 9))
-    Ecotoxicity = db.Column(db.Numeric(10, 9))
-    Fossil_fuel_depletion = db.Column(db.Numeric(10, 9))
-    Ozone_depletion = db.Column(db.Numeric(7, 6))
-
-class MatrixARaw(db.Model):
-    __tablename__ = 'matrix_a_raw'
-
-    Flow = db.Column(db.String(26))
-    Flow_id = db.Column(db.String(5))
-    Process_1 = db.Column(db.String(5))
-    Unit_1 = db.Column(db.String(3))
-    Process_2 = db.Column(db.String(5))
-    Unit_2 = db.Column(db.String(3))
-    Process_3 = db.Column(db.String(5))
-    Unit_3 = db.Column(db.String(3))
-    Process_4 = db.Column(db.String(5))
-    Unit_4 = db.Column(db.String(3))
-    Process_5 = db.Column(db.String(5))
-    Unit_5 = db.Column(db.String(3))
-    Process_6 = db.Column(db.String(5))
-    Unit_6 = db.Column(db.String(3))
-    ID = db.Column(db.Integer, primary_key=True, autoincrement=True)
-
-class MatrixB(db.Model):
-    __tablename__ = 'matrix_b'
-
-    Background_process = db.Column(db.String(48))
-    Code = db.Column(db.String(5))
-    Unit = db.Column(db.String(3))
-    Process_1 = db.Column(db.String(5))
-    Process_2 = db.Column(db.String(5))
-    Process_3 = db.Column(db.String(5))
-    Process_4 = db.Column(db.String(5))
-    Process_6 = db.Column(db.String(5))
-    Process_5 = db.Column(db.String(5))
-    ID = db.Column(db.Integer, primary_key=True, autoincrement=True)
-
-
-# Defining aliases needed for distinct joins in data_import.py
-UOM1 = aliased(UOM, name='UOM1')
-UOM2 = aliased(UOM, name='UOM2')
+    
+    # HIGH PRECISION: Numeric(16, 10) ensures small and large values are stored correctly
+    GWP = db.Column(db.Numeric(16, 10))
+    Smog = db.Column(db.Numeric(16, 10))
+    Acidification = db.Column(db.Numeric(16, 10))
+    Eutrophication = db.Column(db.Numeric(16, 10))
+    Carcinogenics = db.Column(db.Numeric(16, 10))
+    Non_carcinogenics = db.Column(db.Numeric(16, 10))
+    Respiratory_effects = db.Column(db.Numeric(16, 10))
+    Ecotoxicity = db.Column(db.Numeric(16, 10))
+    Fossil_fuel_depletion = db.Column(db.Numeric(16, 10))
+    Ozone_depletion = db.Column(db.Numeric(16, 10))

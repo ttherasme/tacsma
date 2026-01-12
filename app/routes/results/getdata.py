@@ -19,8 +19,8 @@ def get_matrix_a(idt_param: int):
         all_processes = get_all_processes()
 
         # Aliases for UOM
-        UOM1 = aliased(UOM)
-        UOM2 = aliased(UOM)
+        #UOM1 = aliased(UOM)
+        #UOM2 = aliased(UOM)
 
         # Base query
         base_query = (
@@ -29,18 +29,18 @@ def get_matrix_a(idt_param: int):
                 Element.IDE.label('Flow_id'),
                 Element.EName.label('Flow'),
                 Step.SName.label('Process'),
-                Datasheet.ValueD1.label('ValueD1'),
-                UOM1.Unit.label('UnitD1'),
-                Datasheet.ValueD2.label('ValueD2'),
-                UOM2.Unit.label('UnitD2'),
+                Datasheet.ValueD.label('ValueD'),
+                UOM.Unit.label('UnitD'),
+                #Datasheet.ValueD2.label('ValueD2'),
+                #UOM2.Unit.label('UnitD2'),
                 Datasheet.CHK.label('CHK'),
                 Item.IName.label('IName')
             )
             .join(Element, Datasheet.IDE == Element.IDE)
             .join(Item, Element.IDI == Item.IDI)
             .join(Step, Datasheet.IDS == Step.IDS)
-            .join(UOM1, Datasheet.IDU1 == UOM1.IDU)
-            .outerjoin(UOM2, Datasheet.IDU2 == UOM2.IDU)
+            .join(UOM, Datasheet.IDU == UOM.IDU)
+            #.outerjoin(UOM2, Datasheet.IDU2 == UOM2.IDU)
             .filter(Datasheet.IDT == idt_param)
         )
 
@@ -69,20 +69,14 @@ def get_matrix_a(idt_param: int):
 
         df = pd.DataFrame(results, columns=[
             'IDD', 'Flow_id', 'Flow', 'Process',
-            'ValueD1', 'UnitD1', 'ValueD2', 'UnitD2', 'CHK', 'IName'
+            'ValueD', 'UnitD', 'CHK', 'IName'
         ])
 
         # --- Step 1: Compute Value_Final ---
-        df['Value_Final'] = np.where(
-            (df['ValueD2'].notna()) & (df['ValueD2'] > 0),
-            df['ValueD1'] * df['ValueD2'],
-            df['ValueD1']
-        )
+        df['Value_Final'] = df['ValueD']
 
         # --- Step 2: Compute Unit_Final ---
-        unit2 = df['UnitD2'].astype(str).str.strip()
-        mask = unit2.isin(['', 'nan', 'None'])
-        df['Unit_Final'] = np.where(mask, df['UnitD1'], df['UnitD1'] + df['UnitD2'])
+        df['Unit_Final'] = df['UnitD']
 
         # --- Step 3: Pivot tables ---
         pivot_value = df.pivot_table(
@@ -163,15 +157,15 @@ def get_matrix_b(idt_param: int):
                 Element.IDE.label('Flow_id'),
                 Element.EName.label('Flow'),
                 Step.SName.label('Process'),
-                Datasheet.ValueD1.label('ValueD1'),
-                UOM.Unit.label('UnitD1'),
-                Datasheet.ValueD2.label('ValueD2'),
+                Datasheet.ValueD.label('ValueD'),
+                UOM.Unit.label('UnitD'),
+                #Datasheet.ValueD2.label('ValueD2'),
                 Item.IName.label('IName')
             )
             .join(Element, Datasheet.IDE == Element.IDE)
             .join(Item, Element.IDI == Item.IDI)
             .join(Step, Datasheet.IDS == Step.IDS)
-            .join(UOM, Datasheet.IDU1 == UOM.IDU)
+            .join(UOM, Datasheet.IDU == UOM.IDU)
             .filter(Datasheet.IDT == idt_param)
             .filter(Item.IName.notin_(['Product', 'Co-Products']))
         )
@@ -185,15 +179,15 @@ def get_matrix_b(idt_param: int):
                 Element.IDE.label('Flow_id'),
                 Element.EName.label('Flow'),
                 Step.SName.label('Process'),
-                (-Datasheet.ValueD1).label('ValueD1'),
-                UOM.Unit.label('UnitD1'),
-                (-Datasheet.ValueD2).label('ValueD2'),
+                (-Datasheet.ValueD).label('ValueD'),
+                UOM.Unit.label('UnitD'),
+               # (-Datasheet.ValueD2).label('ValueD2'),
                 Item.IName.label('IName')
             )
             .join(Element, Datasheet.IDE == Element.IDE)
             .join(Item, Element.IDI == Item.IDI)
             .join(Step, Datasheet.IDS == Step.IDS)
-            .join(UOM, Datasheet.IDU1 == UOM.IDU)
+            .join(UOM, Datasheet.IDU == UOM.IDU)
             .filter(Datasheet.IDT == idt_param)
             .filter(and_(Item.IName == 'Co-Products', Datasheet.CHK == 1))
         )
@@ -216,23 +210,19 @@ def get_matrix_b(idt_param: int):
 
         df = pd.DataFrame(results, columns=[
             'IDD', 'Flow_id', 'Flow', 'Process',
-            'ValueD1', 'UnitD1', 'ValueD2', 'IName'
+            'ValueD', 'UnitD', 'IName'
         ])
 
-        df['Value_Final'] = np.where(
-            (df['ValueD2'].notna()) & (df['ValueD2'] > 0),
-            df['ValueD1'] * df['ValueD2'],
-            df['ValueD1']
-        )
+        df['Value_Final'] = df['ValueD']
 
         # Pivot table
         pivot_value = df.pivot_table(
-            index=['Flow', 'Flow_id', 'UnitD1'],
+            index=['Flow', 'Flow_id', 'UnitD'],
             columns='Process',
             values='Value_Final',
             aggfunc='sum',
             fill_value=0.0
-        ).reset_index().rename(columns={'UnitD1': 'Unit'})
+        ).reset_index().rename(columns={'UnitD': 'Unit'})
 
         for p in all_processes:
             if p not in pivot_value.columns:

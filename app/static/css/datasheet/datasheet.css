@@ -321,7 +321,7 @@ body {
 .transport-columns .form-header,
 .transport-columns .form-row {
     display: grid;
-    grid-template-columns: 3fr 3fr 3fr 2fr 30px 30px;
+    grid-template-columns: 3fr 1fr 2fr 30px 30px;
     gap: 1rem;
     align-items: center;
 }
