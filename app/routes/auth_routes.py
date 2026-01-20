@@ -52,38 +52,81 @@ def login():
 
                 # Get Item LCI
                 #item_lci = Item.query.filter_by(IName='LCI').first()
-                item_lcis = Item.query.filter(Item.IName.in_(['Co-Products', 'Input Materials and Energy'])).all()
+                item_lcis = Item.query.filter(Item.IName.in_(['Co-Products', 'Input Materials and Energy', 'Emissions', 'Waste Treatment'])).all()
 
                 if item_lcis:
                     
                     # Get distinct background process names
                     lci_names = (
-                        LCI.query
-                        .with_entities(LCI.Background_process)
+                        db.session.query(
+                            LCI.Background_process,
+                            LCI.Type_LCI
+                        )
                         .distinct()
                         .all()
                     )
 
                     for item_lci in item_lcis:
 
-                        for (background_process,) in lci_names:
-                            # Check if this element already exists
-                            exists = Element.query.filter_by(
-                                IDI=item_lci.IDI,
-                                EName=background_process,
-                                user_id=user.id
-                                #Global_Val=1
-                            ).first()
-                            
-                            if exists is None:
-                                new_element_lci = Element(
-                                    IDE=10,
-                                    EName=background_process,
+                        for background_process, type_lci in lci_names:
+
+                            if item_lci.IName in['Co-Products', 'Input Materials and Energy']:
+                                # Check if this element already exists
+                                exists = Element.query.filter_by(
                                     IDI=item_lci.IDI,
-                                    user_id=user.id,
-                                    Global_Val=1
-                                )
-                                db.session.add(new_element_lci)
+                                    EName=background_process,
+                                    user_id=user.id
+                                    #Global_Val=1
+                                ).first()
+                                
+                                if exists is None:   
+                                    
+                                    new_element_lci = Element(
+                                        IDE=10,
+                                        EName=background_process,
+                                        IDI=item_lci.IDI,
+                                        user_id=user.id,
+                                        Global_Val=1
+                                    )
+                                    db.session.add(new_element_lci)
+
+                            if item_lci.IName == 'Emissions' and type_lci == 'Emissions':
+                                # Check if this element already exists
+                                exists = Element.query.filter_by(
+                                    IDI=item_lci.IDI,
+                                    EName=background_process,
+                                    user_id=user.id
+                                    #Global_Val=1
+                                ).first()
+                                
+                                if exists is None:
+                                    new_element_lci = Element(
+                                        IDE=10,
+                                        EName=background_process,
+                                        IDI=item_lci.IDI,
+                                        user_id=user.id,
+                                        Global_Val=1
+                                    )
+                                    db.session.add(new_element_lci)
+                            
+                            if item_lci.IName == 'Waste Treatment' and type_lci == 'Waste':
+                                # Check if this element already exists
+                                exists = Element.query.filter_by(
+                                    IDI=item_lci.IDI,
+                                    EName=background_process,
+                                    user_id=user.id
+                                    #Global_Val=1
+                                ).first()
+                                
+                                if exists is None:
+                                    new_element_lci = Element(
+                                        IDE=10,
+                                        EName=background_process,
+                                        IDI=item_lci.IDI,
+                                        user_id=user.id,
+                                        Global_Val=1
+                                    )
+                                    db.session.add(new_element_lci)
 
                     try:
                         db.session.commit()

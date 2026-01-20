@@ -36,6 +36,7 @@ document.addEventListener("DOMContentLoaded", () => {
         elementType,
         hasCheckbox = false,
         showDeleteButton = true,
+        showRegisterButton = true,
         customHeader = null,
         customRow = null
     }) {
@@ -71,9 +72,14 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         const footer = () => `
-            <button class="action-button register-element-button" data-element-type="${elementType}">Add new Name</button>
+            ${showRegisterButton
+                ? `<button class="action-button register-element-button" data-element-type="${elementType}">
+                        Add new Name
+                </button>`
+                : ''}
             <button class="action-button check-button">Validate ✔️</button>
         `;
+
 
         return { header, row, footer };
     }
@@ -134,6 +140,7 @@ document.addEventListener("DOMContentLoaded", () => {
             category: "+ Waste Treatment",
             selectClass: "wasteSelect",
             elementType: "Waste Treatment",
+            showRegisterButton: false,
             customHeader: ["Materials", "Quantity", "Unit", " ", " "],
             customRow: () => {
                 return [
@@ -194,8 +201,11 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!select) return;
 
             const currentValue = select.value;
+            /* const checkbox = row.querySelector('input[type="checkbox"]');
+            const ischk = checkbox.checked ? 1 : 0; */
             const checkbox = row.querySelector('input[type="checkbox"]');
-            const ischk = checkbox.checked ? 1 : 0;
+            const ischk = checkbox ? (checkbox.checked ? 1 : 0) : 0;
+
             fetch(`/get_elements_by_category_for_datasheet/${encodeURIComponent(categoryName)}/${encodeURIComponent(ischk)}`)
                 .then(res => res.json())
                 .then(data => {
@@ -244,6 +254,9 @@ document.addEventListener("DOMContentLoaded", () => {
         let elementType = categoryName; 
         let hasCheckbox = categoryName.includes("Co-Products");
         let showDeleteButton = !categoryName.endsWith("Product");
+        let showRegisterButton =
+            !categoryName.includes("Emissions") &&
+            !categoryName.includes("Waste Treatment");
 
         // Dynamic mapping to get the correct CSS class and element type
         if(module ==="Transportation" && (categoryName =="Emissions" || categoryName.trim() === 'Co-Products' || categoryName =="Input Energy")){
@@ -269,7 +282,8 @@ document.addEventListener("DOMContentLoaded", () => {
             selectClass: selectClass,
             elementType: elementType,
             hasCheckbox: hasCheckbox,
-            showDeleteButton: showDeleteButton
+            showDeleteButton: showDeleteButton,
+            showRegisterButton: showRegisterButton
         });
     }
 
@@ -578,94 +592,6 @@ document.addEventListener("DOMContentLoaded", () => {
      * Populates and links the UOM (Unit of Measure) name and unit selects.
      * @param {HTMLElement} rowElement The row containing the selects.
      */
-    function populateAndLinkTransportationMode(rowElement) {
-        const transportationSelect = rowElement.querySelector(".transport-mode-select");
-
-        if (!transportationSelect) {
-            console.error("Select element .transport-mode-select not found in the row element.");
-            return;
-        }
-
-        fetch("/listTotbystatus/1")
-            .then(response => response.json())
-            .then(data => {
-                transportationSelect.innerHTML = '<option value="" disabled selected>Select...</option>';
-
-                if (Array.isArray(data)) {
-                    data.forEach(result => {
-                        const option = document.createElement("option");
-                        option.value = result.IDM;
-                        option.textContent = result.MTName;
-                        transportationSelect.appendChild(option);
-                    });
-                } else {
-                    transportationSelect.innerHTML = '<option value="" disabled selected>No transportations available</option>';
-                }
-            })
-            .catch(err => {
-                console.error("Error fetching transportation:", err);
-                transportationSelect.innerHTML = '<option value="" disabled selected>Error loading transportation</option>';
-            });
-    }
-
-    function populateAndLinkMassUnit(rowElement) {
-        const uomUnitMassSelect = rowElement.querySelector(".uom-mass-select");
-        const uomname = 'Mass';
-
-        if (!uomUnitMassSelect) {
-            console.error("Select element .uom-mass-select not found in the row element.");
-            return;
-        }
-
-        fetch("/get_all_uoms_by_element/${encodeURIComponent(selectedElement)}")
-            .then(res => res.json())
-            .then(data => {
-                if (!data || !Array.isArray(data.uoms)) {
-                    console.error("Invalid UOM data format:", data);
-                    return;
-                }
-
-                const filteredUnits = data.uoms.filter(uom => uom.UName === uomname);
-                uomUnitMassSelect.innerHTML = '<option value="">Select...</option>';
-                filteredUnits.forEach(item => {
-                    const option = document.createElement("option");
-                    option.value = item.IDU;
-                    option.textContent = item.Unit;
-                    uomUnitMassSelect.appendChild(option);
-                });
-            })
-            .catch(err => console.error("Error loading units:", err));
-    }
-
-
-    function populateAndLinkDistanceUnit(rowElement) {
-        const uomUnitDistanceSelect = rowElement.querySelector(".uom-distance-select");
-        const uomname = 'Distance';
-
-        if (!uomUnitDistanceSelect) {
-            console.error("Select element .uom-distance-select not found in the row element.");
-            return;
-        }
-
-        fetch("/get_all_uoms_by_element/${encodeURIComponent(selectedElement)}")
-            .then(res => res.json())
-            .then(data => {
-                if (!data || !Array.isArray(data.uoms)) {
-                    console.error("Invalid UOM data format:", data);
-                    return;
-                }
-
-                const filteredUnits = data.uoms.filter(uom => uom.UName === uomname);
-                uomUnitDistanceSelect.innerHTML = '<option value="">Select...</option>';
-                filteredUnits.forEach(item => {
-                    const option = document.createElement("option");
-                    option.value = item.IDU;
-                    option.textContent = item.Unit;
-                    uomUnitDistanceSelect.appendChild(option);
-                });
-            })
-            .catch(err => console.error("Error loading units:", err));
-    }
 
     function populateAndLinkUomSelects(rowElement) {
         const uomNameSelect = rowElement.querySelector(".uom-name-select");
@@ -673,7 +599,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!uomNameSelect || !uomUnitSelect) return;
 
         // Fetch UOM names
-        fetch("/get_all_uoms_by_element/${encodeURIComponent(selectedElement)}")
+        fetch(`/get_all_uoms_by_element/${encodeURIComponent(selectedElement)}`)
             .then(res => res.json())
             .then(data => {
                 const uoms = data.uoms;
@@ -697,7 +623,7 @@ document.addEventListener("DOMContentLoaded", () => {
         uomNameSelect.addEventListener("change", (event) => {
             const selectedUName = event.target.value;
             if (selectedUName) {
-                fetch("/get_all_uoms_by_element/${encodeURIComponent(selectedElement)}")
+                fetch(`/get_all_uoms_by_element/${encodeURIComponent(selectedElement)}`)
                     .then(res => res.json())
                     .then(data => {
                         const uoms = data.uoms;
@@ -782,7 +708,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Event listener for UOM name change to populate UOM units
         elementSelect.addEventListener("change", function (event) {
-            const selectedElement = event.target.value;
+            selectedElement = event.target.value;
 
             fetch(`/get_all_uoms_by_element/${encodeURIComponent(selectedElement)}`)
                 .then(res => res.json())

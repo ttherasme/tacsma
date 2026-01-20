@@ -194,3 +194,4 @@ class LCI(db.Model):
     Ecotoxicity = db.Column(db.Numeric(16, 10))
     Fossil_fuel_depletion = db.Column(db.Numeric(16, 10))
     Ozone_depletion = db.Column(db.Numeric(16, 10))
+    Type_LCI = db.Column(db.String(15))
