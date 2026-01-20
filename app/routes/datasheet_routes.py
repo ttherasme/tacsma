@@ -232,8 +232,8 @@ def get_in_datasheet(idtask, category_name, module_name):
     return jsonify(success=False, message="Unauthorized"), 401
 
 
-@datasheet_bp.route('/get_elements_by_category_for_datasheet/<category_name>')
-def get_elements_by_category_for_datasheet(category_name):
+@datasheet_bp.route('/get_elements_by_category_for_datasheet/<category_name>/<int:ischk>')
+def get_elements_by_category_for_datasheet(category_name, ischk):
     if 'username' not in session:
         return jsonify(success=False, elements=[]), 401
 
@@ -246,22 +246,39 @@ def get_elements_by_category_for_datasheet(category_name):
 
     query = Element.query.filter(Element.IDI == item.IDI)
 
+    if category_name == 'Co-Products':
+        query = query.filter(Element.Global_Val == ischk)
+
     if not is_admin:
         query = query.filter(Element.user_id == user_id)
 
-    if category_name == 'Input Materials and Energy':
+        if category_name == 'Input Materials and Energy':
         
-        global_items = Item.query.filter(
-            Item.IName.in_(['Input Materials and Energy', 'LCI'])
-        ).all()
+            global_items = Item.query.filter(
+                Item.IName.in_(['Input Materials and Energy'])
+            ).all()
 
-        for g_item in global_items:
-            query = query.union(
-                Element.query.filter(
-                    Element.IDI == g_item.IDI,
-                    Element.Global_Val == 1
-                )
-            )
+            for g_item in global_items:
+                query = query.union(
+                    Element.query.filter(
+                        Element.IDI == g_item.IDI,
+                        Element.Global_Val.in_([1, 2])
+                    )
+                ) 
+
+        if category_name == 'Co-Products':
+        
+            global_items = Item.query.filter(
+                Item.IName.in_(['Co-Products'])
+            ).all()
+
+            for g_item in global_items:
+                query = query.union(
+                    Element.query.filter(
+                        Element.IDI == g_item.IDI,
+                        Element.Global_Val == ischk
+                    )
+                ) 
 
     elements = query.order_by(Element.EName.asc()).all()
 

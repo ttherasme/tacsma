@@ -194,8 +194,9 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!select) return;
 
             const currentValue = select.value;
-
-            fetch(`/get_elements_by_category_for_datasheet/${encodeURIComponent(categoryName)}`)
+            const checkbox = row.querySelector('input[type="checkbox"]');
+            const ischk = checkbox.checked ? 1 : 0;
+            fetch(`/get_elements_by_category_for_datasheet/${encodeURIComponent(categoryName)}/${encodeURIComponent(ischk)}`)
                 .then(res => res.json())
                 .then(data => {
                     const elements = data.elements || [];
@@ -424,17 +425,6 @@ document.addEventListener("DOMContentLoaded", () => {
         // 1. All modules need the element select populated
         populateElementSelect(rowElement, selectClass, categoryName);
         populateAndLinkUomSelects(rowElement);
-        // 2. Handle specific unit of measure (UOM) logic based on the module
-        // if (activeModule === "Transportation") {
-        //     // Transportation has a unique data row (Mass/Distance/Mode)
-        //     populateAndLinkMassUnit(rowElement);
-        //     populateAndLinkDistanceUnit(rowElement);
-        //     populateAndLinkTransportationMode(rowElement);
-        // } else {
-        //     // All other standard modules (Forest Operation, Wood Processing, Construction, etc.)
-        //     // use the Name/Quantity/Unit structure.
-        //     populateAndLinkUomSelects(rowElement);
-        // }
     }
 
     /**
@@ -747,28 +737,48 @@ document.addEventListener("DOMContentLoaded", () => {
         const elementSelect = rowElement.querySelector(`.${selectClass}`);
         const uomNameSelect = rowElement.querySelector(".uom-name-select");
         const uomUnitSelect = rowElement.querySelector(".uom-unit-select");
+        const checkbox = rowElement.querySelector('input[type="checkbox"]');
+        
         if (!elementSelect) return;
 
-        fetch(`/get_elements_by_category_for_datasheet/${encodeURIComponent(categoryName)}`)
-            .then(res => res.json())
-            .then(data => {
-                const elements = data.elements || [];
-                elementSelect.innerHTML = '';
-                const defaultOption = document.createElement("option");
-                defaultOption.value = "";
-                defaultOption.textContent = "Select ...";
-                elementSelect.appendChild(defaultOption);
+        // Determine the value of ischk based on the existence of the checkbox
+        let ischk = 0;  // Default value
+        if (checkbox) {
+            ischk = checkbox.checked ? 1 : 0;
 
-                elements.forEach(element => {
-                    const option = document.createElement("option");
-                    option.value = element.IDE;
-                    option.textContent = element.EName;
-                    elementSelect.appendChild(option);
-                });
-            })
-            .catch(err => {
-                console.error(`Error loading ${categoryName} options:`, err);
+            // Add event listener for checkbox state change
+            checkbox.addEventListener('change', () => {
+                ischk = checkbox.checked ? 1 : 0;
+                fetchElements(ischk); // Re-fetch based on updated checkbox state
             });
+        }
+
+        // Function to fetch elements with the current ischk value
+        const fetchElements = (ischk) => {
+            fetch(`/get_elements_by_category_for_datasheet/${encodeURIComponent(categoryName)}/${encodeURIComponent(ischk)}`)
+                .then(res => res.json())
+                .then(data => {
+                    const elements = data.elements || [];
+                    elementSelect.innerHTML = '';
+                    const defaultOption = document.createElement("option");
+                    defaultOption.value = "";
+                    defaultOption.textContent = "Select ...";
+                    elementSelect.appendChild(defaultOption);
+
+                    elements.forEach(element => {
+                        const option = document.createElement("option");
+                        option.value = element.IDE;
+                        option.textContent = element.EName;
+                        elementSelect.appendChild(option);
+                    });
+                })
+                .catch(err => {
+                    console.error(`Error loading ${categoryName} options:`, err);
+                });
+        }
+
+        // Initial fetch with ischk value (0 if checkbox is missing, 1 or 0 based on checkbox state)
+        fetchElements(ischk);
 
         // Event listener for UOM name change to populate UOM units
         elementSelect.addEventListener("change", function (event) {
@@ -786,9 +796,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 })
                 .catch(err => console.error("Error loading units:", err));
         });
-
-
     }
+
+
 
     // Event listeners for module tabs and category buttons
     moduleTabs.forEach(tab => {

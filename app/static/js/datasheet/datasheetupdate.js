@@ -159,52 +159,92 @@ document.addEventListener("DOMContentLoaded", () => {
         refreshForm();
     });
 
+    // This listener sits on the document and waits for any change events.
+    document.addEventListener('change', (event) => {
+        if (event.target && event.target.name === 'CHK') {
+            const category = currentCategory;
+            const ischk = event.target.checked ? 1 : 0;
+            
+            // Find the specific select element in the same row as the checkbox
+            const row = event.target.closest('.form-row');
+            const elementSelect = row.querySelector('select[name="IDE"]');
+            
+            if (elementSelect) {
+                searchElement(category, ischk, elementSelect);
+            }
+        }
+    });
 
     function refreshForm() {
-        // Get taskId directly from the initial global variable
         const taskId = initialTaskId; 
-        
         const stepName = currentModule;
         const category = currentCategory;
 
-        // Display a message if selections are incomplete
         if (!taskId || !stepName || !category) {
             rightPanel.innerHTML = `<p>Please select a task, a step (module), and a category.</p>`;
             return;
         }
 
-        // Find the step object by its name
+        // --- NULL-SAFE CHECKBOX LOGIC ---
+        // Look for the checkbox. If it doesn't exist, default ischk to 0.
+        const chkElement = document.querySelector('[name="CHK"]');
+        const ischk = chkElement ? (chkElement.checked ? 1 : 0) : 0;
+
         const stepObj = allSteps.find(s => s.SName.toLowerCase() === stepName.toLowerCase());
-        if (!stepObj) {
-            rightPanel.innerHTML = `<p>Invalid step selected.</p>`;
-            return;
-        }
+        if (!stepObj) return;
         const stepId = stepObj.IDS;
 
-        // Fetch elements for the selected category
-        fetch(`/get_elements_by_category_for_datasheet/${encodeURIComponent(category)}`)
+        // Fetch elements using the ischk value (will be 0 if checkbox is missing)
+        fetch(`/get_elements_by_category_for_datasheet/${encodeURIComponent(category)}/${encodeURIComponent(ischk)}`)
             .then(res => res.json())
             .then(data => {
                 if (!data.success) {
                     rightPanel.innerHTML = `<p>Category elements not found.</p>`;
                     return;
                 }
-
                 const filteredElements = data.elements;
                 const matchingIDE = filteredElements.map(e => e.IDE);
-
-                // Filter datasheet rows to match the selected task, step, and elements
                 const filteredRows = allDatasheets.filter(row =>
-                    row.IDT == taskId &&
-                    row.IDS == stepId &&
-                    matchingIDE.includes(row.IDE)
+                    row.IDT == taskId && row.IDS == stepId && matchingIDE.includes(row.IDE)
                 );
 
-                // Render the form with the filtered data
                 renderForm(filteredRows, filteredElements, taskId, stepId);
             });
     }
+    
+    function searchElement(category, ischk, elementSelect) {
+        fetch(`/get_elements_by_category_for_datasheet/${encodeURIComponent(category)}/${encodeURIComponent(ischk)}`)
+            .then(res => res.json())
+            .then(data => {
+                if (!data.success) {
+                    console.error("Category elements not found.");
+                    return;
+                }
 
+                // Save the currently selected value so we don't lose it if it still exists
+                const currentVal = elementSelect.value;
+                const elements = data.elements || [];
+
+                // Clear and rebuild options
+                elementSelect.innerHTML = '';
+                
+                const defaultOption = document.createElement("option");
+                defaultOption.value = "";
+                defaultOption.textContent = "-- Select --";
+                elementSelect.appendChild(defaultOption);
+
+                elements.forEach(element => {
+                    const option = document.createElement("option");
+                    option.value = element.IDE;
+                    option.textContent = element.EName;
+                    elementSelect.appendChild(option);
+                });
+
+                // Try to restore the previous selection
+                elementSelect.value = currentVal;
+            })
+            .catch(err => console.error("Error searching elements:", err));
+    }
 
 
     // Function to render the form and its rows

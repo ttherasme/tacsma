@@ -40,7 +40,7 @@ def login():
                             EName='Tree',
                             IDI=item.IDI,
                             user_id=user.id,
-                            Global_Val=1
+                            Global_Val=2
                         )
 
                         db.session.add(new_element)
@@ -51,9 +51,11 @@ def login():
                             db.session.rollback()
 
                 # Get Item LCI
-                item_lci = Item.query.filter_by(IName='LCI').first()
+                #item_lci = Item.query.filter_by(IName='LCI').first()
+                item_lcis = Item.query.filter(Item.IName.in_(['Co-Products', 'Input Materials and Energy'])).all()
 
-                if item_lci:
+                if item_lcis:
+                    
                     # Get distinct background process names
                     lci_names = (
                         LCI.query
@@ -62,23 +64,26 @@ def login():
                         .all()
                     )
 
-                    for (background_process,) in lci_names:
-                        # Check if this element already exists
-                        exists = Element.query.filter_by(
-                            IDI=item_lci.IDI,
-                            EName=background_process,
-                            Global_Val=1
-                        ).first()
+                    for item_lci in item_lcis:
 
-                        if not exists:
-                            new_element_lci = Element(
-                                IDE=10,
-                                EName=background_process,
+                        for (background_process,) in lci_names:
+                            # Check if this element already exists
+                            exists = Element.query.filter_by(
                                 IDI=item_lci.IDI,
-                                user_id=user.id,
-                                Global_Val=1
-                            )
-                            db.session.add(new_element_lci)
+                                EName=background_process,
+                                user_id=user.id
+                                #Global_Val=1
+                            ).first()
+                            
+                            if exists is None:
+                                new_element_lci = Element(
+                                    IDE=10,
+                                    EName=background_process,
+                                    IDI=item_lci.IDI,
+                                    user_id=user.id,
+                                    Global_Val=1
+                                )
+                                db.session.add(new_element_lci)
 
                     try:
                         db.session.commit()

@@ -86,7 +86,11 @@ def create_graph(data, graph_type='line', x_column=None, y_column=None, has_head
         )
 
         # Scale text for many slices
-        fontsize = min(10, max(6, 200 // len(large_y)))
+        if len(large_y) > 0:
+            fontsize = min(10, max(6, 200 // len(large_y)))
+        else:
+            fontsize = 6
+        
         for t in texts + autotexts:
             t.set_fontsize(fontsize)
 

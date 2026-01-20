@@ -130,7 +130,7 @@ class Element(db.Model):
     """Inventory items belonging to a specific Task and Category (Item)."""
     __tablename__ = 'element'
     IDE = db.Column(db.Integer, primary_key=True, autoincrement=False)
-    EName = db.Column(db.String(30), nullable=False)
+    EName = db.Column(db.String(48), nullable=False)
     IDI = db.Column(db.String(6), db.ForeignKey('item.IDI'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     Global_Val = db.Column(db.Integer, default=0)
@@ -158,8 +158,8 @@ class Datasheet(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     UpdateDate = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    __table_args__ = (UniqueConstraint('IDT', 'IDE', 'IDS', 
-                                       name='_unique_datasheet_constraint'),)
+    __table_args__ = (UniqueConstraint('IDT', 'IDE', 'IDS', 'IDD',
+                                      name='_unique_datasheet_constraint'),)
 
 # ----------------------------------------------------------------
 # LIFE CYCLE INVENTORY (LCI) BACKGROUND DATA

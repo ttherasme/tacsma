@@ -18,10 +18,6 @@ def get_matrix_a(idt_param: int):
     try:
         all_processes = get_all_processes()
 
-        # Aliases for UOM
-        #UOM1 = aliased(UOM)
-        #UOM2 = aliased(UOM)
-
         # Base query
         base_query = (
             db.session.query(
@@ -31,8 +27,7 @@ def get_matrix_a(idt_param: int):
                 Step.SName.label('Process'),
                 Datasheet.ValueD.label('ValueD'),
                 UOM.Unit.label('UnitD'),
-                #Datasheet.ValueD2.label('ValueD2'),
-                #UOM2.Unit.label('UnitD2'),
+                #Element.Global_Val.label('Global_Val'),
                 Datasheet.CHK.label('CHK'),
                 Item.IName.label('IName')
             )
@@ -40,7 +35,6 @@ def get_matrix_a(idt_param: int):
             .join(Item, Element.IDI == Item.IDI)
             .join(Step, Datasheet.IDS == Step.IDS)
             .join(UOM, Datasheet.IDU == UOM.IDU)
-            #.outerjoin(UOM2, Datasheet.IDU2 == UOM2.IDU)
             .filter(Datasheet.IDT == idt_param)
         )
 
@@ -52,8 +46,15 @@ def get_matrix_a(idt_param: int):
             and_(Item.IName == 'Co-Products', Datasheet.CHK == 0)
         )
 
+         # Filter all Input with Global_Value in [0, 2]
+        query_input = base_query.filter(
+            and_(Item.IName == 'Input Materials and Energy', Element.Global_Val.in_([0, 2]))
+        )
+
         # Combine queries using UNION (Products first)
         query_final = query_product.union_all(query_coproduct)
+
+        query_final = query_final.union_all(query_input)
 
         # Execute
         results = query_final.all()
@@ -149,7 +150,7 @@ def get_matrix_b(idt_param: int):
         all_processes = get_all_processes()
 
         # -----------------------------
-        # Query 1: Products (exclude 'Product' and 'Co-Products')
+        # Query 1: Products (exclude 'Product', 'Co-Products' and 'Input Materials and Energy')
         # -----------------------------
         query_product = (
             db.session.query(
@@ -159,7 +160,7 @@ def get_matrix_b(idt_param: int):
                 Step.SName.label('Process'),
                 Datasheet.ValueD.label('ValueD'),
                 UOM.Unit.label('UnitD'),
-                #Datasheet.ValueD2.label('ValueD2'),
+                #Element.Global_Val.label('Global_Val'),
                 Item.IName.label('IName')
             )
             .join(Element, Datasheet.IDE == Element.IDE)
@@ -167,7 +168,7 @@ def get_matrix_b(idt_param: int):
             .join(Step, Datasheet.IDS == Step.IDS)
             .join(UOM, Datasheet.IDU == UOM.IDU)
             .filter(Datasheet.IDT == idt_param)
-            .filter(Item.IName.notin_(['Product', 'Co-Products']))
+            .filter(Item.IName.notin_(['Product', 'Co-Products', 'Input Materials and Energy']))
         )
 
         # -----------------------------
@@ -181,7 +182,7 @@ def get_matrix_b(idt_param: int):
                 Step.SName.label('Process'),
                 (-Datasheet.ValueD).label('ValueD'),
                 UOM.Unit.label('UnitD'),
-               # (-Datasheet.ValueD2).label('ValueD2'),
+                #Element.Global_Val.label('Global_Val'),
                 Item.IName.label('IName')
             )
             .join(Element, Datasheet.IDE == Element.IDE)
@@ -192,11 +193,33 @@ def get_matrix_b(idt_param: int):
             .filter(and_(Item.IName == 'Co-Products', Datasheet.CHK == 1))
         )
 
+         # -----------------------------
+        # Query 3: Input with Global_Val = 1 
+        # -----------------------------
+        query_input = (
+            db.session.query(
+                Datasheet.IDD.label('IDD'),
+                Element.IDE.label('Flow_id'),
+                Element.EName.label('Flow'),
+                Step.SName.label('Process'),
+                Datasheet.ValueD.label('ValueD'),
+                UOM.Unit.label('UnitD'),
+                #Element.Global_Val.label('Global_Val'),
+                Item.IName.label('IName')
+            )
+            .join(Element, Datasheet.IDE == Element.IDE)
+            .join(Item, Element.IDI == Item.IDI)
+            .join(Step, Datasheet.IDS == Step.IDS)
+            .join(UOM, Datasheet.IDU == UOM.IDU)
+            .filter(Datasheet.IDT == idt_param)
+            .filter(Item.IName == 'Input Materials and Energy', Element.Global_Val == 1)
+        )
+
         # -----------------------------
         # Combine both queries using UNION ALL
         # -----------------------------
         query_final = query_product.union_all(query_coproduct)
-
+        query_final = query_final.union_all(query_input)
         # Execute
         results = query_final.all()
 
