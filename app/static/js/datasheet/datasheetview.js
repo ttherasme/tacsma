@@ -167,7 +167,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const stepId = stepObj.IDS;
 
-        fetch(`/get_elements_by_category_for_datasheet/${encodeURIComponent(currentCategory)}`)
+        fetch(`/get_elements_info_by_category/${encodeURIComponent(currentCategory)}`)
             .then(res => res.json())
             .then(data => {
                 if (!data.success) {

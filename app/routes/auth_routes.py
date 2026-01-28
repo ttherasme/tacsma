@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, current_app
 from werkzeug.security import check_password_hash, generate_password_hash
 from datetime import timedelta
-from app.models import User, Element, Item, LCI
+from app.models import User, Element, Item, LCI, BElement
 from app import db
 
 auth_bp = Blueprint('auth_bp', __name__)
@@ -28,28 +28,61 @@ def login():
                 item = Item.query.filter_by(IName='Input Materials and Energy').first()
 
                 if item:
-                    # Check if Element already exists
-                    element = Element.query.filter_by(
-                        IDI=item.IDI,
-                        Global_Val=1
+                    # Check belement "Tree"
+                    belement = BElement.query.filter_by(
+                        user_id=user.id,
+                        EName='Tree'
                     ).first()
 
-                    if element is None:
-                        new_element = Element(
-                            IDE=10,
-                            EName='Tree',
+                    if belement is None:
+                            new_belement = BElement(
+                                IDBE=10,
+                                EName='Tree',
+                                user_id=user.id
+                            )
+                            db.session.add(new_belement)
+
+                            # Get IDBE
+                            ibelement = BElement.query.filter_by(
+                                user_id=user.id,
+                                EName='Tree'
+                            ).first()
+
+                            new_element = Element(
+                                IDE=10,
+                                IDBE=ibelement.IDBE,
+                                IDI=item.IDI,
+                                user_id=user.id,
+                                Global_Val=2)
+
+                            db.session.add(new_element)    
+
+                    else:
+                        # Check if Element already exists
+                        element = Element.query.filter_by(
                             IDI=item.IDI,
-                            user_id=user.id,
-                            Global_Val=2
-                        )
+                            Global_Val=2,
+                            IDBE=belement.IDBE
+                        ).first()
 
-                        db.session.add(new_element)
+                        if element is None:
+                            new_element = Element(
+                                IDE=10,
+                                IDBE=belement.IDBE,
+                                IDI=item.IDI,
+                                user_id=user.id,
+                                Global_Val=2
+                            )
 
-                        try:
-                            db.session.commit()
-                        except Exception as e:
-                            db.session.rollback()
+                            db.session.add(new_element)
 
+                    try:
+                        db.session.commit()
+                    except Exception as e:
+                        db.session.rollback()
+                            
+                        
+        
                 # Get Item LCI
                 #item_lci = Item.query.filter_by(IName='LCI').first()
                 item_lcis = Item.query.filter(Item.IName.in_(['Co-Products', 'Input Materials and Energy', 'Emissions', 'Waste Treatment'])).all()
@@ -72,61 +105,144 @@ def login():
 
                             if item_lci.IName in['Co-Products', 'Input Materials and Energy']:
                                 # Check if this element already exists
-                                exists = Element.query.filter_by(
-                                    IDI=item_lci.IDI,
+                                bexists = BElement.query.filter_by(
                                     EName=background_process,
                                     user_id=user.id
-                                    #Global_Val=1
                                 ).first()
-                                
-                                if exists is None:   
-                                    
-                                    new_element_lci = Element(
-                                        IDE=10,
+
+                                if bexists is None:
+                                    new_belement = BElement(
+                                        IDBE=10,
                                         EName=background_process,
-                                        IDI=item_lci.IDI,
-                                        user_id=user.id,
-                                        Global_Val=1
+                                        user_id=user.id
                                     )
-                                    db.session.add(new_element_lci)
+                                    db.session.add(new_belement)
+
+                                    # Get IDBE
+                                    ibelement = BElement.query.filter_by(
+                                        user_id=user.id,
+                                        EName=background_process
+                                    ).first()
+
+                                    new_element = Element(
+                                        IDE=10,
+                                        IDBE=ibelement.IDBE,
+                                        IDI=item.IDI,
+                                        user_id=user.id,
+                                        Global_Val=1)
+
+                                    db.session.add(new_element)
+                                else:
+                                    exists = Element.query.filter_by(
+                                        IDI=item_lci.IDI,
+                                        IDBE=bexists.IDBE,
+                                        user_id=user.id
+                                    ).first()
+                                    
+                                    if exists is None:   
+                                        
+                                        new_element_lci = Element(
+                                            IDE=10,
+                                            IDBE=bexists.IDBE,
+                                            IDI=item_lci.IDI,
+                                            user_id=user.id,
+                                            Global_Val=1
+                                        )
+                                        db.session.add(new_element_lci)
 
                             if item_lci.IName == 'Emissions' and type_lci == 'Emissions':
                                 # Check if this element already exists
-                                exists = Element.query.filter_by(
-                                    IDI=item_lci.IDI,
+                                bexists = BElement.query.filter_by(
                                     EName=background_process,
                                     user_id=user.id
-                                    #Global_Val=1
                                 ).first()
-                                
-                                if exists is None:
-                                    new_element_lci = Element(
-                                        IDE=10,
+
+                                if bexists is None:
+                                    new_belement = BElement(
+                                        IDBE=10,
                                         EName=background_process,
-                                        IDI=item_lci.IDI,
-                                        user_id=user.id,
-                                        Global_Val=1
+                                        user_id=user.id
                                     )
-                                    db.session.add(new_element_lci)
+                                    db.session.add(new_belement)
+
+                                    # Get IDBE
+                                    ibelement = BElement.query.filter_by(
+                                        user_id=user.id,
+                                        EName=background_process
+                                    ).first()
+
+                                    new_element = Element(
+                                        IDE=10,
+                                        IDBE=ibelement.IDBE,
+                                        IDI=item.IDI,
+                                        user_id=user.id,
+                                        Global_Val=1)
+
+                                    db.session.add(new_element)
+                                else:
+                                    exists = Element.query.filter_by(
+                                        IDI=item_lci.IDI,
+                                        IDBE=bexists.IDBE,
+                                        user_id=user.id
+                                    ).first()
+                                    
+                                    if exists is None:   
+                                        
+                                        new_element_lci = Element(
+                                            IDE=10,
+                                            IDBE=bexists.IDBE,
+                                            IDI=item_lci.IDI,
+                                            user_id=user.id,
+                                            Global_Val=1
+                                        )
+                                        db.session.add(new_element_lci)
                             
                             if item_lci.IName == 'Waste Treatment' and type_lci == 'Waste':
-                                # Check if this element already exists
-                                exists = Element.query.filter_by(
-                                    IDI=item_lci.IDI,
+                               # Check if this element already exists
+                                bexists = BElement.query.filter_by(
                                     EName=background_process,
                                     user_id=user.id
-                                    #Global_Val=1
                                 ).first()
-                                
-                                if exists is None:
-                                    new_element_lci = Element(
-                                        IDE=10,
+
+                                if bexists is None:
+                                    new_belement = BElement(
+                                        IDBE=10,
                                         EName=background_process,
-                                        IDI=item_lci.IDI,
-                                        user_id=user.id,
-                                        Global_Val=1
+                                        user_id=user.id
                                     )
-                                    db.session.add(new_element_lci)
+                                    db.session.add(new_belement)
+
+                                    # Get IDBE
+                                    ibelement = BElement.query.filter_by(
+                                        user_id=user.id,
+                                        EName=background_process
+                                    ).first()
+
+                                    new_element = Element(
+                                        IDE=10,
+                                        IDBE=ibelement.IDBE,
+                                        IDI=item.IDI,
+                                        user_id=user.id,
+                                        Global_Val=1)
+
+                                    db.session.add(new_element)
+                                else:
+                                    exists = Element.query.filter_by(
+                                        IDI=item_lci.IDI,
+                                        IDBE=bexists.IDBE,
+                                        user_id=user.id
+                                    ).first()
+                                    
+                                    if exists is None:   
+                                        
+                                        new_element_lci = Element(
+                                            IDE=10,
+                                            IDBE=bexists.IDBE,
+                                            IDI=item_lci.IDI,
+                                            user_id=user.id,
+                                            Global_Val=1
+                                        )
+                                        db.session.add(new_element_lci)
 
                     try:
                         db.session.commit()

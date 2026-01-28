@@ -4,6 +4,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // --- Global Variables ---
     let taskData = null;
+    let uomData = null;
     let fullAnalysisResults = null; // Stores data from the /results/graph endpoint
     let visualizationTasks = [];
     let rowData = []; // MOVED OUTSIDE runButton LISTENER TO BE ACCESSIBLE by visualizeButton
@@ -200,12 +201,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const unitNameSelect = rowElement.querySelector(`.${UNIT_NAME_SELECT_CLASS}`);
         const unitSelect = rowElement.querySelector(`.${UNIT_SELECT_CLASS}`);
 
-        unitNameSelect.innerHTML = '<option value="">Select a flow first</option>';
-        unitSelect.innerHTML = '<option value="">Select...</option>';
-        unitNameSelect.disabled = true;
-        unitSelect.disabled = true;
-
-
         // Populate task dropdown
         if (taskData) {
             taskSelect.innerHTML = '<option value="" disabled selected>Select a task...</option>';
@@ -226,13 +221,6 @@ document.addEventListener("DOMContentLoaded", () => {
             flowSelect.innerHTML = '<option value="" disabled selected>Loading flows...</option>';
 
             if (selectedTaskId) {
-                // RESET units when task changes
-                unitNameSelect.innerHTML = '<option value="">Select a flow first</option>';
-                unitSelect.innerHTML = '<option value="">Select...</option>';
-                unitNameSelect.disabled = true;
-                unitSelect.disabled = true;
-                rowElement._uoms = [];
-
                 const flowResponse = await fetchFlowsForTask(selectedTaskId);
 
                 flowSelect.innerHTML = '<option value="" disabled selected>Select a flow...</option>';
@@ -253,73 +241,31 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         // Populate unit name dropdown
-        // --- FLOW CHANGE → LOAD UOMS ---
-        flowSelect.addEventListener("change", async (event) => {
-            const selectedFlowId = event.target.value;
+        if (uomData) {
+            const distinctUNames = [...new Set(uomData.map(uom => uom.UName))];
+            unitNameSelect.innerHTML = '<option value="">Select...</option>';
+            distinctUNames.forEach(uName => {
+                const option = document.createElement("option");
+                option.value = uName;
+                option.textContent = uName;
+                unitNameSelect.appendChild(option);
+            });
+        }
 
-            // Reset selects
-            unitNameSelect.innerHTML = '<option value="">Loading...</option>';
-            unitSelect.innerHTML = '<option value="">Select...</option>';
-
-            unitNameSelect.disabled = true;
-            unitSelect.disabled = true;
-
-            if (!selectedFlowId) {
-                unitNameSelect.innerHTML = '<option value="">Select a flow first</option>';
-                return;
-            }
-
-            try {
-                const res = await fetch(`/get_all_uoms_by_flow/${encodeURIComponent(selectedFlowId)}`);
-                const data = await res.json();
-
-                if (!data.success || !Array.isArray(data.uoms) || data.uoms.length === 0) {
-                    unitNameSelect.innerHTML = '<option value="">No units available</option>';
-                    return;
-                }
-
-                // Cache UOMs for this row only
-                rowElement._uoms = data.uoms;
-
-                const distinctUNames = [...new Set(data.uoms.map(u => u.UName))];
-
-                unitNameSelect.innerHTML = '<option value="">Select...</option>';
-                distinctUNames.forEach(uName => {
-                    const option = document.createElement("option");
-                    option.value = uName;
-                    option.textContent = uName;
-                    unitNameSelect.appendChild(option);
-                });
-
-                unitNameSelect.disabled = false;
-
-            } catch (err) {
-                console.error("Error fetching UOMs:", err);
-                unitNameSelect.innerHTML = '<option value="">Error loading units</option>';
-            }
-        });
-
+        // Unit name change listener
         unitNameSelect.addEventListener("change", (event) => {
             const selectedUName = event.target.value;
             unitSelect.innerHTML = '<option value="">Select...</option>';
-
-            const uoms = rowElement._uoms || [];
-
-            if (!selectedUName) return;
-
-            uoms
-                .filter(uom => uom.UName === selectedUName)
-                .forEach(uom => {
+            if (selectedUName && uomData) {
+                const filteredUnits = uomData.filter(uom => uom.UName === selectedUName);
+                filteredUnits.forEach(item => {
                     const option = document.createElement("option");
-                    option.value = uom.IDU;
-                    option.textContent = uom.Unit;
+                    option.value = item.IDU;
+                    option.textContent = item.Unit;
                     unitSelect.appendChild(option);
                 });
-
-            unitSelect.disabled = false;
+            }
         });
-
-
     }
 
     // Function to handle the print action
@@ -484,7 +430,7 @@ document.addEventListener("DOMContentLoaded", () => {
         formRowsContainer.appendChild(generateFormRow(true));
 
         // Enable button after form is generated and data is loaded
-        if (taskData) {
+        if (taskData && uomData) {
             addRowButton.disabled = false;
         }
 
@@ -749,14 +695,22 @@ document.addEventListener("DOMContentLoaded", () => {
     // --- Initial Data Fetch ---
 
     Promise.all([
-        fetch("/listtasks").then(res => res.json())
+        fetch("/listtasks").then(res => res.json()),
+        fetch("/get_all_uoms").then(res => res.json())
     ])
-    .then(([taskResponse]) => {
+    .then(([taskResponse, uomResponse]) => {
         if (taskResponse.success && Array.isArray(taskResponse.tasks)) {
             taskData = taskResponse.tasks;
         } else {
             console.error("No task data found. Check the '/listtasks' endpoint.");
             taskData = [];
+        }
+
+        if (uomResponse.uoms) {
+            uomData = uomResponse.uoms;
+        } else {
+            console.error("No UOM data found. Check the '/get_all_uoms' endpoint.");
+            uomData = [];
         }
 
         generateMainForm();

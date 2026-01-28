@@ -6,7 +6,7 @@ from sqlalchemy import and_
 from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 from app import db
-from app.models import Step, Datasheet, UOM, Element, Item
+from app.models import Step, Datasheet, UOM, Element, Item, BElement
 
 logger = logging.getLogger(__name__)
 
@@ -22,8 +22,8 @@ def get_matrix_a(idt_param: int):
         base_query = (
             db.session.query(
                 Datasheet.IDD.label('IDD'),
-                Element.IDE.label('Flow_id'),
-                Element.EName.label('Flow'),
+                Element.IDBE.label('Flow_id'),
+                BElement.EName.label('Flow'),
                 Step.SName.label('Process'),
                 Datasheet.ValueD.label('ValueD'),
                 UOM.Unit.label('UnitD'),
@@ -32,6 +32,7 @@ def get_matrix_a(idt_param: int):
                 Item.IName.label('IName')
             )
             .join(Element, Datasheet.IDE == Element.IDE)
+            .join(BElement, Element.IDBE == BElement.IDBE)
             .join(Item, Element.IDI == Item.IDI)
             .join(Step, Datasheet.IDS == Step.IDS)
             .join(UOM, Datasheet.IDU == UOM.IDU)
@@ -72,6 +73,26 @@ def get_matrix_a(idt_param: int):
             'IDD', 'Flow_id', 'Flow', 'Process',
             'ValueD', 'UnitD', 'CHK', 'IName'
         ])
+
+        outputs = df.loc[
+            df['IName'].isin(['Product', 'Co-Products']),
+            ['Flow_id', 'Process']
+        ].drop_duplicates()
+
+        inputs_mask = (
+            (df['IName'] == 'Input Materials and Energy') &
+            df['Flow_id'].isin(outputs['Flow_id'])
+        )
+
+        matched = df.loc[inputs_mask, ['IDD', 'Flow_id', 'Process']]\
+        .merge(outputs, on='Flow_id', suffixes=('_in', '_out'))
+
+        idd_to_flip = matched.loc[
+            matched['Process_in'] != matched['Process_out'],
+            'IDD'
+        ].unique()
+
+        df.loc[df['IDD'].isin(idd_to_flip), 'ValueD'] *= -1
 
         # --- Step 1: Compute Value_Final ---
         df['Value_Final'] = df['ValueD']
@@ -131,7 +152,7 @@ def get_matrix_a(idt_param: int):
         df2[unit_cols] = df2[unit_cols].bfill(axis=1).ffill(axis=1)
 
         #logger.info(f"Data successfully retrieved for IDT={idt_param} ({len(df)} rows).")
-        #logger.info(f"Matrix A : \n {df2}")
+        logger.info(f"Matrix A getdata : \n {df2}")
         return df2
 
     except SQLAlchemyError as e:
@@ -155,8 +176,8 @@ def get_matrix_b(idt_param: int):
         query_product = (
             db.session.query(
                 Datasheet.IDD.label('IDD'),
-                Element.IDE.label('Flow_id'),
-                Element.EName.label('Flow'),
+                Element.IDBE.label('Flow_id'),
+                BElement.EName.label('Flow'),
                 Step.SName.label('Process'),
                 Datasheet.ValueD.label('ValueD'),
                 UOM.Unit.label('UnitD'),
@@ -164,6 +185,7 @@ def get_matrix_b(idt_param: int):
                 Item.IName.label('IName')
             )
             .join(Element, Datasheet.IDE == Element.IDE)
+            .join(BElement, Element.IDBE == BElement.IDBE)
             .join(Item, Element.IDI == Item.IDI)
             .join(Step, Datasheet.IDS == Step.IDS)
             .join(UOM, Datasheet.IDU == UOM.IDU)
@@ -177,8 +199,8 @@ def get_matrix_b(idt_param: int):
         query_coproduct = (
             db.session.query(
                 Datasheet.IDD.label('IDD'),
-                Element.IDE.label('Flow_id'),
-                Element.EName.label('Flow'),
+                Element.IDBE.label('Flow_id'),
+                BElement.EName.label('Flow'),
                 Step.SName.label('Process'),
                 (-Datasheet.ValueD).label('ValueD'),
                 UOM.Unit.label('UnitD'),
@@ -186,6 +208,7 @@ def get_matrix_b(idt_param: int):
                 Item.IName.label('IName')
             )
             .join(Element, Datasheet.IDE == Element.IDE)
+            .join(BElement, Element.IDBE == BElement.IDBE)
             .join(Item, Element.IDI == Item.IDI)
             .join(Step, Datasheet.IDS == Step.IDS)
             .join(UOM, Datasheet.IDU == UOM.IDU)
@@ -199,8 +222,8 @@ def get_matrix_b(idt_param: int):
         query_input = (
             db.session.query(
                 Datasheet.IDD.label('IDD'),
-                Element.IDE.label('Flow_id'),
-                Element.EName.label('Flow'),
+                Element.IDBE.label('Flow_id'),
+                BElement.EName.label('Flow'),
                 Step.SName.label('Process'),
                 Datasheet.ValueD.label('ValueD'),
                 UOM.Unit.label('UnitD'),
@@ -208,6 +231,7 @@ def get_matrix_b(idt_param: int):
                 Item.IName.label('IName')
             )
             .join(Element, Datasheet.IDE == Element.IDE)
+            .join(BElement, Element.IDBE == BElement.IDBE)
             .join(Item, Element.IDI == Item.IDI)
             .join(Step, Datasheet.IDS == Step.IDS)
             .join(UOM, Datasheet.IDU == UOM.IDU)
@@ -236,6 +260,26 @@ def get_matrix_b(idt_param: int):
             'ValueD', 'UnitD', 'IName'
         ])
 
+        outputs = df.loc[
+            df['IName'].isin(['Product', 'Co-Products']),
+            ['Flow_id', 'Process']
+        ].drop_duplicates()
+
+        inputs_mask = (
+            (df['IName'] == 'Waste Treatment') &
+            df['Flow_id'].isin(outputs['Flow_id'])
+        )
+
+        matched = df.loc[inputs_mask, ['IDD', 'Flow_id', 'Process']]\
+        .merge(outputs, on='Flow_id', suffixes=('_in', '_out'))
+
+        idd_to_flip = matched.loc[
+            matched['Process_in'] != matched['Process_out'],
+            'IDD'
+        ].unique()
+
+        df.loc[df['IDD'].isin(idd_to_flip), 'ValueD'] *= -1
+
         df['Value_Final'] = df['ValueD']
 
         # Pivot table
@@ -255,7 +299,7 @@ def get_matrix_b(idt_param: int):
         pivot_cols = ['Flow', 'Flow_id', 'Unit'] + all_processes
         pivot_value = pivot_value[pivot_cols]
 
-        #logger.info(f"Matrix B : \n {pivot_value}")
+        logger.info(f"Matrix B getdata : \n {pivot_value}")
         return pivot_value
 
     except SQLAlchemyError as e:

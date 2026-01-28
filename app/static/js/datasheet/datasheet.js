@@ -5,7 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const categoryTabs = document.querySelectorAll(".category");
     const rightPanel = document.getElementById("rightPanel");
     const activeStepsSelect = document.getElementById("activeStepsSelect");
-    let selectedElement = '';
+    //let selectedElement = '';
     //const taskSelect = document.getElementById("taskSelect");
     const taskInput = document.getElementById("taskSelect");
     const taskList = document.getElementById("taskList");
@@ -438,7 +438,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // 1. All modules need the element select populated
         populateElementSelect(rowElement, selectClass, categoryName);
-        populateAndLinkUomSelects(rowElement);
+        const elementSelect = rowElement.querySelector(`.${selectClass}`);
+        populateAndLinkUomSelects(rowElement, elementSelect);
+        //populateAndLinkUomSelects(rowElement);
     }
 
     /**
@@ -593,65 +595,59 @@ document.addEventListener("DOMContentLoaded", () => {
      * @param {HTMLElement} rowElement The row containing the selects.
      */
 
-    function populateAndLinkUomSelects(rowElement) {
+    function populateAndLinkUomSelects(rowElement, elementSelect) {
         const uomNameSelect = rowElement.querySelector(".uom-name-select");
         const uomUnitSelect = rowElement.querySelector(".uom-unit-select");
-        if (!uomNameSelect || !uomUnitSelect) return;
 
-        // Fetch UOM names
-        fetch(`/get_all_uoms_by_element/${encodeURIComponent(selectedElement)}`)
-            .then(res => res.json())
-            .then(data => {
-                const uoms = data.uoms;
-                if (!uoms) {
-                    console.error("No UOM data found.");
-                    return;
-                }
-                // Get unique UOM names
-                const distinctUNames = [...new Set(uoms.map(uom => uom.UName))];
-                uomNameSelect.innerHTML = '<option value="">Select...</option>';
-                distinctUNames.forEach(uName => {
-                    const option = document.createElement("option");
-                    option.value = uName;
-                    option.textContent = uName;
-                    uomNameSelect.appendChild(option);
+        if (!uomNameSelect || !uomUnitSelect || !elementSelect) return;
+
+        elementSelect.addEventListener("change", () => {
+            const elementId = elementSelect.value;
+
+            uomNameSelect.innerHTML = '<option value="">Select...</option>';
+            uomUnitSelect.innerHTML = '<option value="">Select...</option>';
+
+            if (!elementId) return;
+
+            fetch(`/get_all_uoms_by_element/${encodeURIComponent(elementId)}`)
+                .then(res => res.json())
+                .then(data => {
+                    const uoms = data.uoms || [];
+                    if (!uoms.length) return;
+
+                    const uniqueNames = [...new Set(uoms.map(u => u.UName))];
+
+                    uniqueNames.forEach(name => {
+                        const opt = document.createElement("option");
+                        opt.value = name;
+                        opt.textContent = name;
+                        uomNameSelect.appendChild(opt);
+                    });
                 });
-            })
-            .catch(err => console.error("Error loading UOM names:", err));
+        });
 
-        // Event listener for UOM name change to populate UOM units
-        uomNameSelect.addEventListener("change", (event) => {
-            const selectedUName = event.target.value;
-            if (selectedUName) {
-                fetch(`/get_all_uoms_by_element/${encodeURIComponent(selectedElement)}`)
-                    .then(res => res.json())
-                    .then(data => {
-                        const uoms = data.uoms;
-                        if (!uoms) {
-                            console.error("No UOM data found.");
-                            return;
-                        }
-                        const filteredUnits = uoms.filter(uom => uom.UName === selectedUName);
-                        uomUnitSelect.innerHTML = '<option value="">Select...</option>';
-                        filteredUnits.forEach(item => {
-                            const option = document.createElement("option");
-                            option.value = item.IDU;
-                            option.textContent = item.Unit;
-                            uomUnitSelect.appendChild(option);
-                        });
+        uomNameSelect.addEventListener("change", () => {
+            const elementId = elementSelect.value;
+            const uName = uomNameSelect.value;
 
-                        const preferredUnit = filteredUnits.find(u => u.Unit === "kg");
-                        uomUnitSelect.value = preferredUnit
-                            ? preferredUnit.IDU
-                            : filteredUnits[0].IDU;
+            uomUnitSelect.innerHTML = '<option value="">Select...</option>';
+            if (!elementId || !uName) return;
 
-                    })
-                    .catch(err => console.error("Error loading units:", err));
-            } else {
-                uomUnitSelect.innerHTML = '<option value="">Select...</option>';
-            }
+            fetch(`/get_all_uoms_by_element/${encodeURIComponent(elementId)}`)
+                .then(res => res.json())
+                .then(data => {
+                    const uoms = data.uoms.filter(u => u.UName === uName);
+
+                    uoms.forEach(u => {
+                        const opt = document.createElement("option");
+                        opt.value = u.IDU;
+                        opt.textContent = u.Unit;
+                        uomUnitSelect.appendChild(opt);
+                    });
+                });
         });
     }
+
 
     /**
      * Populates an element select with options from a specific category.

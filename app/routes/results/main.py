@@ -84,6 +84,7 @@ def run_analysis(rows):
                 logger.error(f"No growth regrowth model")
 
             lci_flow = B_raw.iloc[0:, 0].reset_index(drop=True)
+            logger.warning(f"LCI Flow: \n {lci_flow}")
 
             # 2. Multifunctionality Adjustment
             try:
@@ -93,8 +94,11 @@ def run_analysis(rows):
                 results.append({"error": f"Error adjusting matrices: {str(e)}", "task_name": task_text})
                 continue
 
-            adjusted_B_pd = pd.DataFrame(adjusted_B)
+            adjusted_B = pd.DataFrame(adjusted_B)  #adjusted_B_pd
             adjusted_A = pd.DataFrame(adjusted_A)
+
+            logger.warning(f"Adjusted A:\n {adjusted_A}")
+            logger.warning(f"Adjusted B:\n {adjusted_B}")
 
             flow_dict = {
                 'flow': flow,
@@ -109,17 +113,21 @@ def run_analysis(rows):
             flow_df['flow'] = flow_df['flow'].astype(str)
 
             functional_unit = unit_conversion(functional_unit, unit_text, 'SI')
-            logger.error(f"Task {task_id}: last functional unit '{functional_unit}'; defaulting to 1.0")
+            logger.warning(f"Task {task_id}: last functional unit '{functional_unit}'; defaulting to 1.0")
+
             flow_names['Amount'] = flow_names['flow ID'].map(
                 flow_df.set_index('flow')['functional_unit']
             ).fillna(0)
+            logger.warning(f"Flow name:\n {flow_names}")
 
             # Convert to desired vector format (NumPy array or list)
             final_demand = flow_names['Amount'].values.astype(float)
-            
+            logger.warning(f"Final demand:\n {final_demand}")
+
             # 3. Process names
             Process_Names_df = adjusted_A.iloc[:0, 3:].copy()  # Get header for process names
             Process_Names = Process_Names_df.columns.tolist()
+            logger.warning(f"Process name:\n {Process_Names}")
 
             adjusted_A = adjusted_A.iloc[0:, 3:]
             adjusted_A_np = np.nan_to_num(np.array(adjusted_A, dtype=float), nan=0.0)
@@ -130,6 +138,7 @@ def run_analysis(rows):
             # 4. Scaling Vector
             try:
                 scaling_vector = calculate_scaling_vector(adjusted_A_np, final_demand)
+                logger.warning(f"Scaling vector:\n {scaling_vector}")
             except np.linalg.LinAlgError as e:
                 logger.error(f"Scaling vector error (singular matrix) for task {task_text}: {e}")
                 results.append({"error": f"Cannot solve linear system (singular matrix): {e}", "task_name": task_text})
@@ -139,6 +148,7 @@ def run_analysis(rows):
             g = calculate_inventory_impact(adjusted_B, scaling_vector)
             g = np.array(g).flatten() 
             total_impact = calculate_impact_score(g, lci_flow, impact_category)
+            logger.warning(f"total impact:\n {total_impact}")
 
             # 6. Process Contribution
             diag_s = diagonal_vector(scaling_vector)
@@ -159,6 +169,7 @@ def run_analysis(rows):
                 "Process": Process_Names_filtered,
                 "Contribution": Process_contribution_filtered
             }).query("Contribution != 0")
+            logger.warning(f"Contribution table:\n {contribution_table_df}")
 
             # --- 1. Append data for the FINAL Pivot Table ---
             # Use ALL process contributions for the comparison table (including zeros)
@@ -233,6 +244,7 @@ def graph_results_single(chart_type='pie', theme='vibrant', task_name=None, task
     task_id = int(task_id)
     data_contribution = graph_data[task_id]["contribution_table_values"]
     data_nameTask = graph_data[task_id]["task_name"]
+    logging.debug(f"Data chart :\n {data_contribution}")
     graph = None
     if data_contribution is not None:
         graph = create_graph_wt(

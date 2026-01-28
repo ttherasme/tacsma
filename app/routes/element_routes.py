@@ -2,7 +2,7 @@
 
 from flask import Blueprint, render_template, session, redirect, url_for, request, jsonify
 from app import db
-from app.models import Element, Item, Datasheet
+from app.models import Element, Item, Datasheet, BElement
 
 element_bp = Blueprint('element_bp', __name__)
 
@@ -21,10 +21,11 @@ def elements():
     query = (
         db.session.query(
             Element.IDE,
-            Element.EName,
+            BElement.EName,
             Item.IName,
             Element.user_id
         )
+        .join(BElement, Element.IDBE == BElement.IDBE)
         .join(Item, Element.IDI == Item.IDI)
     )
 
@@ -35,7 +36,7 @@ def elements():
     # Apply ordering & limit, THEN execute
     element_list = (
         query
-        .order_by(Element.EName.desc())
+        .order_by(BElement.EName.desc())
         .limit(10)
         .all()
     )
@@ -60,11 +61,12 @@ def search_elements():
     base_query = (
         db.session.query(
             Element.IDE,
-            Element.EName,
+            BElement.EName,
             Item.IName,
             Element.user_id,
             Element.EntryDate
         )
+        .join(BElement, Element.IDBE == BElement.IDBE)
         .join(Item, Element.IDI == Item.IDI)
     )
 
@@ -76,14 +78,14 @@ def search_elements():
     if query:
         base_query = base_query.filter(
             db.or_(
-                Element.EName.ilike(like_query),
+                BElement.EName.ilike(like_query),
                 Item.IName.ilike(like_query),
                 db.cast(Element.IDE, db.String).ilike(like_query),
                 db.cast(Element.EntryDate, db.String).ilike(like_query),
             )
         ).order_by(Element.EntryDate.desc())
     else:
-        base_query = base_query.order_by(Element.EName.desc())
+        base_query = base_query.order_by(BElement.EName.desc())
 
     # Execute query
     elements = base_query.limit(10).all()
@@ -121,9 +123,13 @@ def get_elements_by_item(item_name):
         return jsonify([])
     try:
         
-        elements = db.session.query(Element).join(Item).filter(
+        elements =( db.session.query(Element.IDE, BElement.EName)
+             .join(BElement, Element.IDBE == BElement.IDBE)
+            .join(Item, Element.IDI == Item.IDI)
+            .filter(
             db.func.lower(Item.IName) == db.func.lower(item_name)
         ).all()
+        )
         
         result = [{"IDE": element.IDE, "EName": element.EName} for element in elements]
         return jsonify(result)
@@ -175,22 +181,51 @@ def register_element_post():
 
             for item in items:
                 # Check if this specific name/IDI combo already exists
-                existing_element = db.session.query(Element).filter(
-                    Element.EName == e_name,
-                    Element.IDI == item.IDI,
-                    Element.user_id ==user_id
+                existing_belement = db.session.query(BElement).filter(
+                    BElement.EName == e_name,
+                    BElement.user_id ==user_id
                 ).first()
-                
-                if not existing_element:
+
+                if not existing_belement:
+                    new_belement = BElement(
+                        IDBE=added_count,
+                        EName=e_name, 
+                        user_id=user_id
+                    )
+                    db.session.add(new_belement) 
+
+                    existing_ibelement = db.session.query(BElement).filter(
+                        BElement.EName == e_name,
+                        BElement.user_id ==user_id
+                    ).first()
+                    
                     new_element = Element(
                         IDE=added_count,
-                        EName=e_name, 
+                        IDBE=existing_ibelement.IDBE, 
                         IDI=item.IDI, 
                         user_id=user_id
                     )
-                    db.session.add(new_element)
-                    
+                    db.session.add(new_element) 
+
                     added_count += 1
+                else:
+                    existing_element = db.session.query(Element).filter(
+                        Element.IDBE == existing_belement.IDBE,
+                        Element.IDI == item.IDI,
+                        Element.user_id ==user_id
+                    ).first()
+                    
+                    if not existing_element:
+                        new_element = Element(
+                            IDE=added_count,
+                            IDBE=existing_belement.IDBE, 
+                            IDI=item.IDI, 
+                            user_id=user_id
+                        )
+                        db.session.add(new_element)
+                        
+                        added_count += 1
+
             added_element += 1
         if added_count == 0:
             return jsonify({"success": False, "message": "No new valid elements to insert."}), 400
@@ -211,25 +246,26 @@ def listFlows(idtask):
 
     flows = (
         db.session.query(
-            Datasheet.IDE,
-            Element.EName,
+            Element.IDBE,
+            BElement.EName,
             Item.IName
         )
-        .join(Element, Datasheet.IDE == Element.IDE)
+        .join(Datasheet, Datasheet.IDE == Element.IDE)
+        .join(BElement, Element.IDBE == BElement.IDBE)
         .join(Item, Element.IDI == Item.IDI)
         .filter(Datasheet.IDT == idtask)
         .distinct()
-        .order_by(Datasheet.IDE)
+        .order_by(BElement.EName)
         .all()
     )
 
     result = [
         {
-            "IDE": ide,
+            "IDE": idbe,
             "EName": ename,
             "IName": iname
         }
-        for ide, ename, iname in flows
+        for idbe, ename, iname in flows
     ]
 
     return jsonify({"success": True, "flows": result})

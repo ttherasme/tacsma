@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, session, redirect, url_for, request, jsonify
 from sqlalchemy import func
 from app import db
-from app.models import Datasheet, Element, Step, UOM, Tasks, Item, UserParameterValue
+from app.models import Datasheet, Element, Step, UOM, Tasks, Item, UserParameterValue, BElement
 
 
 import logging
@@ -126,7 +126,42 @@ def get_all_uoms_by_element(ide):
         # Datasheet exists → return only linked UOM(s)
         uoms = (
             UOM.query
-            .filter(UOM.IDU == datasheet.IDU1)
+            .filter(UOM.IDU == datasheet.IDU)
+            .order_by(UOM.Unit)
+            .all()
+        )
+
+    return jsonify({
+        "success": True,
+        "uoms": [
+            {
+                "IDU": u.IDU,
+                "Unit": u.Unit,
+                "UName": u.UName
+            }
+            for u in uoms
+        ]
+    })
+
+@datasheet_bp.route('/get_all_uoms_by_flow/<string:idbe>')
+def get_all_uoms_by_flow(idbe):
+    # Check if Datasheet exists for this element
+    #datasheet = Datasheet.query.filter_by(IDE=ide).first()
+    datasheet = db.session.query(Element.IDBE,
+            BElement.EName,
+            Datasheet.IDU
+            ).join(Datasheet, Element.IDE == Datasheet.IDE
+            ).join(BElement, Element.IDBE == BElement.IDBE
+            ).filter(Element.IDBE==idbe).first()
+
+    if not datasheet:
+        # No datasheet → return all UOMs
+        uoms = UOM.query.order_by(UOM.Unit).all()
+    else:
+        # Datasheet exists → return only linked UOM(s)
+        uoms = (
+            UOM.query
+            .filter(UOM.IDU == datasheet.IDU)
             .order_by(UOM.Unit)
             .all()
         )
@@ -153,7 +188,9 @@ def get_all_elements():
     user_id = session.get('user_id')
 
     # Base query for tasks without datasheet
-    query = db.session.query(Element)
+    query = db.session.query(Element.IDE,
+            BElement.EName
+            ).join(BElement, Element.IDBE == BElement.IDBE)
 
     # Apply visibility rules
     if username.lower() != "admin":
@@ -192,7 +229,7 @@ def get_in_datasheet(idtask, category_name, module_name):
 
         if category_name == 'Input Materials and Energy':
             result = db.session.query(
-                    Element.EName,
+                    BElement.EName,
                     Datasheet.IDE,
                     Datasheet.ValueD,
                     Datasheet.IDU,
@@ -202,6 +239,7 @@ def get_in_datasheet(idtask, category_name, module_name):
                     Item.IName
                 ).join(Item, Item.IDI == Element.IDI
                 ).join(Datasheet, Element.IDE == Datasheet.IDE
+                ).join(Element, BElement.IDBE == Element.IDBE
                 ).join(Step, Datasheet.IDS == Step.IDS
                 ).join(UOM, Datasheet.IDU == UOM.IDU
                 ).filter(
@@ -244,7 +282,15 @@ def get_elements_by_category_for_datasheet(category_name, ischk):
     if not item:
         return jsonify(success=False, message="Category not found", elements=[])
 
-    query = Element.query.filter(Element.IDI == item.IDI)
+    #query = Element.query.filter(Element.IDI == item.IDI)
+    query= db.session.query(
+                    BElement.EName,
+                    Element.IDE,
+                    Element.IDI,
+                    Element.Global_Val,
+                    Element.user_id     
+                ).join(BElement, Element.IDBE == BElement.IDBE
+                ).filter(Element.IDI == item.IDI)
 
     if category_name == 'Co-Products':
         query = query.filter(Element.Global_Val == ischk)
@@ -260,7 +306,14 @@ def get_elements_by_category_for_datasheet(category_name, ischk):
 
             for g_item in global_items:
                 query = query.union(
-                    Element.query.filter(
+                    db.session.query(
+                        BElement.EName,
+                        Element.IDE,
+                        Element.IDI,
+                        Element.Global_Val,
+                        Element.user_id     
+                    ).join(BElement, Element.IDBE == BElement.IDBE
+                    ).filter(
                         Element.IDI == g_item.IDI,
                         Element.Global_Val.in_([1, 2])
                     )
@@ -274,13 +327,20 @@ def get_elements_by_category_for_datasheet(category_name, ischk):
 
             for g_item in global_items:
                 query = query.union(
-                    Element.query.filter(
+                    db.session.query(
+                        BElement.EName,
+                        Element.IDE,
+                        Element.IDI,
+                        Element.Global_Val,
+                        Element.user_id     
+                    ).join(BElement, Element.IDBE == BElement.IDBE
+                    ).filter(
                         Element.IDI == g_item.IDI,
                         Element.Global_Val == ischk
                     )
                 ) 
 
-    elements = query.order_by(Element.EName.asc()).all()
+    elements = query.order_by(BElement.EName.asc()).all()
 
     return jsonify(
         success=True,
@@ -288,7 +348,7 @@ def get_elements_by_category_for_datasheet(category_name, ischk):
             "IDE": e.IDE,
             "EName": e.EName,
             "IDI": e.IDI,
-            "Category": e.item.IName
+            "Category": item.IName
         } for e in elements]
     )
 
@@ -302,8 +362,10 @@ def get_elements_info_by_category(category_name):
     user_id = session.get('user_id')
     name = category_name.lower()
 
-    if 'product' in name:
-        items = Item.query.filter(Item.IName.ilike('%product%')).all()
+    if name =='Product':
+        items = Item.query.filter(Item.IName=='Product').all()
+    elif name =='Co-Products':
+        items = Item.query.filter(Item.IName=='Co-Products').all()
     else:
         items = Item.query.filter(Item.IName.ilike(f'%{name}%')).all()
 
@@ -320,18 +382,20 @@ def get_elements_info_by_category(category_name):
     elements_query = (
         db.session.query(
             Element.IDE,
-            Element.EName,
+            BElement.EName,
             Element.IDI,
             Item.IName
         )
+        .join(Datasheet, Element.IDE == Datasheet.IDE)
         .join(Item, Element.IDI == Item.IDI)
+        .join(BElement, Element.IDBE == BElement.IDBE)
         .filter(Element.IDI.in_(item_ids))
     )
 
     if username.lower() != "admin":
         elements_query = elements_query.filter(Element.user_id == user_id)
 
-    elements = elements_query.order_by(Element.EName.asc()).all()
+    elements = elements_query.order_by(BElement.EName.asc()).all()
 
     element_list = [{
         "IDE": e.IDE,

@@ -125,9 +125,38 @@ class MTransp(db.Model):
 
     datasheets = db.relationship('Datasheet', backref='mtransp', lazy=True)
 
+class BElement(db.Model):
+    """Inventory items belonging to a specific Task and Category (Item)."""
+    __tablename__ = 'b_element'
+    IDBE = db.Column(db.Integer, primary_key=True, autoincrement=False)
+    EName = db.Column(db.String(48), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    EntryDate = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # CONSTRAINT FIXED: Changed 'Enterby' to 'user_id'
+    __table_args__ = (UniqueConstraint('EName', 'user_id', 
+                                       name='_unique_belement_constraint'),)
+    elements = db.relationship('Element', backref='b_element', lazy=True)
+
 
 class Element(db.Model):
     """Inventory items belonging to a specific Task and Category (Item)."""
+    __tablename__ = 'element'
+    IDE = db.Column(db.Integer, primary_key=True, autoincrement=False)
+    IDBE = db.Column(db.Integer, db.ForeignKey('b_element.IDBE'), nullable=False)
+    IDI = db.Column(db.String(6), db.ForeignKey('item.IDI'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    Global_Val = db.Column(db.Integer, default=0)
+    EntryDate = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # CONSTRAINT FIXED: Changed 'Enterby' to 'user_id'
+    __table_args__ = (UniqueConstraint('IDBE', 'IDI', 'user_id', 
+                                       name='_unique_element_constraint'),)
+    
+    datasheets = db.relationship('Datasheet', backref='element', lazy=True)
+
+""" class Element(db.Model):
+    
     __tablename__ = 'element'
     IDE = db.Column(db.Integer, primary_key=True, autoincrement=False)
     EName = db.Column(db.String(48), nullable=False)
@@ -140,8 +169,7 @@ class Element(db.Model):
     __table_args__ = (UniqueConstraint('EName', 'IDI', 'user_id', 
                                        name='_unique_element_constraint'),)
     
-    datasheets = db.relationship('Datasheet', backref='element', lazy=True)
-
+    datasheets = db.relationship('Datasheet', backref='element', lazy=True) """
 
 class Datasheet(db.Model):
     """Primary data entry table linking elements to quantities and processes."""
