@@ -89,9 +89,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 <td>${element.IName}</td>
                 <td>${entryDate}</td>
                 <td>
-                    <!--<button class="delete-uom-btn" data-id="${element.IDE}">
+                    <button class="delete-uom-btn" data-id="${element.IDE}">
                         <img src="/static/img/trash-red.png" alt="Delete">
-                    </button> -->
+                    </button>
                 </td>
             `;
 
@@ -172,10 +172,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const id = btn.dataset.id;
 
-        if (!confirm("Do you want to delete this uom?")) return;
+        if (!confirm("Do you want to delete this element?")) return;
 
         try {
-            const response = await fetch(`/delete_uom/${id}`, { method: "DELETE" });
+            const response = await fetch(`/delete_element/${id}`, { method: "DELETE" });
             const data = await response.json();
 
             if (data.success) {
@@ -183,10 +183,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 updateCheckAllState();
                 updateEditIconState();
             } else {
-                alert(data.message || "Failed to delete uom.");
+                alert(data.message || "Failed to delete element.");
             }
         } catch {
-            alert("Error deleting uom.");
+            alert("Error deleting element.");
         }
     });
 
@@ -198,17 +198,17 @@ document.addEventListener("DOMContentLoaded", () => {
         const selected = [...document.querySelectorAll(".uom-checkbox:checked")];
 
         if (selected.length === 0)
-            return alert("No uoms selected.");
+            return alert("No elements selected.");
 
-        if (!confirm("Do you want to delete ALL selected uoms?")) return;
+        if (!confirm("Do you want to delete ALL selected elements?")) return;
 
         const ids = selected.map(box => box.dataset.id);
 
         try {
-            const response = await fetch("/delete_uoms", {
+            const response = await fetch("/delete_elements", {
                 method: "DELETE",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ uom_ids: ids }),
+                body: JSON.stringify({ element_ids: ids }),
             });
 
             const data = await response.json();
@@ -223,10 +223,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 updateEditIconState();
                 alert("Deletion completed.");
             } else {
-                alert("An error occurred while deleting uoms.");
+                alert("An error occurred while deleting elements.");
             }
         } catch {
-            alert("Error deleting uoms.");
+            alert("Error deleting elements.");
         }
     });
 
@@ -239,7 +239,6 @@ document.addEventListener("DOMContentLoaded", () => {
             .then(res => res.json())
             .then(updateTable)
             .catch(() => {
-                // FIX: colspan must be 7 to cover all columns
                 tableBody.innerHTML = "<tr><td colspan='7'>Error loading results</td></tr>";
             });
     }

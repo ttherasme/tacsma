@@ -235,8 +235,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 elements.forEach(element => {
                     const option = document.createElement("option");
+                    let txtcontent = element.EName
+                    if (element.SName) { txtcontent = txtcontent + ' | ' + element.SName;}
+                    if (element.TName) { txtcontent = txtcontent + ' | ' + element.TName;}
                     option.value = element.IDE;
-                    option.textContent = element.EName;
+                    option.textContent = txtcontent;
                     elementSelect.appendChild(option);
                 });
 
@@ -382,8 +385,11 @@ document.addEventListener("DOMContentLoaded", () => {
             elements.sort((a, b) => a.EName.localeCompare(b.EName));
             elements.forEach(el => {
                 const opt = document.createElement("option");
+                let txtcontent = el.EName
+                if (el.SName) { txtcontent = txtcontent + ' | ' + el.SName;}
+                if (el.TName) { txtcontent = txtcontent + ' | ' + el.TName;}
                 opt.value = el.IDE;
-                opt.textContent = el.EName;
+                opt.textContent = txtcontent;
                 if (rowData.IDE == el.IDE) opt.selected = true;
                 elementSelect.appendChild(opt);
             });

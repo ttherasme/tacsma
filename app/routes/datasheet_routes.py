@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, session, redirect, url_for, request, jsonify
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from app import db
 from app.models import Datasheet, Element, Step, UOM, Tasks, Item, UserParameterValue, BElement
 
@@ -270,6 +270,7 @@ def get_in_datasheet(idtask, category_name, module_name):
     return jsonify(success=False, message="Unauthorized"), 401
 
 
+
 @datasheet_bp.route('/get_elements_by_category_for_datasheet/<category_name>/<int:ischk>')
 def get_elements_by_category_for_datasheet(category_name, ischk):
     if 'username' not in session:
@@ -278,78 +279,97 @@ def get_elements_by_category_for_datasheet(category_name, ischk):
     user_id = session.get('user_id')
     is_admin = session.get('is_admin', False)
 
-    item = Item.query.filter(Item.IName == category_name).first()
+    item = Item.query.filter_by(IName=category_name).first()
     if not item:
-        return jsonify(success=False, message="Category not found", elements=[])
+        return jsonify(success=False, message="Category not found", elements=[]), 404
 
-    #query = Element.query.filter(Element.IDI == item.IDI)
-    query= db.session.query(
-                    BElement.EName,
-                    Element.IDE,
-                    Element.IDI,
-                    Element.Global_Val,
-                    Element.user_id     
-                ).join(BElement, Element.IDBE == BElement.IDBE
-                ).filter(Element.IDI == item.IDI)
+    # ------------------------------------------------------------
+    # Build element visibility rule once
+    # ------------------------------------------------------------
+    filters = [Element.IDI == item.IDI]
 
     if category_name == 'Co-Products':
-        query = query.filter(Element.Global_Val == ischk)
+        filters.append(Element.Global_Val == ischk)
 
     if not is_admin:
-        query = query.filter(Element.user_id == user_id)
-
         if category_name == 'Input Materials and Energy':
-        
-            global_items = Item.query.filter(
-                Item.IName.in_(['Input Materials and Energy'])
-            ).all()
+            # user-owned OR global shared values
+            filters.append(
+                or_(
+                    Element.user_id == user_id,
+                    Element.Global_Val.in_([1, 2])
+                )
+            )
+        elif category_name == 'Co-Products':
+            # user-owned OR global coproducts matching ischk
+            filters.append(
+                or_(
+                    Element.user_id == user_id,
+                    Element.Global_Val == ischk
+                )
+            )
+        else:
+            filters.append(Element.user_id == user_id)
 
-            for g_item in global_items:
-                query = query.union(
-                    db.session.query(
-                        BElement.EName,
-                        Element.IDE,
-                        Element.IDI,
-                        Element.Global_Val,
-                        Element.user_id     
-                    ).join(BElement, Element.IDBE == BElement.IDBE
-                    ).filter(
-                        Element.IDI == g_item.IDI,
-                        Element.Global_Val.in_([1, 2])
-                    )
-                ) 
+    # ------------------------------------------------------------
+    # Query elements + optional datasheet/task/step info
+    # ------------------------------------------------------------
+    rows = (
+        db.session.query(
+            Element.IDE,
+            Element.IDI,
+            Element.Global_Val,
+            Element.user_id,
+            BElement.EName,
+            Datasheet.IDD,
+            Datasheet.IDT,
+            Datasheet.IDS,
+            Tasks.TName,
+            Step.SName
+        )
+        .join(BElement, Element.IDBE == BElement.IDBE)
+        .outerjoin(Datasheet, Datasheet.IDE == Element.IDE)
+        .outerjoin(Tasks, Tasks.IDT == Datasheet.IDT)
+        .outerjoin(Step, Step.IDS == Datasheet.IDS)
+        .filter(*filters)
+        .order_by(BElement.EName.asc(), Datasheet.IDD.asc())
+        .all()
+    )
 
-        if category_name == 'Co-Products':
-        
-            global_items = Item.query.filter(
-                Item.IName.in_(['Co-Products'])
-            ).all()
+    # ------------------------------------------------------------
+    # Group repeated rows caused by multiple datasheet matches
+    # ------------------------------------------------------------
+    elements_map = {}
 
-            for g_item in global_items:
-                query = query.union(
-                    db.session.query(
-                        BElement.EName,
-                        Element.IDE,
-                        Element.IDI,
-                        Element.Global_Val,
-                        Element.user_id     
-                    ).join(BElement, Element.IDBE == BElement.IDBE
-                    ).filter(
-                        Element.IDI == g_item.IDI,
-                        Element.Global_Val == ischk
-                    )
-                ) 
+    for row in rows:
+        if row.IDE not in elements_map:
+            elements_map[row.IDE] = {
+                "IDE": row.IDE,
+                "EName": row.EName,
+                "IDI": row.IDI,
+                "Category": item.IName,
+                "datasheets": []
+            }
 
-    elements = query.order_by(BElement.EName.asc()).all()
+        if row.IDD is not None:
+            elements_map[row.IDE]["datasheets"].append({
+                "IDD": row.IDD,
+                "IDT": row.IDT,
+                "IDS": row.IDS,
+                "TName": row.TName,
+                "SName": row.SName
+            })
 
     return jsonify(
         success=True,
         elements=[{
-            "IDE": e.IDE,
-            "EName": e.EName,
-            "IDI": e.IDI,
-            "Category": item.IName
-        } for e in elements]
+            "IDE": r.IDE,
+            "EName": r.EName,
+            "IDI": r.IDI,
+            "Category": item.IName,
+            "SName": r.SName,
+            "TName": r.TName
+        } for r in rows]
     )
 
 

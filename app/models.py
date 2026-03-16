@@ -1,3 +1,7 @@
+# ----------------------------------------------------------------
+# Each USER manages their own data, Admin has all control
+# ----------------------------------------------------------------
+
 from app import db
 from datetime import datetime
 from sqlalchemy.schema import UniqueConstraint
@@ -6,8 +10,7 @@ from sqlalchemy.schema import UniqueConstraint
 # USER AND SYSTEM PARAMETERS MODELS
 # ----------------------------------------------------------------
 
-class Parameter(db.Model):
-    """Stores global LCA parameters and their default values."""
+class Parameter(db.Model):                  # manage only by Admin
     __tablename__ = 'parameter'
     id = db.Column(db.Integer, primary_key=True)
     parameter_name = db.Column(db.String(100), unique=True, nullable=False)
@@ -18,15 +21,14 @@ class Parameter(db.Model):
     user_values = db.relationship('UserParameterValue', backref='parameter', lazy=True)
 
 
-class User(db.Model):
-    """User management and access control."""
+class User(db.Model):           # manage only by Admin, User will have possibility to change their password and view profil
     __tablename__ = 'user'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(25), unique=True, nullable=False)
     password = db.Column(db.String(256), nullable=False)
     state = db.Column(db.Boolean, default=True)
     level = db.Column(db.Integer, default=0)
-    change = db.Column(db.Integer, default=1)
+    change = db.Column(db.Integer, default=1)   # 1 = change password request on login, 0 don't change password request
     # 0 = Use Defaults, 1 = Use User-Defined Values
     regeneration_mode = db.Column(db.Integer, default=0) 
 
@@ -38,7 +40,6 @@ class User(db.Model):
 
 
 class UserParameterValue(db.Model):
-    """Stores custom parameter values defined by specific users for specific tasks."""
     __tablename__ = 'user_parameter_value'
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -50,7 +51,6 @@ class UserParameterValue(db.Model):
 
 
 class PermissionRule(db.Model):
-    """Defines UI permissions based on user access levels."""
     __tablename__ = 'permission_rule'
     id = db.Column(db.Integer, primary_key=True)
     access_level = db.Column(db.Integer, nullable=False)
@@ -66,7 +66,6 @@ class PermissionRule(db.Model):
 # ----------------------------------------------------------------
 
 class Tasks(db.Model):
-    """Specific LCA project or case study."""
     __tablename__ = 'tasks'
     IDT = db.Column(db.Integer, primary_key=True, autoincrement=False)
     TName = db.Column(db.String(150), nullable=False)
@@ -78,8 +77,7 @@ class Tasks(db.Model):
     datasheets = db.relationship('Datasheet', backref='task', lazy=True)
 
 
-class Item(db.Model):
-    """Categorization of elements (e.g., Raw Materials, Energy)."""
+class Item(db.Model):       # manage only by Admin
     __tablename__ = 'item'
     IDI = db.Column(db.String(6), primary_key=True, autoincrement=False)
     IName = db.Column(db.String(100), unique=True, nullable=False)
@@ -88,7 +86,6 @@ class Item(db.Model):
 
 
 class Step(db.Model):
-    """Life cycle stages (e.g., Production, Transport, End-of-Life)."""
     __tablename__ = 'step'
     IDS = db.Column(db.String(6), primary_key=True, autoincrement=False)
     SName = db.Column(db.String(50), unique=True, nullable=False)
@@ -101,7 +98,7 @@ class Step(db.Model):
     datasheets = db.relationship('Datasheet', backref='step', lazy=True)
 
 
-class UOM(db.Model):
+class UOM(db.Model):        # manage only by Admin
     """Units of Measure (e.g., kg, kWh, tkm)."""
     __tablename__ = 'uom'
     IDU = db.Column(db.String(6), primary_key=True, autoincrement=False)
@@ -125,51 +122,52 @@ class MTransp(db.Model):
 
     datasheets = db.relationship('Datasheet', backref='mtransp', lazy=True)
 
+
 class BElement(db.Model):
-    """Inventory items belonging to a specific Task and Category (Item)."""
     __tablename__ = 'b_element'
+
     IDBE = db.Column(db.Integer, primary_key=True, autoincrement=False)
     EName = db.Column(db.String(48), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     EntryDate = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # CONSTRAINT FIXED: Changed 'Enterby' to 'user_id'
-    __table_args__ = (UniqueConstraint('EName', 'user_id', 
-                                       name='_unique_belement_constraint'),)
-    elements = db.relationship('Element', backref='b_element', lazy=True)
 
+    __table_args__ = (
+        UniqueConstraint('EName', 'user_id', name='_unique_belement_constraint'),
+    )
+
+    elements = db.relationship(
+        'Element',
+        backref='b_element',
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        lazy=True
+    )
+    
 
 class Element(db.Model):
-    """Inventory items belonging to a specific Task and Category (Item)."""
     __tablename__ = 'element'
-    IDE = db.Column(db.Integer, primary_key=True, autoincrement=False)
-    IDBE = db.Column(db.Integer, db.ForeignKey('b_element.IDBE'), nullable=False)
-    IDI = db.Column(db.String(6), db.ForeignKey('item.IDI'), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    Global_Val = db.Column(db.Integer, default=0)
-    EntryDate = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # CONSTRAINT FIXED: Changed 'Enterby' to 'user_id'
-    __table_args__ = (UniqueConstraint('IDBE', 'IDI', 'user_id', 
-                                       name='_unique_element_constraint'),)
-    
-    datasheets = db.relationship('Datasheet', backref='element', lazy=True)
 
-""" class Element(db.Model):
-    
-    __tablename__ = 'element'
     IDE = db.Column(db.Integer, primary_key=True, autoincrement=False)
-    EName = db.Column(db.String(48), nullable=False)
+
+    IDBE = db.Column(
+        db.Integer,
+        db.ForeignKey('b_element.IDBE', ondelete="CASCADE"),
+        nullable=False
+    )
+
     IDI = db.Column(db.String(6), db.ForeignKey('item.IDI'), nullable=False)
+
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
     Global_Val = db.Column(db.Integer, default=0)
+    Initial_Val = db.Column(db.Integer, default=1)
     EntryDate = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # CONSTRAINT FIXED: Changed 'Enterby' to 'user_id'
-    __table_args__ = (UniqueConstraint('EName', 'IDI', 'user_id', 
-                                       name='_unique_element_constraint'),)
-    
-    datasheets = db.relationship('Datasheet', backref='element', lazy=True) """
+
+    __table_args__ = (
+        UniqueConstraint('IDBE', 'IDI', 'user_id', name='_unique_element_constraint'),
+    )
+
+    datasheets = db.relationship('Datasheet', backref='element', lazy=True)
 
 class Datasheet(db.Model):
     """Primary data entry table linking elements to quantities and processes."""
@@ -192,7 +190,7 @@ class Datasheet(db.Model):
 # ----------------------------------------------------------------
 # LIFE CYCLE INVENTORY (LCI) BACKGROUND DATA
 # ----------------------------------------------------------------
-class ForestryConversionFactorsFIA(db.Model):
+class ForestryConversionFactorsFIA(db.Model):           # manage only by Admin
     __tablename__ = 'forestry_conversion_factors_fia'
 
     materials = db.Column(db.String(17))
@@ -203,7 +201,7 @@ class ForestryConversionFactorsFIA(db.Model):
     factor = db.Column(db.Numeric(10, 9))
     ID = db.Column(db.Integer, primary_key=True, autoincrement=True)
 
-class LCI(db.Model):
+class LCI(db.Model):            # manage only by Admin
     """Standardized environmental impact factors (TRACI or similar)."""
     __tablename__ = 'lci'
 

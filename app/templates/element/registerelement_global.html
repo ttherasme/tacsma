@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 
-{% block title %}TACSMA - Register Unit of measure{% endblock %}
+{% block title %}TACSMA - Register element{% endblock %}
 
 {% block styles %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/uom/uomregister.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/element/elementregister_global.css') }}" />
 {% endblock %}
 
 {% block content %}
 <section class="page-content">
-    <h1>Register Unit Of Measure</h1>
+    <h1>Register Element</h1>
     <div id="dynamic-content">
         <div class="dynamic-wrapper">
             <div class="form-header-top">
@@ -23,8 +23,10 @@
             <div class="form-box">
                 <div class="form-header">
                     <div>Name</div>
-                    <div>Unit</div>
-                    <div></div> <div></div> </div>
+                    <div>Type</div>
+                    <div></div>
+                    <div></div>
+                </div>
 
                 <div id="form-rows"></div>
 
@@ -32,11 +34,18 @@
                     <button class="run-button">Register</button>
                     </div>
             </div>
+            <script>
+                window.itemOptions = `
+                {% for item in items %}
+                <option value="{{ item.IDI }}">{{ item.IName }}</option>
+                {% endfor %}
+                `;
+            </script>
         </div>
     </div>
 </section>
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/uom/uomregister.js') }}"></script>
+<script src="{{ url_for('static', filename='js/element/elementregister_global.js') }}"></script>
 {% endblock %}

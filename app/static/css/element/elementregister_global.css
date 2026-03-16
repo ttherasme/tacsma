@@ -111,7 +111,7 @@
     flex: 1;
 }
 
-/* .unit-input select { /* No longer needed unless you add a select for UOM */
+/* .unit-input select { 
     width: 70px;
 } */
 
@@ -192,7 +192,7 @@
         width: 100%; /* Make inputs full width in responsive view */
     }
 
-    /* .unit-input select { /* No longer needed */
+    /* .unit-input select { 
         width: auto;
         min-width: 60px;
     } */

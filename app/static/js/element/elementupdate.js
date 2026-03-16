@@ -1,69 +1,55 @@
 document.addEventListener("DOMContentLoaded", () => {
-    const formRowsContainer = document.getElementById("form-rows");
-    const runButton = document.querySelector(".run-button");
 
-    // The initial rendering is now handled by Jinja2 in uomupdate.html
-    // So, we can remove the renderUOMForm function and the initial fetch call for uomId.
+    const updateBtn = document.querySelector(".run-button");
+    const nameInput = document.querySelector(".element-name");
+    const idInput = document.querySelector(".element-id");
 
-    // No need to fetch initial data here; Jinja handles it on page load.
-    // If you need to ensure fields are populated, you can add a check,
-    // but the HTML with Jinja will ensure they're pre-filled.
+    if (!updateBtn) return;
 
-    // Event listener for the Update button
-    runButton.addEventListener("click", () => {
-        const uomRow = formRowsContainer.querySelector(".form-row");
-        if (!uomRow) {
-            alert("No Unit of Measure data to update.");
+    updateBtn.addEventListener("click", async () => {
+
+        const newName = nameInput.value.trim();
+        const elementId = idInput.value;
+
+        if (!newName) {
+            alert("Element name cannot be empty.");
             return;
         }
 
-        const id = uomRow.querySelector(".uom-id").value;
-        const name = uomRow.querySelector(".uom-name").value.trim();
-        const unit = uomRow.querySelector(".uom-unit").value.trim();
-        const state = parseInt(uomRow.querySelector(".uom-state").value, 10);
+        // ✅ User confirmation
+        const confirmUpdate = confirm("Are you sure you want to update this element?");
 
-        if (!id) {
-            alert("Unit of Measure ID is missing. Cannot update.");
-            return;
+        if (!confirmUpdate) {
+            return; // user cancelled
         }
 
-        if (!name || !unit) {
-            alert("Unit Name and Unit Abbreviation are required.");
-            return;
-        }
+        try {
 
-        if (isNaN(state) || (state !== 0 && state !== 1)) {
-            alert("Invalid state value. Please select Active or Inactive.");
-            return;
-        }
+            const response = await fetch("/update_element_post", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    IDE: elementId,
+                    EName: newName
+                })
+            });
 
-        const confirmed = confirm("Are you sure you want to update this Unit of Measure?");
-        if (!confirmed) return;
+            const data = await response.json();
 
-        fetch("/updateuom", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                IDU: id,
-                UName: name,
-                Unit: unit,
-                State: state
-            })
-        })
-        .then(res => res.json())
-        .then(data => {
             if (data.success) {
-                alert(data.message || "Unit of Measure updated successfully.");
-                window.location.href = "/uom";
+                alert("Element updated successfully.");
+                window.location.href = "/elements";
             } else {
-                alert("Error: " + (data.message || "An unknown error occurred."));
+                alert(data.message || "Update failed.");
             }
-        })
-        .catch(err => {
-            console.error("Error:", err);
-            alert("Unexpected error occurred during update.");
-        });
+
+        } catch (error) {
+            console.error(error);
+            alert("Server error while updating element.");
+        }
+
     });
+
 });

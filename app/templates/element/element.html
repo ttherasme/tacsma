@@ -8,19 +8,22 @@
 
 {% block content %}
 <section class="page-content">
-    {# The styling for this H1 is now primarily controlled by the 'page-content h1' rule in uom.css #}
     <h1>Flows</h1>
     <section class="uom-panel">
         <div class="uom-header">
             <div class="uom-actions">
-                <!--<div class="uom-icon open-icon">
-                    <img src="{{ url_for('static', filename='img/addtask.png') }}" alt="Add" data-url="{{ url_for('element_bp.registerelement_global')}}"/>
+                <div class="uom-icon open-icon">
+                    <img src="{{ url_for('static', filename='img/addtask.png') }}" 
+                        alt="Add"
+                        data-url="{{ url_for('element_bp.registerelement_global')}}"/>
                     <span>Add</span>
                 </div>
                 <div class="uom-icon edit-icon">
-                    <img src="{{ url_for('static', filename='img/edittask.png') }}" alt="Edit" data-url="{{ url_for('element_bp.updateelement')}}"/>
+                    <img src="{{ url_for('static', filename='img/edittask.png') }}" 
+                        alt="Edit"
+                        data-url="{{ url_for('element_bp.updateelement')}}"/>
                     <span>Edit</span>
-                </div> -->
+                </div>
             </div>
         </div>
 
@@ -38,7 +41,7 @@
                         <input type="checkbox" id="check-all"> Check All
                     </label>
                     <span class="separator">|</span>
-                    <!--<button class="delete-all-btn">Delete All</button> -->
+                    <button class="delete-all-btn">Delete All</button> 
                 </div>
             </div>
 
@@ -67,9 +70,9 @@
                         <td>{{ element.IName }}</td>
                         <td>{{ element.EntryDate.strftime('%Y-%m-%d %H:%M') if element.EntryDate else '' }}</td>
                         <td>
-                            <!--<button class="delete-uom-btn" data-id="{{ element.IDE }}">
+                            <button class="delete-uom-btn" data-id="{{ element.IDE }}">
                                 <img src="{{ url_for('static', filename='img/trash-red.png') }}" alt="Delete">
-                            </button> -->
+                            </button> 
                         </td>
                     </tr>
                 {% endfor %}

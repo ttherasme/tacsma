@@ -21,13 +21,17 @@ def elements():
     query = (
         db.session.query(
             Element.IDE,
+            Element.IDBE,
             BElement.EName,
             Item.IName,
-            Element.user_id
+            Element.user_id,
+            Element.EntryDate
         )
         .join(BElement, Element.IDBE == BElement.IDBE)
         .join(Item, Element.IDI == Item.IDI)
     )
+
+    query = query.filter(Element.Initial_Val == 1)
 
     # Admin sees all, others only their own records
     if username.lower() != "admin":
@@ -61,6 +65,7 @@ def search_elements():
     base_query = (
         db.session.query(
             Element.IDE,
+            Element.IDBE,
             BElement.EName,
             Item.IName,
             Element.user_id,
@@ -69,6 +74,8 @@ def search_elements():
         .join(BElement, Element.IDBE == BElement.IDBE)
         .join(Item, Element.IDI == Item.IDI)
     )
+
+    base_query = base_query.filter(Element.Initial_Val == 1)
 
     # Admin sees all, others only their own
     if username.lower() != "admin":
@@ -81,6 +88,7 @@ def search_elements():
                 BElement.EName.ilike(like_query),
                 Item.IName.ilike(like_query),
                 db.cast(Element.IDE, db.String).ilike(like_query),
+                db.cast(Element.IDBE, db.String).ilike(like_query),
                 db.cast(Element.EntryDate, db.String).ilike(like_query),
             )
         ).order_by(Element.EntryDate.desc())
@@ -94,6 +102,7 @@ def search_elements():
     result = [
         {
             "IDE": e.IDE,
+            "IDBE": e.IDBE,
             "EName": e.EName,
             "IName": e.IName,
             "EntryDate": e.EntryDate.strftime('%Y-%m-%d %H:%M') if e.EntryDate else ""
@@ -104,17 +113,200 @@ def search_elements():
     return jsonify(result)
 
 
-@element_bp.route('/registerelement_global')
+@element_bp.route('/registerelement_global', methods=['GET', 'POST'])
 def registerelement_global():
-    #code will come here
-    return
+    if 'username' not in session:
+        return redirect(url_for('auth_bp.login'))
+
+    user_id = session.get("user_id")
+
+    # GET → load page
+    if request.method == "GET":
+        items = (
+            Item.query
+            .filter(~Item.IName.in_(['Results']))
+            .order_by(Item.IName)
+            .all()
+        )
+        return render_template(
+            "element/registerelement_global.html",
+            items=items
+        )
+
+    # POST → register elements
+    data = request.get_json()
+
+    if not data or "elements" not in data:
+        return jsonify({"success": False, "message": "Invalid data"}), 400
+
+    elements = data["elements"]
+
+    try:
+        inserted = 0
+        elementadded = 0
+
+        for el in elements:
+
+            name = el.get("EName", "").strip()
+            iname = el.get("IName","").strip()
+
+            if not name:
+                continue
+
+            # -----------------------------
+            # SPECIAL CASE
+            # -----------------------------
+
+            target_items = [iname]
+            if iname.lower() in ['product', 'co-products']:
+
+                target_items = [
+                    'Product',
+                    'Co-Products',
+                    'Input Materials and Energy',
+                    'Wood Processing'
+                ]
+
+            items = Item.query.filter(Item.IName.in_(target_items)).all()
+            added_count =0
+            # -----------------------------
+            # BElement
+            # -----------------------------
+            existing_belement = BElement.query.filter_by(
+                EName=name,
+                user_id=user_id
+            ).first()
+
+            if not existing_belement:
+                new_belement = BElement(
+                    IDBE=inserted,
+                    EName=name,
+                    user_id=user_id
+                )
+
+                db.session.add(new_belement)
+
+                existing_ibelement = BElement.query.filter_by(
+                    EName=name,
+                    user_id=user_id
+                ).first()
+                
+                for item in items:
+                    new_element = Element(
+                        IDE=added_count,
+                        IDBE=existing_ibelement.IDBE, 
+                        IDI=item.IDI,
+                        Initial_Val = 1 if iname == item.IName else 0, 
+                        user_id=user_id
+                    )
+                    db.session.add(new_element)
+                    added_count += 1
+               
+            else:
+                for item in items:
+                    existing_element = Element.query.filter_by(
+                        IDBE = existing_belement.IDBE,
+                        IDI = item.IDI,
+                        user_id =user_id
+                    ).first()
+                    
+                    if not existing_element:
+                        new_element = Element(
+                            IDE=added_count,
+                            IDBE=existing_belement.IDBE, 
+                            IDI=item.IDI,
+                            Initial_Val = 1 if iname == item.IName else 0, 
+                            user_id=user_id
+                        )
+                        db.session.add(new_element)
+                        
+                        added_count += 1
+
+            elementadded = added_count
+            inserted += 1
+
+        if inserted == 0:
+            return jsonify({
+                "success": False,
+                "message": f"No new elements inserted. And {elementadded} new record(s) created."
+            })
+
+        db.session.commit()
+
+        return jsonify({
+            "success": True,
+            "message": f"{inserted} element(s) registered."
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        })
 
 
 @element_bp.route('/updateelement')
 def updateelement():
-    #code will come here
-    return
+    if 'username' not in session:
+        return redirect(url_for('auth_bp.login'))
 
+    element_id = request.args.get("id")
+
+    element = (
+        db.session.query(
+            Element.IDE,
+            BElement.EName,
+            Item.IName
+        )
+        .join(BElement, Element.IDBE == BElement.IDBE)
+        .join(Item, Element.IDI == Item.IDI)
+        .filter(Element.IDE == element_id)
+        .first()
+    )
+
+    if not element:
+        return "Element not found", 404
+
+    return render_template(
+        "element/updateelement.html",
+        element=element
+    )
+
+@element_bp.route('/update_element_post', methods=['POST'])
+def update_element_post():
+    if 'username' not in session:
+        return jsonify({"success": False, "message": "Not authenticated"}), 401
+
+    data = request.get_json()
+
+    element_id = data.get("IDE")
+    new_name = data.get("EName", "").strip()
+
+    if not element_id or not new_name:
+        return jsonify({"success": False, "message": "Invalid data"}), 400
+
+    try:
+        element = Element.query.filter_by(IDE=element_id).first()
+
+        if not element:
+            return jsonify({"success": False, "message": "Element not found"}), 404
+
+        # get related BElement
+        belement = BElement.query.filter_by(IDBE=element.IDBE).first()
+
+        if not belement:
+            return jsonify({"success": False, "message": "BElement not found"}), 404
+
+        belement.EName = new_name
+
+        db.session.commit()
+
+        return jsonify({"success": True})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": str(e)})
 
 
 @element_bp.route('/get_elements_by_item/<item_name>', methods=['GET'])
@@ -157,7 +349,7 @@ def register_element_post():
     if not data or 'elements' not in data or not isinstance(data['elements'], list) or 'elementname' not in data:
         return jsonify({"success": False, "message": "Invalid data format."}), 400
 
-    elementname = data['elementname'].strip() # Ajout de .strip() pour la robustesse
+    elementname = data['elementname'].strip() 
     elements_to_add = data['elements']
     
     try:
@@ -202,7 +394,8 @@ def register_element_post():
                     new_element = Element(
                         IDE=added_count,
                         IDBE=existing_ibelement.IDBE, 
-                        IDI=item.IDI, 
+                        IDI=item.IDI,
+                        Initial_Val = 1 if elementname == item.IName else 0, 
                         user_id=user_id
                     )
                     db.session.add(new_element) 
@@ -219,7 +412,8 @@ def register_element_post():
                         new_element = Element(
                             IDE=added_count,
                             IDBE=existing_belement.IDBE, 
-                            IDI=item.IDI, 
+                            IDI=item.IDI,
+                            Initial_Val = 1 if elementname == item.IName else 0, 
                             user_id=user_id
                         )
                         db.session.add(new_element)
@@ -254,6 +448,7 @@ def listFlows(idtask):
         .join(BElement, Element.IDBE == BElement.IDBE)
         .join(Item, Element.IDI == Item.IDI)
         .filter(Datasheet.IDT == idtask)
+        .filter(Item.IName.in_(['Product', 'Co-Products']))
         .distinct()
         .order_by(BElement.EName)
         .all()
@@ -269,3 +464,61 @@ def listFlows(idtask):
     ]
 
     return jsonify({"success": True, "flows": result})
+
+
+@element_bp.route('/delete_elements', methods=['DELETE'])
+def delete_elements():
+    if 'username' not in session:
+        return jsonify({"success": False}), 401
+
+    data = request.get_json()
+    ids = data.get("element_ids", [])
+
+    if not ids:
+        return jsonify({"success": False, "message": "No elements selected."})
+
+    try:
+        belements = (
+            db.session.query(BElement)
+            .join(Element, Element.IDBE == BElement.IDBE)
+            .filter(Element.IDE.in_(ids))
+            .distinct()
+            .all()
+        )
+
+        for belement in belements:
+            db.session.delete(belement)
+
+        db.session.commit()
+
+        return jsonify({"success": True})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": str(e)})
+    
+    
+@element_bp.route('/delete_element/<int:id>', methods=['DELETE'])
+def delete_element(id):
+    if 'username' not in session:
+        return jsonify({"success": False}), 401
+
+    belement = (
+        db.session.query(BElement)
+        .join(Element, Element.IDBE == BElement.IDBE)
+        .filter(Element.IDE == id)
+        .first()
+    )
+
+    if not belement:
+        return jsonify({"success": False, "message": "Element not found."})
+
+    try:
+        db.session.delete(belement)
+        db.session.commit()
+
+        return jsonify({"success": True})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": str(e)})

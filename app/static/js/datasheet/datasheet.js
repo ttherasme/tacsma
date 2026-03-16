@@ -215,8 +215,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
                     elements.forEach(el => {
                         const option = document.createElement('option');
+                        let txtcontent = el.EName
+                        if (el.SName) { txtcontent = txtcontent + ' | ' + el.SName;}
+                        if (el.TName) { txtcontent = txtcontent + ' | ' + el.TName;}
                         option.value = el.IDE;
-                        option.textContent = el.EName;
+                        option.textContent = txtcontent;
                         select.appendChild(option);
                     });
 
@@ -689,8 +692,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
                     elements.forEach(element => {
                         const option = document.createElement("option");
+                        let txtcontent = element.EName
+                        if (element.SName) { txtcontent = txtcontent + ' | ' + element.SName;}
+                        if (element.TName) { txtcontent = txtcontent + ' | ' + element.TName;}
                         option.value = element.IDE;
-                        option.textContent = element.EName;
+                        option.textContent = txtcontent;
                         elementSelect.appendChild(option);
                     });
                 })

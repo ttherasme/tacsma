@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}TACSMA - Update Element{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/element/elementupdate.css') }}" />
+{% endblock %}
+
+{% block content %}
+<section class="page-content">
+    <div class="uom-title-wrapper">
+        <h1 class="uom-title">Update Element</h1>
+        <div id="dynamic-content">
+            <div class="dynamic-wrapper">
+                <div class="form-box">
+                    <div class="form-header">
+                        <div>Name</div>
+                        <div>Type</div>
+                    </div>
+
+                    <div id="form-rows">
+                        <div class="form-row">
+                            {% if element %}
+                                <input type="hidden" class="element-id" value="{{ element.IDE }}">
+                                <input type="text" class="element-name" placeholder="Element name" value="{{ element.EName }}">
+                                <input type="text" class="element-type" placeholder="Element type" value="{{ element.IName }}" disabled>
+                            {% else %}
+                                <p>No element data available.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="run-button-wrapper">
+                        <button class="run-button">Update</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/element/elementupdate.js') }}"></script>
+{% endblock %}
