@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}TACSMA - Unit of conversion{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/uoc/uoc.css') }}" />
+{% endblock %}
+
+{% block content %}
+<section class="page-content">
+    <h1>Unit Of Conversion</h1>
+
+    <section class="uoc-panel">
+        <div class="uoc-header">
+            <div class="uoc-actions">
+                <div class="uoc-icon open-icon">
+                    <img src="{{ url_for('static', filename='img/addtask.png') }}" alt="Add" data-url="{{ url_for('uoc_bp.registeruoc')}}"/>
+                    <span>Add</span>
+                </div>
+                <div class="uoc-icon edit-icon">
+                    <img src="{{ url_for('static', filename='img/edittask.png') }}" alt="Edit" data-url="{{ url_for('uoc_bp.updateuoc')}}"/>
+                    <span>Edit</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="uoc-search">
+            <label for="uoc-search-input">Search</label>
+
+            <div class="search-row">
+                <div class="search-box">
+                    <input type="text" id="uoc-search-input" placeholder="Find" />
+                    <button class="search-btn" aria-label="Search uocs">🔍</button>
+                </div>
+
+                <div class="table-actions">
+                    <label class="check-all-label">
+                        <input type="checkbox" id="check-all"> Check All
+                    </label>
+                    <span class="separator">|</span>
+                    <button class="delete-all-btn">Delete All</button>
+                </div>
+            </div>
+        </div>
+
+        <table class="uoc-table">
+            <thead>
+                <tr>
+                    <th></th>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Factor</th>
+                    <th>SI Unit</th>
+                    <th>Category</th>
+                    <th>State</th>
+                    <th></th>
+                    <th></th>
+                </tr>
+            </thead>
+
+            <tbody id="uoc-table-body">
+                {% for uoc in uocs %}
+                <tr>
+                    <td>
+                        <input type="checkbox" class="uoc-checkbox" data-id="{{ uoc.id }}">
+                    </td>
+
+                    <td>{{ uoc.id }}</td>
+                    <td>{{ uoc.unit_name }}</td>
+                    <td>{{ uoc.factor_to_si }}</td>
+                    <td>{{ uoc.si_unit }}</td>
+                    <td>{{ uoc.category }}</td>
+                    <td>{{ "Active" if uoc.is_active else "Inactive" }}</td>
+
+                    <td>
+                        <a href="{{ url_for('auoc_bp.auoc', id=uoc.id) }}">Alias</a>
+                    </td>
+
+                    <td>
+                        <button class="delete-uoc-btn" data-id="{{ uoc.id }}">
+                            <img src="{{ url_for('static', filename='img/trash-red.png') }}" alt="Delete">
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/uoc/uocsearch.js') }}"></script>
+<script src="{{ url_for('static', filename='js/openother.js') }}"></script>
+{% endblock %}

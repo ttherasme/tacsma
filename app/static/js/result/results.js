@@ -91,7 +91,8 @@ document.addEventListener("DOMContentLoaded", () => {
         tableHtml += '<th>Process</th>';
         taskColumns.forEach(task => {
             const details = taskDetails[task] || { product: 'N/A', impact_category: 'N/A' };
-            const functionalUnitText = details.product; // Use the full product string for the unit row
+            //const functionalUnitText = details.product; // Use the full product string for the unit row
+            const functionalUnitText = (details.product || '').replace(/\s+/g, ' ').trim();
 
             tableHtml += `<th class="task-header-multi-row">
                 <div class="header-row-wrapper">

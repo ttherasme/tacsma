@@ -4,6 +4,8 @@ from .datasheet_routes import datasheet_bp
 from .results_routes import results_bp
 from .tasks_routes import tasks_bp
 from .uom_routes import uom_bp
+from .uoc_routes import uoc_bp
+from .auoc_routes import auoc_bp
 from .stepofprocess_routes import stepofprocess_bp
 from .typeoftransportation_routes import typeoftransportation_bp
 from .users_routes import user_bp
@@ -17,6 +19,8 @@ def register_blueprints(app):
     app.register_blueprint(results_bp)
     app.register_blueprint(tasks_bp)
     app.register_blueprint(uom_bp)
+    app.register_blueprint(uoc_bp)
+    app.register_blueprint(auoc_bp)
     app.register_blueprint(stepofprocess_bp)
     app.register_blueprint(typeoftransportation_bp)
     app.register_blueprint(user_bp)

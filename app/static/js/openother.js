@@ -11,8 +11,10 @@ document.addEventListener("DOMContentLoaded", () => {
         const selectedTask = document.querySelector(".task-checkbox:checked");
         const selectedSOP = document.querySelector(".sop-checkbox:checked");
         const selectedTOT = document.querySelector(".tot-checkbox:checked");
+        const selectedUOC = document.querySelector(".uoc-checkbox:checked");
+        const selectedAUOC = document.querySelector(".auoc-checkbox:checked");
 
-        let selected = selectedUOM || selectedTask || selectedSOP || selectedTOT;
+        let selected = selectedUOM || selectedTask || selectedSOP || selectedTOT || selectedUOC || selectedAUOC;
 
         if (!selected) {
           alert("Please select an item to edit.");
@@ -47,5 +49,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Apply exclusive logic per checkbox group
   handleExclusiveCheckboxes(".task-checkbox");
   handleExclusiveCheckboxes(".uom-checkbox");
-   handleExclusiveCheckboxes(".sop-checkbox");
+  handleExclusiveCheckboxes(".sop-checkbox");
+  handleExclusiveCheckboxes(".uoc-checkbox");
+  handleExclusiveCheckboxes(".auoc-checkbox");
 });

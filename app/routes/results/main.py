@@ -113,7 +113,7 @@ def run_analysis(rows):
             flow_df['flow'] = flow_df['flow'].astype(str)
 
             functional_unit = unit_conversion(functional_unit, unit_text, 'SI')
-            logger.warning(f"Task {task_id}: last functional unit '{functional_unit}'; defaulting to 1.0")
+            logger.warning(f"Task {task_id}: last functional unit '{functional_unit}'; defaulting to 1.0 {unit_text}")
 
             flow_names['Amount'] = flow_names['flow ID'].map(
                 flow_df.set_index('flow')['functional_unit']
@@ -190,7 +190,7 @@ def run_analysis(rows):
             results.append({
                 "task_id": task_id,
                 "task_name": task_text,
-                "product": str(functional_unit) + ' ' + unit_text + ' ' + flow_text,
+                "product": f"{str(functional_unit)} {unit_text} {str(flow_text).strip()}",
                 "impact_category": impact_category,
                 "total_impact": total_impact,
                 "chart_base64": create_graph(

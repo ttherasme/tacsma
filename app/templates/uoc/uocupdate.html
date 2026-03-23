@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}TACSMA - Update Unit of conversion{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/uoc/uocupdate.css') }}" />
+{% endblock %}
+
+{% block content %}
+<section class="page-content">
+    <div class="uoc-title-wrapper">
+        <h1 class="uoc-title">Update Unit Of Conversion</h1>
+        <div id="dynamic-content">
+            <div class="dynamic-wrapper">
+                <div class="form-box" id="form-rows">
+                    <div class="form-header">
+                        <div>Name</div>
+                        <div>Factor</div>
+                        <div>SI Unit</div>
+                        <div>Category</div>
+                        <div>State</div>
+                    </div>
+
+                    <div class="form-row">
+                        {% if uoc %}
+                            <input type="hidden" class="uoc-id" value="{{ uoc.id }}">
+                            <input type="text" class="uoc-name" placeholder="Unit name" value="{{ uoc.unit_name }}">
+                            <input type="number" step="any" class="uoc-factor" value="{{ uoc.factor_to_si }}">
+                            <input type="text" class="uoc-unit" placeholder="SI Unit" value="{{ uoc.si_unit }}">
+                            <input type="text" class="uoc-category" placeholder="Unit category" value="{{ uoc.category }}">
+                            <select class="uoc-state">
+                                <option value="1" {% if uoc.is_active %}selected{% endif %}>Active</option>
+                                <option value="0" {% if not uoc.is_active %}selected{% endif %}>Inactive</option>
+                            </select>
+                        {% else %}
+                            <p>No Unit of Conversion data available.</p>
+                        {% endif %}
+                    </div>
+
+                    <div class="run-button-wrapper">
+                        <button class="run-button">Update</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/uoc/uocupdate.js') }}"></script>
+{% endblock %}

@@ -186,6 +186,40 @@ class Datasheet(db.Model):
 
     __table_args__ = (UniqueConstraint('IDT', 'IDE', 'IDS', 'IDD',
                                       name='_unique_datasheet_constraint'),)
+    
+
+class UnitConversion(db.Model):
+    __tablename__ = 'unit_conversion'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=False)
+    unit_name = db.Column(db.String(50), unique=True, nullable=False)
+    factor_to_si = db.Column(db.Float, nullable=False)
+    si_unit = db.Column(db.String(20), nullable=False)
+    category = db.Column(db.String(20), nullable=False)
+    is_active = db.Column(db.Boolean, default=True)
+
+    aliases = db.relationship(
+        'UnitAlias',
+        back_populates='unit',
+        cascade='all, delete-orphan',
+        passive_deletes=True,
+    )
+
+
+class UnitAlias(db.Model):
+    __tablename__ = 'unit_alias'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=False)
+    alias_name = db.Column(db.String(50), unique=True, nullable=False)
+    canonical_unit = db.Column(
+        db.String(50),
+        db.ForeignKey('unit_conversion.unit_name', ondelete='CASCADE', onupdate='CASCADE'),
+        nullable=False
+    )
+    is_active = db.Column(db.Boolean, default=True)
+
+    unit = db.relationship('UnitConversion', back_populates='aliases')
+
 
 # ----------------------------------------------------------------
 # LIFE CYCLE INVENTORY (LCI) BACKGROUND DATA
