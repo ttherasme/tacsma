@@ -1,183 +1,235 @@
 import numpy as np
 import pandas as pd
 import logging
+
 logger = logging.getLogger(__name__)
 
-# Function to calculate allocation factors based on the outputs
-def calculate_allocation_factors(A, process_idx):
+from .unit_conversion import unit_conversion, get_si_unit
+
+
+class ManualAllocationRequired(Exception):
+    def __init__(self, message, process_name=None, process_id=None, process_index=None, outputs=None):
+        super().__init__(message)
+        self.message = message
+        self.process_name = process_name
+        self.process_id = process_id
+        self.process_index = process_index
+        self.outputs = outputs or []
+
+
+def calculate_allocation_factors_with_units(A, retained_columns_Aa, process_idx, process_name=None, process_id=None):
     """
-    Calculate allocation factors for the outputs in a specific process column.
-    It returns both the allocation factors and the row indices of the positive outputs.
+    Automatic allocation:
+    - uses only positive outputs in the given process column
+    - all outputs must have the same SI property
+    - converts values to SI before calculating allocation factors
     """
-    # Identify the positive values in the specified process column (outputs)
-    positive_values = A[:, process_idx] > 0  # Outputs are positive values in the column
-    
-    if np.sum(positive_values) > 1:  # More than one output, we need to allocate
-        # Calculate total output using only the positive values
-        total_output = np.sum(A[positive_values, process_idx])  
-        
-        # Avoid division by zero if, somehow, the total output is zero despite multiple positive entries
-        if total_output == 0:
-            logger.warning(f"Process {process_idx} has multiple outputs but zero total value. Using uniform allocation.")
-            num_positive = np.sum(positive_values)
-            allocation_factors = np.full(num_positive, 1.0 / num_positive)
-        else:
-            # Proportion for each output (allocation factor)
-            allocation_factors = A[positive_values, process_idx] / total_output  
-        
-        # Get the row indices of the positive outputs
-        output_rows = np.where(positive_values)[0]
-        
-        return allocation_factors, output_rows
+    positive_mask = A[:, process_idx] > 0
+    output_rows = np.where(positive_mask)[0]
+
+    if len(output_rows) == 0:
+        raise ValueError(f"Process column {process_idx} has no positive outputs.")
+
+    if len(output_rows) == 1:
+        return np.array([1.0]), output_rows
+
+    raw_values = A[positive_mask, process_idx]
+    raw_units = [str(retained_columns_Aa.iloc[row, 2]).strip() for row in output_rows]
+
+    si_units = [get_si_unit(unit) for unit in raw_units]
+
+    if not all(si == si_units[0] for si in si_units):
+        outputs = []
+        for row, raw_value, raw_unit, si_unit in zip(output_rows, raw_values, raw_units, si_units):
+            outputs.append({
+                "row_index": int(row),
+                "flow_name": str(retained_columns_Aa.iloc[row, 0]),
+                "flow_id": str(retained_columns_Aa.iloc[row, 1]),
+                "raw_value": float(raw_value),
+                "raw_unit": str(raw_unit),
+                "si_unit": str(si_unit)
+            })
+
+        raise ManualAllocationRequired(
+            message=(
+                "Flows have different properties (for example mass and volume). "
+                "Automatic allocation cannot be performed."
+            ),
+            process_name=process_name,
+            process_id=process_id,
+            process_index=int(process_idx),
+            outputs=outputs
+        )
+
+    values_si = np.array([
+        float(unit_conversion(value, unit, 'SI'))
+        for value, unit in zip(raw_values, raw_units)
+    ], dtype=float)
+
+    total_output_si = np.sum(values_si)
+
+    if total_output_si == 0:
+        logger.warning(
+            f"Process {process_idx} has multiple outputs but zero total SI value. "
+            f"Using uniform allocation."
+        )
+        allocation_factors = np.full(len(values_si), 1.0 / len(values_si))
     else:
-        # If there's only one positive value, no allocation is needed (factor is 1)
-        return np.array([1.0]), np.where(positive_values)[0] 
+        allocation_factors = values_si / total_output_si
+
+    return allocation_factors, output_rows
 
 
-
-def adjust_matrix_for_multiple_outputs(Aa, Bb):
+def get_manual_allocation_factors(A, retained_columns_Aa, process_idx, provided_factors, process_id):
     """
-    This function processes the technology matrix A (Aa) and emissions matrix B (Bb) by:
-    - Identifying and retaining flow/unit columns.
-    - Identifying columns that require allocation (multifunctionality).
-    - For multifunctional columns, it calculates allocation factors and creates new,
-      allocated process columns in the adjusted matrices.
-    
-    Returns the adjusted matrices A and B (Pandas DataFrames).
+    Manual allocation:
+    - applies to positive outputs only
+    - each factor must be between 0 and 1
+    - sum must equal 1
     """
-    
-    # 1. Prepare and Convert Input Data
-    
-    # Extract the first three columns (Flow, Flow ID, SI Unit) from both Aa and Bb
-    retained_columns_Aa = Aa.iloc[0:, :3].copy()
-    retained_columns_Bb = Bb.iloc[0:, :3].copy()
+    positive_mask = A[:, process_idx] > 0
+    output_rows = np.where(positive_mask)[0]
 
-    # Extract process names and process IDs from the rest of the matrix columns
-    Process_Name_id = pd.DataFrame([Aa.columns.tolist(), Aa.iloc[0].tolist()])
-    # Transpose and filter to get only the process name/ID rows/columns
-    Process_Name_id = Process_Name_id.iloc[0:, 3:]
+    if len(output_rows) == 0:
+        raise ValueError(f"Process '{process_id}' has no positive outputs for manual allocation.")
+
+    allocation_factors = []
+    for row in output_rows:
+        flow_id = str(retained_columns_Aa.iloc[row, 1])
+
+        if flow_id not in provided_factors:
+            raise ValueError(
+                f"Missing manual allocation factor for flow_id '{flow_id}' in process '{process_id}'."
+            )
+
+        factor = float(provided_factors[flow_id])
+
+        if factor < 0 or factor > 1:
+            raise ValueError(
+                f"Manual allocation factor for flow_id '{flow_id}' must be between 0 and 1."
+            )
+
+        allocation_factors.append(factor)
+
+    allocation_factors = np.array(allocation_factors, dtype=float)
+
+    total = allocation_factors.sum()
+    if abs(total - 1.0) > 1e-6:
+        raise ValueError(
+            f"Manual allocation factors for process '{process_id}' must sum to 1."
+        )
     
-    # Extract the numerical matrix data, dropping header rows/columns and converting to float
-    A_val = Aa.iloc[0:, 3:].reset_index(drop=True)
-    B_val = Bb.iloc[0:, 3:].reset_index(drop=True)
-    
+    """ if total > 1.0000001:
+        raise ValueError(
+            f"Manual allocation factors for process '{process_id}' exceed 1."
+    ) """
+
+    return allocation_factors, output_rows
+
+
+def adjust_matrix_for_multiple_outputs(Aa, Bb, manual_allocation=None):
+    """
+    Adjust A and B matrices for multifunctionality.
+
+    manual_allocation format:
+    {
+        "process_key": {
+            "flow_id_1": 0.7,
+            "flow_id_2": 0.3
+        }
+    }
+
+    Notes:
+    - process_key is generated as: "{process_name}__col_{col}"
+    - this avoids unstable/fake ids like '0.0'
+    """
+    manual_allocation = manual_allocation or {}
+
+    retained_columns_Aa = Aa.iloc[:, :3].copy()
+    retained_columns_Bb = Bb.iloc[:, :3].copy()
+
+    process_names = Aa.columns.tolist()[3:]
+
+    A_val = Aa.iloc[:, 3:].reset_index(drop=True)
+    B_val = Bb.iloc[:, 3:].reset_index(drop=True)
+
     A = A_val.values.astype(float)
     B = B_val.values.astype(float)
-    
-    # Preserve the flow indices (row names)
-    row_names_Aa = A_val.index.tolist() 
-    row_names_Bb = B_val.index.tolist()
-    
+
     num_rows, num_columns = A.shape
     num_rowsB, num_columnsB = B.shape
-    
-    # 2. Initialize Adjusted Matrix Storage
-    new_A = []  
-    new_B = []  
-    new_column_names = []  # Stores Process_Name
-    new_column_id = []     # Stores Process_ID
 
-    # 3. Iterate and Perform Allocation
+    new_A = []
+    new_B = []
+    new_column_names = []
+    new_column_id = []
+
     for col in range(num_columns):
-        # Identify outputs (positive values) in the current process column
         is_output = A[:, col] > 0
         num_outputs = np.sum(is_output)
 
-        # ---------------------------------------------------------------------
-        # NOTE ON PREVIOUS ERROR: The following block that was causing the
-        # ValueError is REMOVED to allow allocation even with differing units.
-        # ---------------------------------------------------------------------
-        # flow_unit = [retained_columns_Aa.iloc[row, 2] for row in np.where(is_output)[0]]
-        # if all(x == flow_unit[0] for x in flow_unit):
-        #     print("Allocation to be performed") # This print statement is now meaningless and can be removed
-        # else:
-        #     raise ValueError("Flows have different properties -- Allocation not performed")
-        # ---------------------------------------------------------------------
-        
-        if num_outputs <= 1:  # No allocation required
-            # Append the original column to the new datasets (both A and B)
+        process_name = str(process_names[col])
+        process_id = f"{process_name}__col_{col}"
+
+        if num_outputs <= 1:
             new_A.append(A[:, col])
             new_B.append(B[:, col])
-            new_column_names.append(Process_Name_id.iloc[0, col])
-            new_column_id.append(Process_Name_id.iloc[1, col])
-            # print ("new column not created\n", new_column_names) # Keep for debugging if needed
-            
-        elif num_outputs > 1:  # Allocation is required
-            
-            # 3.1. Calculate allocation factors
-            allocation_factors, output_rows = calculate_allocation_factors(A, col)
-            
-            # 3.2. Create a new process column for each co-product
-            for i, factor in enumerate(allocation_factors):
-                new_column_A = np.zeros(num_rows)
-                new_column_B = np.zeros(num_rowsB)
+            new_column_names.append(process_name)
+            new_column_id.append(process_id)
+            continue
 
-                # Apply the allocation factor to the inputs (negative values in A)
-                new_column_A[A[:, col] < 0] = A[A[:, col] < 0, col] * factor
-                
-                # Apply the allocation factor to the emissions in matrix B
-                new_column_B = B[:, col] * factor
+        try:
+            allocation_factors, output_rows = calculate_allocation_factors_with_units(
+                A,
+                retained_columns_Aa,
+                col,
+                process_name=process_name,
+                process_id=process_id
+            )
+        except ManualAllocationRequired as e:
+            if process_id in manual_allocation:
+                provided_factors = manual_allocation[process_id]
+                allocation_factors, output_rows = get_manual_allocation_factors(
+                    A,
+                    retained_columns_Aa,
+                    col,
+                    provided_factors,
+                    process_id
+                )
+            else:
+                raise e
 
-                # Set the corresponding output value in the new column of A 
-                # (Set the target output to its original value, all others to zero in this new column)
-                
-                # Set all outputs to zero first (Inputs are already handled)
-                new_column_A[output_rows] = 0.0
-                
-                # Set the specific output for this new column (the product being allocated to)
-                new_column_A[output_rows[i]] = A[output_rows[i], col]
+        for i, factor in enumerate(allocation_factors):
+            new_column_A = np.zeros(num_rows)
+            new_column_B = np.zeros(num_rowsB)
 
-                # Add the new columns to the new datasets
-                new_A.append(new_column_A)
-                new_B.append(new_column_B)
-                
-                # Add the process name and ID for the new output
-                original_name = Process_Name_id.iloc[0, col]
-                original_id = Process_Name_id.iloc[1, col]
-                
-                new_column_names.append(f"{original_name}_output_{i+1}")
-                new_column_id.append(f"{original_id}_{i+1}")
-    
-    # 4. Final Assembly
-    
-    # Convert lists of arrays to numpy arrays
-    if not new_A:
-        new_A = np.zeros((num_rows, 0))
-    else:
-        new_A = np.column_stack(new_A)
-        
-    if not new_B:
-        new_B = np.zeros((num_rowsB, 0))
-    else:
-        new_B = np.column_stack(new_B)
+            # Allocate inputs only (negative values in A)
+            new_column_A[A[:, col] < 0] = A[A[:, col] < 0, col] * factor
 
-    # Padding to match row numbers before concatenation
-    if len(retained_columns_Aa) != new_A.shape[0]:
-        row_diff_A = len(retained_columns_Aa) - new_A.shape[0]
-        new_A = np.pad(new_A, ((0, row_diff_A), (0, 0)), mode='constant', constant_values=0)
-    
-    if len(retained_columns_Bb) != new_B.shape[0]:
-        row_diff_B = len(retained_columns_Bb) - new_B.shape[0]
-        new_B = np.pad(new_B, ((0, row_diff_B), (0, 0)), mode='constant', constant_values=0)
-    
-    # Concatenate the retained columns (Flow, Flow ID, SI Unit) with the new process columns
-    final_A = np.column_stack([retained_columns_Aa.values, new_A])
-    final_B = np.column_stack([retained_columns_Bb.values, new_B])
-    
-    # Create column headers for the final DataFrame
-    final_columns = retained_columns_Aa.columns.tolist() + new_column_names
-    
-    # Assign to final DataFrames
-    final_A_df = pd.DataFrame(final_A, columns=final_columns)
-    final_B_df = pd.DataFrame(final_B, columns=final_columns)
-    
-    # Assign flow indices (row names). Note: Your original code used index values, 
-    # but the adjusted matrix should use the flow names from the retained columns.
-    # We use the original index to preserve row order, if it exists.
-    final_A_df.index = final_A_df.index
-    final_B_df.index = final_B_df.index
-    
-    logger.info("Final A Matrix with Process Names/IDs and Flow Names:\n" + final_A_df.to_string())
-    logger.info("\nFinal B Matrix with Process Names/IDs and Flow Names:\n" + final_B_df.to_string())
-    
-    return final_A_df, final_B_df
+            # Allocate B entirely by factor
+            new_column_B = B[:, col] * factor
+
+            # Keep only one output in each split column
+            new_column_A[output_rows] = 0.0
+            new_column_A[output_rows[i]] = A[output_rows[i], col]
+
+            new_A.append(new_column_A)
+            new_B.append(new_column_B)
+
+            output_flow_name = str(retained_columns_Aa.iloc[output_rows[i], 0])
+            new_column_names.append(f"{process_name} - {output_flow_name}")
+            new_column_id.append(f"{process_id}_{i+1}")
+
+    adjusted_A_val = pd.DataFrame(np.column_stack(new_A), columns=new_column_names)
+    adjusted_B_val = pd.DataFrame(np.column_stack(new_B), columns=new_column_names)
+
+    adjusted_A = pd.concat(
+        [retained_columns_Aa.reset_index(drop=True), adjusted_A_val.reset_index(drop=True)],
+        axis=1
+    )
+    adjusted_B = pd.concat(
+        [retained_columns_Bb.reset_index(drop=True), adjusted_B_val.reset_index(drop=True)],
+        axis=1
+    )
+
+    return adjusted_A, adjusted_B

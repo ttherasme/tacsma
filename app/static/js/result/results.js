@@ -1,12 +1,15 @@
-//results.js
+// results.js
 document.addEventListener("DOMContentLoaded", () => {
     const container = document.getElementById("dynamic-content");
 
     // --- Global Variables ---
     let taskData = null;
-    let fullAnalysisResults = null; // Stores data from the /results/graph endpoint
+    let fullAnalysisResults = null;
     let visualizationTasks = [];
-    let rowData = []; // MOVED OUTSIDE runButton LISTENER TO BE ACCESSIBLE by visualizeButton
+    let rowData = [];
+
+    let pendingAnalysisRows = null;
+    let pendingManualAllocationItem = null;
 
     // --- Constants for Selectors ---
     const TASK_SELECT_CLASS = "task-select";
@@ -17,11 +20,28 @@ document.addEventListener("DOMContentLoaded", () => {
     const IMPACT_CATEGORY_SELECT_CLASS = "impact-category-select";
     const DELETE_ROW_CLASS = "delete-row";
 
+    const manualCloseBtn = document.getElementById('manualAllocationCloseBtn');
+    if (manualCloseBtn) {
+        manualCloseBtn.addEventListener('click', closeManualAllocationModal);
+    }
+
+    const manualModal = document.getElementById('manualAllocationModal');
+    if (manualModal) {
+        manualModal.addEventListener('click', function (e) {
+            if (e.target === manualModal) {
+                closeManualAllocationModal();
+            }
+        });
+    }
+
+
+    /* const closeBtn = document.getElementById('manualAllocationCloseBtn');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeManualAllocationModal);
+    } */
+
     // --- Helper Functions ---
 
-    /**
-     * Helper to build HTML table from array of objects (e.g., individual contribution table)
-     */
     function buildTableFromData(data) {
         if (!data || data.length === 0) {
             return '<p>No contribution data available.</p>';
@@ -29,9 +49,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
         let tableHtml = '<table class="table table-bordered table-striped"><thead><tr>';
         const headers = Object.keys(data[0]);
+
         headers.forEach(header => {
-            tableHtml += `<th>${header.replace('_', ' ').charAt(0).toUpperCase() + header.replace('_', ' ').slice(1)}</th>`;
+            const label = header.replace(/_/g, ' ');
+            tableHtml += `<th>${label.charAt(0).toUpperCase() + label.slice(1)}</th>`;
         });
+
         tableHtml += '</tr></thead><tbody>';
 
         data.forEach(row => {
@@ -48,10 +71,6 @@ document.addEventListener("DOMContentLoaded", () => {
         return tableHtml;
     }
 
-    /**
-     * Helper to build the Comparison Table (Process Names as rows, Tasks as columns)
-     * MODIFIED: To create a three-row header structure.
-     */
     function buildComparisonTable(data) {
         if (!data || data.length === 0) {
             return '<p class="text-muted">No combined contribution data available for comparison.</p>';
@@ -61,60 +80,67 @@ document.addEventListener("DOMContentLoaded", () => {
         const allKeys = Object.keys(df[0]);
         const taskColumns = allKeys.filter(key => key !== 'Process');
 
-        // Look up task-specific details (product, unit, impact category) from fullAnalysisResults
         const taskDetails = {};
         if (fullAnalysisResults && fullAnalysisResults.individual_results) {
             fullAnalysisResults.individual_results.forEach(result => {
-                // The task key in the combined table is the Task Name (e.g., 'Task 1500 (1.0 Kg Logs, 1)')
-                // We use this full string to match, but only the 'Task Name' part is the column name.
-                // We'll need to use the full name as the key, but extract the column name part for the map.
+                if (result.requires_manual_allocation) return;
+                if (result.error) return;
 
-                // The column name is just the task name, e.g., 'Task 1500'
-                // We need to reliably map 'Task 1500' to the full product/impact details.
-                const fullTaskName = result.task_name; // e.g., 'Task 1500 (1.0 Kg Logs, 1)'
-
-                // Find the task ID and name from the rowData
-                const matchingRow = rowData.find(row => fullTaskName.startsWith(row.taskText));
-                const columnName = matchingRow ? matchingRow.taskText : fullTaskName.split(' ')[0]; // Fallback
-
+                const columnName = result.task_name;
                 taskDetails[columnName] = {
-                    product: result.product || '', // e.g., '1.0 Kg Logs, 1'
-                    impact_category: result.impact_category || '' // e.g., 'GWP'
+                    product: result.product || '',
+                    impact_category: result.impact_category || '',
+                    flow_name: result.flow_name || '',
+                    entered_value: result.entered_value ?? '',
+                    entered_unit: result.entered_unit || '',
+                    calculation_value_si: result.calculation_value_si ?? '',
+                    calculation_unit_si: result.calculation_unit_si || ''
                 };
             });
         }
 
+        let tableHtml = '';
+        tableHtml += '<table class="table table-bordered table-striped comparison-table">';
+        tableHtml += '<thead>';
 
-        let tableHtml = '<table class="table table-bordered table-striped comparison-table"><thead><tr>';
-
-        // Header Row
-        tableHtml += '<th>Process</th>';
+        // Row 1: task names
+        tableHtml += '<tr><th>Process</th>';
         taskColumns.forEach(task => {
-            const details = taskDetails[task] || { product: 'N/A', impact_category: 'N/A' };
-            //const functionalUnitText = details.product; // Use the full product string for the unit row
-            const functionalUnitText = (details.product || '').replace(/\s+/g, ' ').trim();
-
-            tableHtml += `<th class="task-header-multi-row">
-                <div class="header-row-wrapper">
-                    <div class="task-name-row">${task}</div>
-                    <div class="functional-unit-row">${functionalUnitText}</div>
-                    <div class="impact-category-row">${details.impact_category}</div>
-                </div>
-            </th>`;
+            tableHtml += `<th>${task}</th>`;
         });
-        tableHtml += '</tr></thead><tbody>';
+        tableHtml += '</tr>';
 
-        // Data Rows
+        // Row 2: product / FU
+        tableHtml += '<tr><th></th>';
+        taskColumns.forEach(task => {
+            const details = taskDetails[task] || { product: 'N/A' };
+            const functionalUnitText = (details.product || '').replace(/\s+/g, ' ').trim();
+            tableHtml += `<th>${functionalUnitText || 'N/A'}</th>`;
+        });
+        tableHtml += '</tr>';
+
+        // Row 3: impact category
+        tableHtml += '<tr><th></th>';
+        taskColumns.forEach(task => {
+            const details = taskDetails[task] || { impact_category: 'N/A' };
+            tableHtml += `<th>${details.impact_category || 'N/A'}</th>`;
+        });
+        tableHtml += '</tr>';
+
+        tableHtml += '</thead>';
+        tableHtml += '<tbody>';
+
         df.forEach(row => {
             tableHtml += '<tr>';
-            tableHtml += `<td>${row['Process']}</td>`; // The Process Name
+            tableHtml += `<td>${row['Process']}</td>`;
+
             taskColumns.forEach(task => {
                 const contribution = row[task];
-                const displayValue = (typeof contribution === 'number')
-                    ? contribution.toFixed(4)
-                    : '0.0000';
+                const displayValue =
+                    (typeof contribution === 'number') ? contribution.toFixed(4) : '0.0000';
                 tableHtml += `<td>${displayValue}</td>`;
             });
+
             tableHtml += '</tr>';
         });
 
@@ -122,7 +148,6 @@ document.addEventListener("DOMContentLoaded", () => {
         return tableHtml;
     }
 
-    // Function to fetch flows for a specific task ID
     async function fetchFlowsForTask(idTask) {
         if (!idTask) return { success: true, flows: [] };
 
@@ -131,15 +156,212 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!res.ok) {
                 throw new Error(`HTTP error! Status: ${res.status}`);
             }
-            const data = await res.json();
-            return data;
+            return await res.json();
         } catch (err) {
             console.error("Error fetching flows:", err);
             return { success: false, flows: [] };
         }
     }
 
-    // Generates a single form row
+    function collectManualAllocationValues() {
+        const inputs = document.querySelectorAll('.allocation-input');
+        const allocationMap = {};
+        let sum = 0;
+
+        inputs.forEach(input => {
+            const raw = input.value.trim();
+            const value = raw === '' ? 0 : parseFloat(raw);
+
+            if (!Number.isFinite(value)) {
+                throw new Error('Allocation factors must be valid numbers.');
+            }
+
+            if (value < 0 || value > 1) {
+                throw new Error('Each allocation factor must be between 0 and 1.');
+            }
+
+            allocationMap[input.dataset.flowId] = value;
+            sum += value;
+        });
+
+        return { allocationMap, sum };
+    }
+
+    function attachManualAllocationToRows(rows, manualItem, allocationMap) {
+        const updatedRows = JSON.parse(JSON.stringify(rows));
+
+        const targetRow = updatedRows.find(
+            r => String(r.taskText) === String(manualItem.task_name)
+        );
+
+        if (!targetRow) {
+            throw new Error('Could not match manual allocation task row.');
+        }
+
+        if (!targetRow.manual_allocation) {
+            targetRow.manual_allocation = {};
+        }
+
+        targetRow.manual_allocation[String(manualItem.process_id)] = allocationMap;
+
+        return updatedRows;
+    }
+
+    function openManualAllocationModal(item) {
+        const modalEl = document.getElementById('manualAllocationModal');
+        const messageEl = document.getElementById('manualAllocationMessage');
+        const fieldsEl = document.getElementById('manualAllocationFields');
+        const errorEl = document.getElementById('manualAllocationError');
+
+        if (!modalEl || !messageEl || !fieldsEl || !errorEl) {
+            console.error('Manual allocation modal elements not found.');
+            return;
+        }
+
+        messageEl.innerText = `${item.message} Process: ${item.process_name || ''}`;
+        fieldsEl.innerHTML = '';
+        errorEl.innerText = '';
+
+        (item.outputs || []).forEach(output => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'mb-3';
+
+            wrapper.innerHTML = `
+                <label>
+                    ${output.flow_name} (${output.raw_value} ${output.raw_unit})
+                </label>
+                <input
+                    type="number"
+                    class="allocation-input"
+                    data-flow-id="${output.flow_id}"
+                    min="0"
+                    max="1"
+                    step="0.0001"
+                    value=""
+                />
+                <small>SI property: ${output.si_unit}</small>
+            `;
+
+            fieldsEl.appendChild(wrapper);
+        });
+
+        modalEl.classList.add('show');
+        modalEl.style.display = 'flex';
+        modalEl.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeManualAllocationModal() {
+        const modalEl = document.getElementById('manualAllocationModal');
+        if (!modalEl) return;
+
+        modalEl.classList.remove('show');
+        modalEl.style.display = 'none';
+        modalEl.setAttribute('aria-hidden', 'true');
+    }
+
+
+    function handleAnalysisResponseWithManualAllocation(response, originalRows, renderCallback) {
+        console.log("Full analysis response:", response);
+
+        const individualResults = response && response.individual_results
+            ? response.individual_results
+            : [];
+
+        console.log("individualResults:", individualResults);
+
+        const manualItem = individualResults.find(
+            item => item.requires_manual_allocation === true
+        );
+
+        console.log("manualItem found:", manualItem);
+
+        if (manualItem) {
+            pendingAnalysisRows = JSON.parse(JSON.stringify(originalRows));
+            pendingManualAllocationItem = manualItem;
+            openManualAllocationModal(manualItem);
+            return false;
+        }
+
+        renderCallback(response);
+        return true;
+    }
+
+    async function submitAnalysisRows(rows, renderCallback) {
+        const response = await fetch("/graph_results", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ rows: rows })
+        });
+
+        if (!response.ok) {
+            const text = await response.text();
+            throw new Error(`Analysis request failed: ${text || response.status}`);
+        }
+
+        const data = await response.json();
+
+        return handleAnalysisResponseWithManualAllocation(
+            data,
+            rows,
+            renderCallback
+        );
+    }
+
+    function setupManualAllocationSaveButton(renderCallback) {
+        const saveBtn = document.getElementById('saveManualAllocationBtn');
+        if (!saveBtn) {
+            console.error('saveManualAllocationBtn not found.');
+            return;
+        }
+
+        saveBtn.addEventListener('click', async function () {
+            const errorEl = document.getElementById('manualAllocationError');
+            const loadingSpinner = document.getElementById("loading-spinner");
+            const runButton = document.querySelector(".run-button");
+
+            errorEl.innerText = '';
+
+            if (!pendingAnalysisRows || !pendingManualAllocationItem) {
+                errorEl.innerText = 'No pending allocation request found.';
+                return;
+            }
+
+            try {
+                const { allocationMap, sum } = collectManualAllocationValues();
+
+                if (Math.abs(sum - 1) > 0.000001) {
+                    errorEl.innerText = 'The sum of allocation factors must equal 1.';
+                    return;
+                }
+
+                const rerunRows = attachManualAllocationToRows(
+                    pendingAnalysisRows,
+                    pendingManualAllocationItem,
+                    allocationMap
+                );
+
+                closeManualAllocationModal();   // <-- IMPORTANT
+
+                if (loadingSpinner) loadingSpinner.style.display = 'block';
+                if (runButton) runButton.disabled = true;
+
+                const finished = await submitAnalysisRows(rerunRows, renderCallback);
+
+                if (finished) {
+                    pendingAnalysisRows = null;
+                    pendingManualAllocationItem = null;
+                }
+
+            } catch (err) {
+                console.error(err);
+                errorEl.innerText = err.message || 'Could not continue analysis.';
+            } finally {
+                if (loadingSpinner) loadingSpinner.style.display = 'none';
+                if (runButton) runButton.disabled = false;
+            }
+        });
+    }
+
     function generateFormRow(isInitialRow = false) {
         const row = document.createElement("div");
         row.className = "form-row";
@@ -194,7 +416,6 @@ document.addEventListener("DOMContentLoaded", () => {
         return row;
     }
 
-    // Populate selects and link unit name/task/flow selects dynamically
     function populateAndLinkSelects(rowElement) {
         const taskSelect = rowElement.querySelector(`.${TASK_SELECT_CLASS}`);
         const flowSelect = rowElement.querySelector(`.${FLOW_SELECT_CLASS}`);
@@ -206,8 +427,6 @@ document.addEventListener("DOMContentLoaded", () => {
         unitNameSelect.disabled = true;
         unitSelect.disabled = true;
 
-
-        // Populate task dropdown
         if (taskData) {
             taskSelect.innerHTML = '<option value="" disabled selected>Select a task...</option>';
             taskData.forEach(task => {
@@ -218,16 +437,13 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         }
 
-        // Initialize flow dropdown
         flowSelect.innerHTML = '<option value="" disabled selected>Select a task first</option>';
 
-        // Task change listener
         taskSelect.addEventListener("change", async (event) => {
             const selectedTaskId = event.target.value;
             flowSelect.innerHTML = '<option value="" disabled selected>Loading flows...</option>';
 
             if (selectedTaskId) {
-                // RESET units when task changes
                 unitNameSelect.innerHTML = '<option value="">Select a flow first</option>';
                 unitSelect.innerHTML = '<option value="">Select...</option>';
                 unitNameSelect.disabled = true;
@@ -253,15 +469,11 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
 
-        // Populate unit name dropdown
-        // --- FLOW CHANGE → LOAD UOMS ---
         flowSelect.addEventListener("change", async (event) => {
             const selectedFlowId = event.target.value;
 
-            // Reset selects
             unitNameSelect.innerHTML = '<option value="">Loading...</option>';
             unitSelect.innerHTML = '<option value="">Select...</option>';
-
             unitNameSelect.disabled = true;
             unitSelect.disabled = true;
 
@@ -279,7 +491,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     return;
                 }
 
-                // Cache UOMs for this row only
                 rowElement._uoms = data.uoms;
 
                 const distinctUNames = [...new Set(data.uoms.map(u => u.UName))];
@@ -319,16 +530,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
             unitSelect.disabled = false;
         });
-
-
     }
 
-    // Function to handle the print action
     function printResults() {
         const resultsContent = document.getElementById("results-output");
         if (!resultsContent || resultsContent.style.display === 'none') {
-             alert("Please run the analysis first to generate results for printing.");
-             return;
+            alert("Please run the analysis first to generate results for printing.");
+            return;
         }
 
         const printWindow = window.open('', '_blank');
@@ -341,24 +549,25 @@ document.addEventListener("DOMContentLoaded", () => {
         printWindow.document.write('#print-results-button, .visualization-controls, .results-flex-container > div:not(.comparison-table-wrapper):not(.visualization-area), .comparison-table-wrapper h3 { display: none !important; }');
         printWindow.document.write('.results-flex-container { flex-direction: column !important; }');
         printWindow.document.write('</style>');
-
         printWindow.document.write('</head><body>');
 
-        // Create a dedicated print container to isolate content
         const printContainer = document.createElement('div');
         printContainer.innerHTML = '<h2>Results Summary & Comparison</h2>';
-        
-        // Clone the relevant parts and append to the print container
-        const comparisonTableArea = document.getElementById('comparison-table-area').cloneNode(true);
-        const chartAreaElement = document.getElementById('chart-area').cloneNode(true);
 
-        // Append the comparison table and chart
+        const comparisonTableArea = document.getElementById('comparison-table-area')?.cloneNode(true);
+        const chartAreaElement = document.getElementById('chart-area')?.cloneNode(true);
+
         if (comparisonTableArea) {
-            printContainer.appendChild(document.createElement('h3')).textContent = "Combined Process Contribution Comparison";
+            const title = document.createElement('h3');
+            title.textContent = "Combined Process Contribution Comparison";
+            printContainer.appendChild(title);
             printContainer.appendChild(comparisonTableArea);
         }
+
         if (chartAreaElement && chartAreaElement.querySelector('img')) {
-            printContainer.appendChild(document.createElement('h3')).textContent = "Contribution Analysis Chart";
+            const title = document.createElement('h3');
+            title.textContent = "Contribution Analysis Chart";
+            printContainer.appendChild(title);
             printContainer.appendChild(chartAreaElement);
         }
 
@@ -368,8 +577,6 @@ document.addEventListener("DOMContentLoaded", () => {
         printWindow.print();
     }
 
-
-    // Generate the main form HTML and attach event listeners
     function generateMainForm() {
         let formRowsContainer;
         let addRowButton;
@@ -383,7 +590,6 @@ document.addEventListener("DOMContentLoaded", () => {
         let comparisonTableAreaElement;
         let chartTitleElement;
 
-        // Injected HTML template - MODIFIED FOR NEW LAYOUT
         container.innerHTML = `
             <div class="dynamic-wrapper">
                 <div class="form-header-top">
@@ -405,9 +611,9 @@ document.addEventListener("DOMContentLoaded", () => {
                     <div class="run-button-wrapper-alone">
                         <button type="button" class="run-button">Run Analysis</button>
                     </div>
-
                 </div>
             </div>
+
             <div id="loading-spinner" class="text-center my-3" style="display: none;">
                 <div class="spinner-border text-primary" role="status">
                     <span class="visually-hidden">Loading...</span>
@@ -420,9 +626,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 <h3>Individual Task Summaries</h3>
                 <div id="summary-section"></div>
-                
+
                 <div class="results-flex-container">
-                    
                     <div class="comparison-table-wrapper">
                         <h3>Combined Process Contribution Comparison</h3>
                         <div id="comparison-table-area" class="table-responsive bg-white p-2 border mb-4"></div>
@@ -438,17 +643,14 @@ document.addEventListener("DOMContentLoaded", () => {
                             <button type="button" id="visualize-task-button" class="visualize-button">Visualize</button>
                             <button type="button" id="print-results-button" class="print-button">Print Result</button>
                         </div>
-                        
-                        <div id="visualization-chart-title" class="text-center">
-                            </div>
-                        <div id="chart-area" class="text-center">
-                            </div>
+
+                        <div id="visualization-chart-title" class="text-center"></div>
+                        <div id="chart-area" class="text-center"></div>
                     </div>
                 </div>
             </div>
         `;
 
-        // Get References to the new elements
         formRowsContainer = document.getElementById("form-rows");
         addRowButton = document.getElementById("add-row");
         runButton = document.querySelector(".run-button");
@@ -463,57 +665,111 @@ document.addEventListener("DOMContentLoaded", () => {
         comparisonTableAreaElement = document.getElementById("comparison-table-area");
         chartTitleElement = document.getElementById("visualization-chart-title");
 
-        // Populate chart and theme selects
-        vizChartSelect.innerHTML = `
-            <!-- <option value="" disabled selected>Chart type...</option> -->
-            <option value="pie" selected>Pie</option>
-            <option value="bar">Bar</option>
-            <option value="line">Line</option>
-            <option value="scatter">Scatter</option>
-        `;
-
-         vizThemeSelect.innerHTML = `
-            <!-- <option value="" disabled selected>Theme...</option> -->
-            <option value="vibrant" selected>Vibrant</option>
-            <option value="pastel">Pastel</option>
-            <option value="grayscale">Grayscale</option>
-        `;
-
-        // --- UI Setup & Listeners ---
-
-        // Add initial row
-        formRowsContainer.appendChild(generateFormRow(true));
-
-        // Enable button after form is generated and data is loaded
-        if (taskData) {
-            addRowButton.disabled = false;
-        }
-
-        // Add new rows on button click
-        addRowButton.addEventListener("click", () => {
-            formRowsContainer.appendChild(generateFormRow());
-        });
-
-        // Add Print Button Listener
-        printButton.addEventListener("click", printResults);
-
-        // Populate Visualization Task Select
         function populateVizTaskSelect() {
             vizTaskSelect.innerHTML = '<option value="" disabled selected>Select a Task...</option>';
             if (visualizationTasks.length > 0) {
-                 visualizationTasks.forEach(task => {
+                visualizationTasks.forEach(task => {
                     const option = document.createElement("option");
                     option.value = task.IDT;
                     option.textContent = task.TName;
                     vizTaskSelect.appendChild(option);
                 });
             } else {
-                 vizTaskSelect.innerHTML = '<option value="" disabled selected>Run Analysis First</option>';
+                vizTaskSelect.innerHTML = '<option value="" disabled selected>Run Analysis First</option>';
             }
         }
 
-        // Visualize Button Listener (FIXED: Uses rowData to reconstruct server's expected task name)
-       visualizeButton.addEventListener("click", () => {
+        function renderAnalysisResults(data) {
+            if (data.error) {
+                alert(`Server Error: ${data.error}`);
+                console.error("Server Error:", data.error);
+                return;
+            }
+
+            fullAnalysisResults = data;
+            resultsContainer.style.display = 'block';
+
+            const individualResults = data.individual_results || [];
+            const combinedTableData = data.combined_contribution_table || [];
+
+            let summaryHtml = '';
+            individualResults.forEach(result => {
+                try {
+                    if (result.requires_manual_allocation) {
+                        return;
+                    }
+
+                    if (result.error) {
+                        summaryHtml += `<div class="alert alert-danger mb-3"><strong>Error for ${result.task_name || 'Task'}:</strong> ${result.error}</div>`;
+                        return;
+                    }
+
+                    const totalImpact = (typeof result.total_impact === 'number')
+                        ? result.total_impact.toFixed(4)
+                        : 'N/A';
+
+                    const contributionTableHtml = result.contribution_table
+                        ? buildTableFromData(result.contribution_table)
+                        : '<p class="text-warning">No detailed contribution data.</p>';
+
+                    summaryHtml += `
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <h5>Task: ${result.task_name} (${result.product})</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="alert alert-info">
+                                    <strong>Total ${result.impact_category} Impact:</strong> ${totalImpact}
+                                </div>
+                                <h6>Process Contributions:</h6>
+                                <div class="table-responsive">
+                                    ${contributionTableHtml}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } catch (e) {
+                    console.error("Client-Side Error processing individual result:", result, e);
+                    summaryHtml += `<div class="alert alert-danger mb-3"><strong>Client-Side Error:</strong> Could not display result for ${result.task_name || 'Task'}. See console.</div>`;
+                }
+            });
+
+            document.getElementById('summary-section').innerHTML =
+                summaryHtml || '<p class="text-warning">No successful analysis results were returned.</p>';
+
+            comparisonTableAreaElement.innerHTML = buildComparisonTable(combinedTableData);
+            populateVizTaskSelect();
+
+            chartArea.innerHTML = '<p class="text-muted text-center">Select a task, a chart type, and/or a theme, and click "Visualize" to see the chart.</p>';
+            chartTitleElement.innerHTML = '';
+        }
+
+        vizChartSelect.innerHTML = `
+            <option value="pie" selected>Pie</option>
+            <option value="bar">Bar</option>
+            <option value="line">Line</option>
+            <option value="scatter">Scatter</option>
+        `;
+
+        vizThemeSelect.innerHTML = `
+            <option value="vibrant" selected>Vibrant</option>
+            <option value="pastel">Pastel</option>
+            <option value="grayscale">Grayscale</option>
+        `;
+
+        formRowsContainer.appendChild(generateFormRow(true));
+
+        if (taskData) {
+            addRowButton.disabled = false;
+        }
+
+        addRowButton.addEventListener("click", () => {
+            formRowsContainer.appendChild(generateFormRow());
+        });
+
+        printButton.addEventListener("click", printResults);
+
+        visualizeButton.addEventListener("click", () => {
             const selectedTaskId = vizTaskSelect.value;
             const selectedTaskName = vizTaskSelect.options[vizTaskSelect.selectedIndex]?.text;
             const selectedChartType = vizChartSelect.value;
@@ -546,6 +802,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     return;
                 }
 
+                if (taskResult.requires_manual_allocation) {
+                    chartArea.innerHTML = `<p class="text-danger">Complete the manual allocation first.</p>`;
+                    visualizeButton.disabled = false;
+                    return;
+                }
+
                 const selectedTaskContribution = taskResult.contribution_table || [];
 
                 fetch('/graph_results_single', {
@@ -559,19 +821,21 @@ document.addEventListener("DOMContentLoaded", () => {
                         theme: selectedChartTheme
                     })
                 })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.chart_base64) {
-                        chartArea.innerHTML = `<img id="chart-container" src="data:image/png;base64,${data.chart_base64}" alt="Chart"/>`;
-                    } else {
-                        chartArea.innerHTML = `<p class="text-danger">Chart generation failed.</p>`;
-                    }
-                })
-                .catch(err => {
-                    chartArea.innerHTML = `<p class="text-danger">Error generating chart.</p>`;
-                    console.error(err);
-                })
-                .finally(() => visualizeButton.disabled = false);
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.chart_base64) {
+                            chartArea.innerHTML = `<img id="chart-container" src="data:image/png;base64,${data.chart_base64}" alt="Chart"/>`;
+                        } else {
+                            chartArea.innerHTML = `<p class="text-danger">Chart generation failed.</p>`;
+                        }
+                    })
+                    .catch(err => {
+                        chartArea.innerHTML = `<p class="text-danger">Error generating chart.</p>`;
+                        console.error(err);
+                    })
+                    .finally(() => {
+                        visualizeButton.disabled = false;
+                    });
 
             } else {
                 chartArea.innerHTML = '<p class="text-danger">Please run the main analysis first.</p>';
@@ -579,32 +843,25 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
 
-
-        // --- Run Analysis Button Listener ---
-        runButton.addEventListener("click", () => {
-            // 1. Initial UI setup/cleanup
+        runButton.addEventListener("click", async () => {
             runButton.disabled = true;
             loadingSpinner.style.display = 'block';
             resultsContainer.style.display = 'none';
             document.getElementById('summary-section').innerHTML = '';
             comparisonTableAreaElement.innerHTML = '';
             chartArea.innerHTML = '<p class="text-muted text-center">Select a task, a chart type, and/or a theme, and click "Visualize" to see the chart.</p>';
-            chartTitleElement.innerHTML = ''; // Clear chart title
+            chartTitleElement.innerHTML = '';
 
-            // 2. Data Collection and Validation
             const rows = [...document.querySelectorAll(".form-row")];
-            
-            // Populating the globally accessible rowData
-            rowData = rows.map(row => { 
+
+            rowData = rows.map(row => {
                 const taskSelect = row.querySelector(`.${TASK_SELECT_CLASS}`);
                 const flowSelect = row.querySelector(`.${FLOW_SELECT_CLASS}`);
                 const numberInput = row.querySelector(`.${FUNCTIONAL_UNIT_CLASS}`);
                 const unitSelect = row.querySelector(`.${UNIT_SELECT_CLASS}`);
                 const impactCategorySelect = row.querySelector(`.${IMPACT_CATEGORY_SELECT_CLASS}`);
 
-                // Collecting Displayed Text
                 const taskText = taskSelect?.options[taskSelect.selectedIndex]?.text || null;
-                //const flowText = flowSelect?.options[flowSelect.selectedIndex]?.text || null;
                 const selectedFlowOption = flowSelect?.options[flowSelect.selectedIndex];
                 const flowText = selectedFlowOption?.dataset.ename || null;
                 const unitText = unitSelect?.options[unitSelect.selectedIndex]?.text || null;
@@ -621,7 +878,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 };
             });
 
-            const isValid = rowData.every(row => row.task && row.flow && row.functional_unit && row.unit && row.impact_category);
+            const isValid = rowData.every(row =>
+                row.task && row.flow && row.functional_unit && row.unit && row.impact_category
+            );
 
             if (!isValid) {
                 alert("Please select a Task, Flow, Functional unit value, and Unit for all rows before running the analysis.");
@@ -630,140 +889,58 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
-            // Collect unique tasks for the visualization dropdown
             const uniqueTasks = new Map();
             rows.forEach(row => {
                 const taskSelect = row.querySelector(`.${TASK_SELECT_CLASS}`);
                 if (taskSelect.value) {
-                    uniqueTasks.set(taskSelect.value, taskSelect.options[taskSelect.selectedIndex].text);
+                    uniqueTasks.set(
+                        taskSelect.value,
+                        taskSelect.options[taskSelect.selectedIndex].text
+                    );
                 }
             });
+
             visualizationTasks = Array.from(uniqueTasks, ([IDT, TName]) => ({ IDT, TName }));
 
+            try {
+                const finished = await submitAnalysisRows(rowData, renderAnalysisResults);
 
-            // 3. Fetch Request
-            fetch("/graph_results", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ rows: rowData })
-            })
-            .then(res => {
-                if (!res.ok) {
-                    const status = res.status;
-                    return res.text().then(text => {
-                        throw new Error(`Server returned HTTP ${status}: ${text || 'Unknown Error'}`);
-                    });
+                if (finished) {
+                    pendingAnalysisRows = null;
+                    pendingManualAllocationItem = null;
                 }
-                return res.json().catch(err => {
-                    throw new Error(`Failed to parse server response as JSON. Check network response. (${err.message})`);
-                });
-            })
-            .then(data => {
-                // --- SUCCESS PATH ---
-
-                if (data.error) {
-                    alert(`Server Error: ${data.error}`);
-                    console.error("Server Error:", data.error);
-                    return; 
-                }
-
-                // CRITICAL: Store the successful full analysis data
-                fullAnalysisResults = data;
-
-                resultsContainer.style.display = 'block';
-                const individualResults = data.individual_results || [];
-                const combinedTableData = data.combined_contribution_table || [];
-
-                // 4. Display Individual Results Summary (hidden by CSS)
-                let summaryHtml = '';
-                individualResults.forEach(result => {
-                    try {
-                        if (result.error) {
-                            summaryHtml += `<div class="alert alert-danger mb-3"><strong>Error for ${result.task_name || 'Task'}:</strong> ${result.error}</div>`;
-                            return;
-                        }
-
-                        const totalImpact = (typeof result.total_impact === 'number')
-                            ? result.total_impact.toFixed(4)
-                            : 'N/A';
-                        const contributionTableHtml = result.contribution_table
-                            ? buildTableFromData(result.contribution_table)
-                            : '<p class="text-warning">No detailed contribution data.</p>';
-                        
-                        // NOTE: This entire section is hidden by the new CSS but remains for functional correctness
-                        summaryHtml += `
-                            <div class="card mb-3">
-                                <div class="card-header bg-light">
-                                    <h5>Task: ${result.task_name} (${result.product})</h5>
-                                </div>
-                                <div class="card-body">
-                                    <div class="alert alert-info">
-                                        <strong>Total ${result.impact_category} Impact:</strong> ${totalImpact}
-                                    </div>
-                                    <h6>Process Contributions:</h6>
-                                    <div class="table-responsive">
-                                        ${contributionTableHtml}
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                    } catch (e) {
-                        console.error("Client-Side Error processing individual result:", result, e);
-                        summaryHtml += `<div class="alert alert-danger mb-3"><strong>Client-Side Error:</strong> Could not display result for ${result.task_name || 'Task'}. See console.</div>`;
-                    }
-                });
-
-                document.getElementById('summary-section').innerHTML = summaryHtml || '<p class="text-warning">No successful analysis results were returned.</p>';
-
-
-                // 5. Display Combined Comparison Table (Uses the modified function)
-                comparisonTableAreaElement.innerHTML = buildComparisonTable(combinedTableData);
-
-
-                // 6. Update the visualization task select
-                populateVizTaskSelect();
-
-                // Reset the chart area message
-                chartArea.innerHTML = '<p class="text-muted text-center">Select a task, a chart type, and/or a theme, and click "Visualize" to see the chart.</p>';
-
-            })
-            .catch(err => {
-                // --- ERROR PATH ---
+            } catch (err) {
                 console.error("Analysis Fetch/Processing Error:", err);
                 const summarySection = document.getElementById('summary-section');
                 if (summarySection) {
                     summarySection.innerHTML = `<div class="alert alert-danger"><strong>Analysis Failed:</strong> ${err.message || 'Check the browser console for details.'}</div>`;
-                    resultsContainer.style.display = 'block'; // Show results area to display error
+                    resultsContainer.style.display = 'block';
                 }
-            })
-            .finally(() => {
-                // --- CRITICAL: Ensure UI is reset regardless of success or failure ---
+            } finally {
                 loadingSpinner.style.display = 'none';
                 runButton.disabled = false;
-            });
+            }
         });
 
-        // Initialize the visualization task select
+        setupManualAllocationSaveButton(renderAnalysisResults);
         populateVizTaskSelect();
     }
-
-    // --- Initial Data Fetch ---
 
     Promise.all([
         fetch("/listtasks").then(res => res.json())
     ])
-    .then(([taskResponse]) => {
-        if (taskResponse.success && Array.isArray(taskResponse.tasks)) {
-            taskData = taskResponse.tasks;
-        } else {
-            console.error("No task data found. Check the '/listtasks' endpoint.");
-            taskData = [];
-        }
+        .then(([taskResponse]) => {
+            if (taskResponse.success && Array.isArray(taskResponse.tasks)) {
+                taskData = taskResponse.tasks;
+            } else {
+                console.error("No task data found. Check the '/listtasks' endpoint.");
+                taskData = [];
+            }
 
-        generateMainForm();
-    })
-    .catch(err => {
-        console.error("Error fetching essential data:", err);
-        container.innerHTML = "<p class='text-danger'>Could not load essential data. Please ensure the backend is running and endpoints are correct.</p>";
-    });
+            generateMainForm();
+        })
+        .catch(err => {
+            console.error("Error fetching essential data:", err);
+            container.innerHTML = "<p class='text-danger'>Could not load essential data. Please ensure the backend is running and endpoints are correct.</p>";
+        });
 });

@@ -49,6 +49,9 @@ def create_graph(data, graph_type='line', x_column=None, y_column=None, has_head
     fig_width = max(10, min(20, n * 0.4))
     plt.figure(figsize=(fig_width, 6))
 
+    if graph_type == 'pie' and any(v < 0 for v in large_y):
+        graph_type = 'bar'
+        
     if graph_type == 'pie':
         total = np.sum(y_data)
         threshold = 0.01 * total
@@ -161,6 +164,9 @@ def create_graph_wt(data, graph_type='line', x_column=0, y_column=1, has_header=
 
     theme = kwargs.get("theme", "vibrant")
     colors = COLOR_THEMES.get(theme, COLOR_THEMES["vibrant"])
+
+    if graph_type == 'pie' and any(v < 0 for v in large_y):
+        graph_type = 'bar'
 
     if graph_type == 'pie':
         total = np.sum(y_data)
