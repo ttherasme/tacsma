@@ -10,66 +10,36 @@ logger = logging.getLogger(__name__)
 
 
 # Function to import the CSV, check shape, and return dataframe
-def import_matrix_b(idt_param: int, sort='yes', sort_row=1, sort_column=3):
-    df=[]
-    
-    #get the row and column to start sorting
-    start_sorting_row=sort_row
-    start_sorting_col=sort_column
-    
-    # Import the CSV file using pandas
-    #all_matrix_b = MatrixB.query.all()
-    df = get_matrix_b(idt_param)
-    if sort=='yes':
-        
-        #print (df.iloc[0:2,3:])
-        # Get the number of rows and columns
-        rows, cols = df.shape
-     
-        #sorting the data by process id 
-        first_two_columns = df.iloc[:, :start_sorting_col]
-    #    columns_to_sort = df.iloc[1, 2:].values  # Values from the second row (index 1)
-        sorted_columns = sorted(df.columns[start_sorting_col:], key=lambda col: df.at[0, col])
-     
-        # Reorder the DataFrame columns
-        df_sorted_columns = pd.concat([first_two_columns, df[sorted_columns]], axis=1)
-       # print("sorted by column", df_sorted_columns)
-        #Sorting by flow ids (3nd column)
-        first_two_rows = df_sorted_columns.iloc[:start_sorting_row, :]
-        
-        # Extract the data part (starting from the third row onward)
-        data_to_sort = df_sorted_columns.iloc[start_sorting_row:, :]
-        
-        # Sort the rows based on the values in the second row (index 1) of the data
-        sorted_row_indices = data_to_sort.iloc[:, 1].argsort()  # Sort based on the second column (ID or value)
-        
-        # Reorder the DataFrame rows based on sorted indices
-        df_sorted_row = pd.concat([first_two_rows, data_to_sort.iloc[sorted_row_indices]], axis=0)
-    
-        # Return the matrix (as a numpy array)
-        #print("sorted by row", df_sorted_row)
-       
-        return  df_sorted_row
-    else:
+def import_matrix_b(idt_param: int, sort='yes'):
+    df = get_matrix_b(idt_param).copy()
+
+    if df.empty:
         return df
+
+    fixed_cols = ['Flow', 'Flow_id', 'Unit']
+    process_cols = sorted([c for c in df.columns if c not in fixed_cols])
+
+    df = df[fixed_cols + process_cols]
+
+    if sort == 'yes':
+        df = df.sort_values(by='Flow_id').reset_index(drop=True)
+
+    return df
     
 
 #function to read a read raw data, check unit set to SI, return the data with SI unit
-def format_rawdata_a (idt_param: int, A='A'):
-
-    df_raw = get_matrix_a(idt_param)
-    
+def format_rawdata_a(idt_param: int, A='A'):
+    df_raw = get_matrix_a(idt_param).copy()
     df_raw.columns = df_raw.columns.str.strip()
 
-    unit_columns = [col for col in df_raw.columns if col.startswith('Unit_')]
-    process_columns = [col for col in df_raw.columns if col not in ['Flow', 'Flow_id'] + unit_columns]
+    required_cols = ['Flow', 'Flow_id', 'Unit']
+    missing = [c for c in required_cols if c not in df_raw.columns]
+    if missing:
+        raise ValueError(f"Missing required columns in Matrix A: {missing}")
 
-    if len(process_columns) != len(unit_columns):
-        raise ValueError("Mismatch between process columns and unit columns.")
+    process_columns = [col for col in df_raw.columns if col not in required_cols]
 
-    process_unit_pairs = list(zip(process_columns, unit_columns))
-
-    # Initialize the final output DataFrame (New_A) structure
+    # Initialize output
     new_data = {
         'Flow': df_raw['Flow'],
         'flow ID': df_raw['Flow_id'],
@@ -82,88 +52,61 @@ def format_rawdata_a (idt_param: int, A='A'):
     New_A = pd.DataFrame(new_data)
     New_A = New_A.set_index(df_raw.index)
 
-    # Loop through rows to apply unit conversion and assign values/SI Unit
     for idx, row in df_raw.iterrows():
+        raw_unit = row['Unit']
         si_unit_found = None
 
-        for process_col, unit_col in process_unit_pairs:
+        for process_col in process_columns:
             value = row[process_col]
-            unit = row[unit_col]
 
-            # Assign 0.0 if value is missing/zero, and skip conversion logic
             if pd.isna(value) or value == 0.0:
                 New_A.at[idx, process_col] = 0.0
                 continue
-            
-            # Skip if unit is missing
-            if pd.isna(unit):
+
+            if pd.isna(raw_unit) or str(raw_unit).strip() == "":
                 New_A.at[idx, process_col] = value
                 continue
 
-            raw_unit = str(unit).strip()
+            raw_unit = str(raw_unit).strip()
             converted_value = value
-            final_unit = raw_unit 
-            
-            # Standardize unit for checking
+            final_unit = raw_unit
             raw_unit_lower = raw_unit.lower()
-            
-            # --- FIA Unit Conversion ---
-            # NOTE: You must ensure unit_conversion_FIA is correctly defined
-            if raw_unit_lower in ['mbf_international', 'mbf', 'mbf_international', 'mbf_international']:
-                raw_unit_fia = 'mbf_international'
-                output_un = 'green_tons'
-                converted_value, final_unit = unit_conversion_FIA(value, raw_unit_fia, output_un)
-                converted_value = float(converted_value) * 0.5
-                final_unit = 'dry_metric_tonnes' 
-            elif raw_unit_lower in ['standard_cords', 'standard_cords', 'standard_cords', 'standard_cords']:
-                raw_unit_fia = 'standard_cords'
-                output_un = 'dry_metric_tonnes'
-                converted_value, final_unit = unit_conversion_FIA(value, raw_unit_fia, output_un)
-            
-            # --- SI Unit Determination & Conversion ---
+
             try:
-                # 1. Get the SI unit 
-                si_unit_for_flow = get_si_unit(final_unit) if final_unit else get_si_unit(raw_unit)
-                
-                # 2. Perform the SI conversion (using the unit that came out of FIA conversion)
+                # FIA special conversions
+                if raw_unit_lower in ['mbf_international', 'mbf']:
+                    converted_value, final_unit = unit_conversion_FIA(
+                        value, 'mbf_international', 'green_tons'
+                    )
+                    converted_value = float(converted_value) * 0.5
+                    final_unit = 'dry_metric_tonnes'
+
+                elif raw_unit_lower in ['standard_cords']:
+                    converted_value, final_unit = unit_conversion_FIA(
+                        value, 'standard_cords', 'dry_metric_tonnes'
+                    )
+
+                si_unit_for_flow = get_si_unit(final_unit)
                 converted_value = unit_conversion(converted_value, final_unit, 'SI')
-                
-                # 3. Record the first SI unit found for the flow
+
                 if not si_unit_found:
                     si_unit_found = si_unit_for_flow
-                    
+
             except Exception as e:
-                logger.warning(f"[Warning] Conversion error for Flow ID {row['Flow_id']} ({raw_unit} -> SI): {e}")
-                # If conversion fails, use the latest value and unit, and fallback to using the unit directly
+                logger.warning(
+                    f"[Warning] Conversion error for Flow ID {row['Flow_id']} ({raw_unit} -> SI): {e}"
+                )
                 if not si_unit_found:
-                    si_unit_found = raw_unit # Fallback to the raw unit string
+                    si_unit_found = raw_unit
 
             New_A.at[idx, process_col] = converted_value
 
-        # Assign the final SI unit for the flow
         if si_unit_found:
             New_A.at[idx, 'SI Unit'] = si_unit_found
         else:
-            # Final fallback to try and capture the unit from the first unit column
-            for _, unit_col in process_unit_pairs:
-                if row[unit_col]:
-                    New_A.at[idx, 'SI Unit'] = str(row[unit_col]).strip()
-                    break
+            New_A.at[idx, 'SI Unit'] = str(row['Unit']).strip() if pd.notna(row['Unit']) else None
 
-    # 5. Final Filtering and Reordering
-    
-    # *** FIX: REMOVE THE FILTERING STEP TO RETAIN ALL 4 ROWS ***
-    # # numeric_col = New_A.columns[3:]
-    # # rows_all_zero = (New_A[numeric_col] == 0.0).all(axis=1)
-    # # New_A = New_A[~rows_all_zero]
-    
-    # Sort the remaining data by 'flow ID' to ensure consistent order
-    New_A = New_A.sort_values(by='flow ID', ascending=True)
-
-    # Reset the index
-    New_A = New_A.reset_index(drop=True)
-    
-    #logger.info(f"Matrix A (Formatted) : \n {New_A.to_string()}")
+    New_A = New_A.sort_values(by='flow ID', ascending=True).reset_index(drop=True)
     return New_A
 
 

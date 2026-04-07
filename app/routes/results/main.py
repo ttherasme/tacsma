@@ -92,7 +92,7 @@ def run_analysis(rows):
             else:
                 logger.error("No growth regrowth model")
 
-            B_raw = import_matrix_b(task_id, sort='yes', sort_row=1, sort_column=3)
+            B_raw = import_matrix_b(task_id, sort='yes')
 
             if growth_regrowth is True:
                 B_raw = forest_growth_newA(B_raw, value_B, 'B')
