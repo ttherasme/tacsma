@@ -1,27 +1,18 @@
-// datasheet.js
 document.addEventListener("DOMContentLoaded", () => {
-    // Select all necessary elements from the DOM
     const moduleTabs = document.querySelectorAll(".module-tab");
     const categoryTabs = document.querySelectorAll(".category");
     const rightPanel = document.getElementById("rightPanel");
     const activeStepsSelect = document.getElementById("activeStepsSelect");
-    //let selectedElement = '';
-    //const taskSelect = document.getElementById("taskSelect");
     const taskInput = document.getElementById("taskSelect");
     const taskList = document.getElementById("taskList");
-    let messageArea = document.getElementById('message-area');
 
-    // Global application state
+    let messageArea = document.getElementById("message-area");
+
     const state = {
         activeModule: "Forest Operation",
         activeCategory: "+ Product"
     };
 
-    /**
-     * Updates the application's state and triggers a content refresh.
-     * @param {string} key The state key to update (e.g., 'activeModule').
-     * @param {string} value The new value.
-     */
     function setState(key, value) {
         if (state[key] !== value) {
             state[key] = value;
@@ -29,7 +20,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // Form configurations factory function
     function makeFormConfig({
         category,
         selectClass,
@@ -57,13 +47,13 @@ document.addEventListener("DOMContentLoaded", () => {
             ];
 
             if (hasCheckbox) {
-                rowFields.push(`<input type="checkbox" id="${elementType}Checkbox">`);
+                rowFields.push(`<input type="checkbox" class="coproduct-chk">`);
             }
 
             rowFields.push(`<div class="status-indicator"></div>`);
 
             if (showDeleteButton) {
-                rowFields.push(`<button title="Delete Row" class="delete-row">🗑️</button>`);
+                rowFields.push(`<button title="Delete Row" class="delete-row" type="button">🗑️</button>`);
             } else {
                 rowFields.push(``);
             }
@@ -73,196 +63,115 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const footer = () => `
             ${showRegisterButton
-                ? `<button class="action-button register-element-button" data-element-type="${elementType}">
+                ? `<button class="action-button register-element-button" data-element-type="${elementType}" type="button">
                         Add new Name
-                </button>`
+                   </button>`
                 : ''}
-            <button class="action-button check-button">Validate ✔️</button>
+            <button class="action-button check-button" type="button">Validate ✔️</button>
         `;
-
 
         return { header, row, footer };
     }
 
-
-    // Form configurations for combinations with NON-STANDARD LAYOUTS (only Transportation)
     const formConfigs = {
-        // Transportation - Custom Layout (Mass, Distance, Mode)
         "Transportation|+ Product": makeFormConfig({
             category: "+ Product",
             selectClass: "productSelect",
             elementType: "Product",
             customHeader: ["Materials", "Quantity", "Unit", " ", " "],
-            customRow: () => {
-                return [
-                    `<select class="productSelect"></select>`, // Materials
-                    `<input type="number" data-id="valued1" placeholder="0" />`,
-                    `<div class="inline-selects">
-                        <select class="styled-select uom-name-select"></select>
-                        <select data-id="unitd1" class="styled-select uom-unit-select"></select>
-                    </div>`,
-                    `<div class="status-indicator"></div>`,
-                    `` // No delete button for Product
-                ];
-            }
+            customRow: () => ([
+                `<select class="productSelect"></select>`,
+                `<input type="number" data-id="valued1" placeholder="0" />`,
+                `<div class="inline-selects">
+                    <select class="styled-select uom-name-select"></select>
+                    <select data-id="unitd1" class="styled-select uom-unit-select"></select>
+                </div>`,
+                `<div class="status-indicator"></div>`,
+                ``
+            ])
         }),
+
         "Transportation|+ Input Materials and Energy": makeFormConfig({
             category: "+ Input Materials and Energy",
             selectClass: "materielSelect",
             elementType: "Input Materials and Energy",
             customHeader: ["Materials", "Quantity", "Unit", " ", " "],
-            customRow: () => {
-                return [
-                    `<select class="materielSelect"></select>`, // Materials
-                    `<input type="number" data-id="valued1" placeholder="0" />`,
-                    `<div class="inline-selects">
-                        <select class="styled-select uom-name-select"></select>
-                        <select data-id="unitd1" class="styled-select uom-unit-select"></select>
-                    </div>`,
-                    `<div class="status-indicator"></div>`,
-                    `<button title="Delete Row" class="delete-row">🗑️</button>`
-                ];
-            }
+            customRow: () => ([
+                `<select class="materielSelect"></select>`,
+                `<input type="number" data-id="valued1" placeholder="0" />`,
+                `<div class="inline-selects">
+                    <select class="styled-select uom-name-select"></select>
+                    <select data-id="unitd1" class="styled-select uom-unit-select"></select>
+                </div>`,
+                `<div class="status-indicator"></div>`,
+                `<button title="Delete Row" class="delete-row" type="button">🗑️</button>`
+            ])
         }),
+
         "Transportation|+ Co-Products": {
             header: [" "],
             row: () => ['']
         },
+
         "Transportation|+ Input Energy": {
             header: [" "],
             row: () => ['']
-        }, 
+        },
+
         "Transportation|+ Emissions": {
             header: [" "],
             row: () => ['']
-        },  
+        },
+
         "Transportation|+ Waste Treatment": makeFormConfig({
             category: "+ Waste Treatment",
             selectClass: "wasteSelect",
             elementType: "Waste Treatment",
             showRegisterButton: false,
             customHeader: ["Materials", "Quantity", "Unit", " ", " "],
-            customRow: () => {
-                return [
-                    `<select class="wasteSelect"></select>`, // Materials
-                    `<input type="number" data-id="valued1" placeholder="0" />`,
-                    `<div class="inline-selects">
-                        <select class="styled-select uom-name-select"></select>
-                        <select data-id="unitd1" class="styled-select uom-unit-select"></select>
-                    </div>`,
-                    `<div class="status-indicator"></div>`,
-                    `<button title="Delete Row" class="delete-row">🗑️</button>`
-                ];
-            }
+            customRow: () => ([
+                `<select class="wasteSelect"></select>`,
+                `<input type="number" data-id="valued1" placeholder="0" />`,
+                `<div class="inline-selects">
+                    <select class="styled-select uom-name-select"></select>
+                    <select data-id="unitd1" class="styled-select uom-unit-select"></select>
+                </div>`,
+                `<div class="status-indicator"></div>`,
+                `<button title="Delete Row" class="delete-row" type="button">🗑️</button>`
+            ])
         }),
 
-        // Other
         "default": {
             header: ["Item", "Value", "Unit", " ", " "],
             row: () => ['In process', '', '', '', ''],
-            footer: () => `<small>Default footer for undefined combinations.</small><div><button class="check-button">Submit ✔️</button></div>`
+            footer: () => `<small>Default footer for undefined combinations.</small><div><button class="check-button" type="button">Submit ✔️</button></div>`
         }
     };
 
-    // ----------------------------------------------------
-    // Reload dropdowns after element registration (MODAL)
-    // ----------------------------------------------------
-
-    document.addEventListener('reloadProductSelect', () => {
-        refreshCurrentFormSelect('productSelect', 'Product');
-    });
-
-    document.addEventListener('reloadMaterielSelect', () => {
-        refreshCurrentFormSelect('materielSelect', 'Input Materials and Energy');
-    });
-
-    document.addEventListener('reloadCoproductSelect', () => {
-        refreshCurrentFormSelect('coproductSelect', 'Co-Products');
-    });
-
-    document.addEventListener('reloadEnergySelect', () => {
-        refreshCurrentFormSelect('energySelect', 'Input Energy');
-    });
-
-    document.addEventListener('reloadEmissionsSelect', () => {
-        refreshCurrentFormSelect('emissionsSelect', 'Emissions');
-    });
-
-    document.addEventListener('reloadWasteSelect', () => {
-        refreshCurrentFormSelect('wasteSelect', 'Waste Treatment');
-    });
-
-
-    function refreshCurrentFormSelect(selectClass, categoryName) {
-        const rows = document.querySelectorAll('.form-row');
-
-        rows.forEach(row => {
-            const select = row.querySelector(`.${selectClass}`);
-            if (!select) return;
-
-            const currentValue = select.value;
-            /* const checkbox = row.querySelector('input[type="checkbox"]');
-            const ischk = checkbox.checked ? 1 : 0; */
-            const checkbox = row.querySelector('input[type="checkbox"]');
-            const ischk = checkbox ? (checkbox.checked ? 1 : 0) : 0;
-
-            fetch(`/get_elements_by_category_for_datasheet/${encodeURIComponent(categoryName)}/${encodeURIComponent(ischk)}`)
-                .then(res => res.json())
-                .then(data => {
-                    const elements = data.elements || [];
-
-                    select.innerHTML = '<option value="">Select ...</option>';
-
-                    elements.forEach(el => {
-                        const option = document.createElement('option');
-                        let txtcontent = el.EName
-                        if (el.SName) { txtcontent = txtcontent + ' | ' + el.SName;}
-                        if (el.TName) { txtcontent = txtcontent + ' | ' + el.TName;}
-                        option.value = el.IDE;
-                        option.textContent = txtcontent;
-                        select.appendChild(option);
-                    });
-
-                    // Restore previous selection if it still exists
-                    select.value = currentValue;
-                })
-                .catch(err => console.error('Error refreshing dropdown:', err));
-        });
-    }
-
-
-
-    /**
-     * Dynamically retrieves the form configuration. If a module/category 
-     * combination is not explicitly defined, it generates a standard 
-     * configuration using makeFormConfig.
-     * @param {string} module The active module (e.g., "Construction").
-     * @param {string} category The active category (e.g., "+ Product").
-     * @returns {object} The form configuration object.
-     */
     function getFormConfig(module, category) {
         const configKey = `${module}|${category}`;
         const explicitConfig = formConfigs[configKey];
 
-        // 1. Return explicit config if it exists (e.g., Transportation)
         if (explicitConfig) {
             return explicitConfig;
         }
 
-        // 2. Handle generic modules (Forest Operation, Wood Processing, Construction, or new custom ones)
-        //    that use the standard 5- or 6-column layout.
-        const categoryName = category.substring(2).trim(); // Remove "+ "
-        
+        const categoryName = category.substring(2).trim();
+
         let selectClass;
-        let elementType = categoryName; 
+        let elementType = categoryName;
         let hasCheckbox = categoryName.includes("Co-Products");
         let showDeleteButton = !categoryName.endsWith("Product");
         let showRegisterButton =
             !categoryName.includes("Emissions") &&
             !categoryName.includes("Waste Treatment");
 
-        // Dynamic mapping to get the correct CSS class and element type
-        if(module ==="Transportation" && (categoryName =="Emissions" || categoryName.trim() === 'Co-Products' || categoryName =="Input Energy")){
+        if (
+            module === "Transportation" &&
+            (categoryName === "Emissions" ||
+             categoryName === "Co-Products" ||
+             categoryName === "Input Energy")
+        ) {
             return formConfigs["default"];
         } else if (categoryName.includes("Materials and Energy")) {
             selectClass = "materielSelect";
@@ -275,48 +184,646 @@ document.addEventListener("DOMContentLoaded", () => {
         } else if (categoryName.includes("Product")) {
             selectClass = "productSelect";
         } else {
-            // Fallback to the hardcoded default if the category name is unrecognizable
             return formConfigs["default"];
         }
 
-        // Generate and return the standard config for this dynamic module/category
         return makeFormConfig({
-            category: category,
-            selectClass: selectClass,
-            elementType: elementType,
-            hasCheckbox: hasCheckbox,
-            showDeleteButton: showDeleteButton,
-            showRegisterButton: showRegisterButton
+            category,
+            selectClass,
+            elementType,
+            hasCheckbox,
+            showDeleteButton,
+            showRegisterButton
         });
     }
 
+    function showMessage(message, type) {
+        if (!messageArea) {
+            messageArea = document.createElement("div");
+            messageArea.id = "message-area";
+            messageArea.className = "message-area";
+            rightPanel.prepend(messageArea);
+        }
 
-    /**
-     * Builds the form based on the active module and category.
-     * This function dynamically generates the HTML content for the right panel.
-     */
+        messageArea.textContent = message;
+        messageArea.className = `message-area ${type}-message`;
+        messageArea.style.display = "block";
+    }
+
+    function clearMessage() {
+        if (messageArea) {
+            messageArea.textContent = "";
+            messageArea.style.display = "none";
+            messageArea.className = "message-area";
+        }
+    }
+
+    function disableRowInputs(row) {
+        const inputs = row.querySelectorAll("input, select");
+        inputs.forEach(input => {
+            input.disabled = true;
+        });
+
+        const deleteBtn = row.querySelector(".delete-row");
+        if (deleteBtn) {
+            deleteBtn.disabled = true;
+        }
+    }
+
+    function updateStatusIndicators(isSuccess, submittedRows, allRows) {
+        submittedRows.forEach(row => {
+            const indicator = row.querySelector(".status-indicator");
+            if (!indicator) return;
+
+            indicator.innerHTML = "";
+            if (isSuccess) {
+                indicator.innerHTML = '<span class="status-icon green-check">✓</span>';
+                disableRowInputs(row);
+            } else {
+                indicator.innerHTML = '<span class="status-icon red-cross">✗</span>';
+            }
+        });
+
+        allRows.forEach(row => {
+            if (submittedRows.includes(row)) return;
+
+            const indicator = row.querySelector(".status-indicator");
+            if (!indicator) return;
+
+            const hasData = Array.from(row.querySelectorAll("select, input")).some(el => {
+                if (el.type === "checkbox") return el.checked;
+                return el.value && el.value !== "Select...";
+            });
+
+            if (hasData && !indicator.querySelector(".status-icon")) {
+                indicator.innerHTML = '<span class="status-icon red-cross">✗</span>';
+            }
+        });
+    }
+
+    function areAllRowsSaved() {
+        const rows = document.querySelectorAll(".form-rows .form-row");
+        return [...rows].every(row => row.querySelector(".status-icon.green-check"));
+    }
+
+    function showYesNoConfirm(message, onYes, onNo) {
+        const modal = document.getElementById("confirmModal");
+        const messageEl = document.getElementById("confirmModalMessage");
+        const yesBtn = document.getElementById("confirmYes");
+        const noBtn = document.getElementById("confirmNo");
+
+        messageEl.textContent = message;
+        modal.style.display = "flex";
+
+        const cleanup = () => {
+            modal.style.display = "none";
+            yesBtn.onclick = null;
+            noBtn.onclick = null;
+        };
+
+        yesBtn.onclick = () => {
+            cleanup();
+            onYes();
+        };
+
+        noBtn.onclick = () => {
+            cleanup();
+            if (onNo) onNo();
+        };
+    }
+
+    function redirectToEditPage() {
+        const selectedTaskName = taskInput.value;
+        const selectedOption = taskList.querySelector(`option[value="${selectedTaskName}"]`);
+
+        if (!selectedOption) {
+            showMessage("Unable to determine the selected task.", "error");
+            return;
+        }
+
+        const taskId = selectedOption.dataset.id;
+        const editUrl = "/datasheetupdate";
+        window.location.href = `${editUrl}?id=${taskId}&name=${encodeURIComponent(selectedTaskName)}`;
+    }
+
+    async function getStepIdByName(stepName) {
+        try {
+            const response = await fetch(`/get_step_id/${encodeURIComponent(stepName)}`);
+            const data = await response.json();
+            return data.success ? data.ids : null;
+        } catch (error) {
+            console.error("Network error fetching step ID:", error);
+            return null;
+        }
+    }
+
+    async function fetchFlowsForAllocation(stepId, taskId, rowsData) {
+        const response = await fetch("/save_datasheetregister", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                rows: rowsData,
+                step_id: stepId,
+                task_id: taskId
+            })
+        });
+
+        return response.json();
+    }
+
+    function closeManualAllocationModal() {
+        const modal = document.getElementById("manualAllocationModal");
+        if (!modal) return;
+        modal.classList.remove("show");
+        modal.style.display = "none";
+        modal.setAttribute("aria-hidden", "true");
+
+        const errorEl = document.getElementById("manualAllocationError");
+        if (errorEl) errorEl.textContent = "";
+    }
+
+    function openManualAllocationModal(flows, originalRows, stepId, taskId, submittedRows, allRows) {
+        const modal = document.getElementById("manualAllocationModal");
+        const fieldsContainer = document.getElementById("manualAllocationFields");
+        const messageEl = document.getElementById("manualAllocationMessage");
+        const errorEl = document.getElementById("manualAllocationError");
+        const saveBtn = document.getElementById("saveManualAllocationBtn");
+
+        if (!modal || !fieldsContainer || !messageEl || !errorEl || !saveBtn) {
+            console.error("Manual allocation modal elements are missing.");
+            return;
+        }
+
+        fieldsContainer.innerHTML = "";
+        errorEl.textContent = "";
+        messageEl.textContent ="Enter allocation percentages for the relevant flows. Total cannot exceed 100%.";
+
+        flows.forEach(flow => {
+            const wrapper = document.createElement("div");
+            wrapper.className = "mb-3";
+            wrapper.innerHTML = `
+                <label>${flow.name} (${flow.category}${flow.chk === 0 ? ", CHK not checked" : ""})</label>
+                <input
+                    type="number"
+                    class="allocation-input"
+                    data-ide="${flow.IDE}"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value="${flow.manual_allocation != null ? (flow.manual_allocation * 100) : 0}"
+                />
+                <small>Enter allocation in %</small>
+            `;
+            fieldsContainer.appendChild(wrapper);
+        });
+
+        saveBtn.onclick = async () => {
+            errorEl.textContent = "";
+
+            const inputs = document.querySelectorAll(".allocation-input");
+            const allocation = {};
+            let total = 0;
+
+            inputs.forEach(input => {
+                const value = parseFloat(input.value || 0);
+                allocation[input.dataset.ide] = value;
+                total += value;
+            });
+
+            if (total > 100.0000001) {
+                errorEl.textContent = "Total allocation percentage cannot exceed 100%.";
+                return;
+            }
+
+            try {
+                const response = await fetch("/save_datasheetregister", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        rows: originalRows,
+                        step_id: stepId,
+                        task_id: taskId,
+                        allocation: allocation
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    closeManualAllocationModal();
+                    showMessage(result.message, "success");
+                    updateStatusIndicators(true, submittedRows, allRows);
+
+                    if (areAllRowsSaved()) {
+                        setTimeout(() => {
+                            showYesNoConfirm(
+                                "All rows are saved successfully.\n\nDo you finish with the registration?",
+                                () => redirectToEditPage(),
+                                () => {}
+                            );
+                        }, 300);
+                    }
+                } else {
+                    errorEl.textContent = result.message || "Error saving allocation.";
+                }
+            } catch (err) {
+                console.error("Error saving manual allocation:", err);
+                errorEl.textContent = "Unexpected error while saving allocation.";
+            }
+        };
+
+        modal.classList.add("show");
+        modal.style.display = "flex";
+        modal.setAttribute("aria-hidden", "false");
+    }
+
+    function collectFormData() {
+        const rows = document.querySelectorAll(".form-rows .form-row");
+        const formData = [];
+        const submittedRows = [];
+        let isValid = true;
+
+        rows.forEach(row => {
+            if (row.querySelector(".status-icon.green-check")) {
+                return;
+            }
+
+            const elementSelect = row.querySelector("select:not(.uom-name-select):not(.uom-unit-select)");
+            const quantityInput = row.querySelector('input[data-id="valued1"]');
+            const unitSelect = row.querySelector('select[data-id="unitd1"]');
+            const checkbox = row.querySelector('input[type="checkbox"]');
+
+            const ide = elementSelect ? elementSelect.value : null;
+            const quantity = quantityInput ? quantityInput.value : null;
+            const unitId = unitSelect ? unitSelect.value : null;
+            const chk = checkbox ? (checkbox.checked ? 1 : 0) : 0;
+            const currentCategory = state.activeCategory.replace("+ ", "").trim();
+
+            if (ide && quantity && unitId) {
+                formData.push({
+                    IDE: ide,
+                    ValueD1: parseFloat(quantity),
+                    IDU1: unitId,
+                    CHK: chk,
+                    IDM: null,
+                    Category: currentCategory
+                });
+                submittedRows.push(row);
+            } else if (ide || quantity || unitId) {
+                isValid = false;
+            }
+        });
+
+        return { data: formData, isValid, submittedRows };
+    }
+
+    function refreshCurrentFormSelect(selectClass, categoryName) {
+        const rows = document.querySelectorAll(".form-row");
+
+        rows.forEach(row => {
+            const select = row.querySelector(`.${selectClass}`);
+            if (!select) return;
+
+            const currentValue = select.value;
+            const checkbox = row.querySelector('input[type="checkbox"]');
+            const ischk = checkbox ? (checkbox.checked ? 1 : 0) : 0;
+
+            fetch(`/get_elements_by_category_for_datasheet/${encodeURIComponent(categoryName)}/${encodeURIComponent(ischk)}`)
+                .then(res => res.json())
+                .then(data => {
+                    const elements = data.elements || [];
+
+                    select.innerHTML = '<option value="">Select ...</option>';
+
+                    elements.forEach(el => {
+                        const option = document.createElement("option");
+                        let txtcontent = el.EName;
+
+                        // Only for Product / Co-Products
+                        if (categoryName.trim() === "Product" || categoryName.trim() === "Co-Products") {
+                            if (el.SName) txtcontent += ` | ${el.SName}`;
+                            if (el.TName) txtcontent += ` | ${el.TName}`;
+                        }
+                        option.value = el.IDE;
+                        option.textContent = txtcontent;
+                        select.appendChild(option);
+                    });
+
+                    select.value = currentValue;
+                })
+                .catch(err => console.error("Error refreshing dropdown:", err));
+        });
+    }
+
+    document.addEventListener("reloadProductSelect", () => {
+        refreshCurrentFormSelect("productSelect", "Product");
+    });
+
+    document.addEventListener("reloadMaterielSelect", () => {
+        refreshCurrentFormSelect("materielSelect", "Input Materials and Energy");
+    });
+
+    document.addEventListener("reloadCoproductSelect", () => {
+        refreshCurrentFormSelect("coproductSelect", "Co-Products");
+    });
+
+    document.addEventListener("reloadEnergySelect", () => {
+        refreshCurrentFormSelect("energySelect", "Input Energy");
+    });
+
+    document.addEventListener("reloadEmissionsSelect", () => {
+        refreshCurrentFormSelect("emissionsSelect", "Emissions");
+    });
+
+    document.addEventListener("reloadWasteSelect", () => {
+        refreshCurrentFormSelect("wasteSelect", "Waste Treatment");
+    });
+
+    function populateAndLinkUomSelects(rowElement, elementSelect) {
+        const uomNameSelect = rowElement.querySelector(".uom-name-select");
+        const uomUnitSelect = rowElement.querySelector(".uom-unit-select");
+
+        if (!uomNameSelect || !uomUnitSelect || !elementSelect) return;
+
+        elementSelect.addEventListener("change", () => {
+            const elementId = elementSelect.value;
+
+            uomNameSelect.innerHTML = '<option value="">Select...</option>';
+            uomUnitSelect.innerHTML = '<option value="">Select...</option>';
+
+            if (!elementId) return;
+
+            fetch(`/get_all_uoms_by_element/${encodeURIComponent(elementId)}`)
+                .then(res => res.json())
+                .then(data => {
+                    const uoms = data.uoms || [];
+                    if (!uoms.length) return;
+
+                    const uniqueNames = [...new Set(uoms.map(u => u.UName))];
+                    uniqueNames.forEach(name => {
+                        const opt = document.createElement("option");
+                        opt.value = name;
+                        opt.textContent = name;
+                        uomNameSelect.appendChild(opt);
+                    });
+                });
+        });
+
+        uomNameSelect.addEventListener("change", () => {
+            const elementId = elementSelect.value;
+            const uName = uomNameSelect.value;
+
+            uomUnitSelect.innerHTML = '<option value="">Select...</option>';
+            if (!elementId || !uName) return;
+
+            fetch(`/get_all_uoms_by_element/${encodeURIComponent(elementId)}`)
+                .then(res => res.json())
+                .then(data => {
+                    const uoms = (data.uoms || []).filter(u => u.UName === uName);
+                    uoms.forEach(u => {
+                        const opt = document.createElement("option");
+                        opt.value = u.IDU;
+                        opt.textContent = u.Unit;
+                        uomUnitSelect.appendChild(opt);
+                    });
+                });
+        });
+    }
+
+    function populateElementSelect(rowElement, selectClass, categoryName) {
+        const elementSelect = rowElement.querySelector(`.${selectClass}`);
+        const uomNameSelect = rowElement.querySelector(".uom-name-select");
+        const uomUnitSelect = rowElement.querySelector(".uom-unit-select");
+        const checkbox = rowElement.querySelector('input[type="checkbox"]');
+
+        if (!elementSelect) return;
+
+        const fetchElements = (ischk) => {
+            fetch(`/get_elements_by_category_for_datasheet/${encodeURIComponent(categoryName)}/${encodeURIComponent(ischk)}`)
+                .then(res => res.json())
+                .then(data => {
+                    const elements = data.elements || [];
+                    elementSelect.innerHTML = '';
+
+                    const defaultOption = document.createElement("option");
+                    defaultOption.value = "";
+                    defaultOption.textContent = "Select ...";
+                    elementSelect.appendChild(defaultOption);
+
+                    elements.forEach(element => {
+                        const option = document.createElement("option");
+                        let txtcontent = element.EName;
+
+                        // Only for Product / Co-Products
+                        if (categoryName.trim() === "Product" || categoryName.trim() === "Co-Products") {
+                            if (element.SName) txtcontent += ` | ${element.SName}`;
+                            if (element.TName) txtcontent += ` | ${element.TName}`;
+                        }
+                        option.value = element.IDE;
+                        option.textContent = txtcontent;
+                        elementSelect.appendChild(option);
+                    });
+                })
+                .catch(err => {
+                    console.error(`Error loading ${categoryName} options:`, err);
+                });
+        };
+
+        let ischk = checkbox ? (checkbox.checked ? 1 : 0) : 0;
+        fetchElements(ischk);
+
+        if (checkbox) {
+            checkbox.addEventListener("change", () => {
+                ischk = checkbox.checked ? 1 : 0;
+                fetchElements(ischk);
+            });
+        }
+
+        elementSelect.addEventListener("change", function () {
+            const selectedElementId = elementSelect.value;
+
+            fetch(`/get_all_uoms_by_element/${encodeURIComponent(selectedElementId)}`)
+                .then(res => res.json())
+                .then(data => {
+                    const uoms = data.uoms || [];
+                    if (!uoms.length) return;
+
+                    uomNameSelect.value = uoms[0].UName;
+                    uomNameSelect.dispatchEvent(new Event("change"));
+
+                    setTimeout(() => {
+                        const matchingUnit = [...uomUnitSelect.options].find(opt => opt.textContent === uoms[0].Unit);
+                        if (matchingUnit) {
+                            uomUnitSelect.value = matchingUnit.value;
+                        }
+                    }, 50);
+                })
+                .catch(err => console.error("Error loading units:", err));
+        });
+    }
+
+    function populateFormSelects(rowElement, configKey) {
+        const parts = configKey.split("|+ ");
+        if (parts.length < 2) return;
+
+        const categoryName = parts[1];
+
+        let selectClass;
+        if (categoryName.includes("Materials and Energy")) {
+            selectClass = "materielSelect";
+        } else if (categoryName.includes("Co-Products")) {
+            selectClass = "coproductSelect";
+        } else if (categoryName.includes("Emissions")) {
+            selectClass = "emissionsSelect";
+        } else if (categoryName.includes("Waste Treatment")) {
+            selectClass = "wasteSelect";
+        } else if (categoryName.includes("Product")) {
+            selectClass = "productSelect";
+        } else {
+            return;
+        }
+
+        populateElementSelect(rowElement, selectClass, categoryName);
+        const elementSelect = rowElement.querySelector(`.${selectClass}`);
+        populateAndLinkUomSelects(rowElement, elementSelect);
+    }
+
+    async function autoFillInputMaterials(formRowsContainer, taskID, categoryName, moduleName) {
+        if (!taskID) return;
+
+        try {
+            const response = await fetch(`/get_in_datasheet/${encodeURIComponent(taskID)}/${encodeURIComponent(categoryName)}/${encodeURIComponent(moduleName)}`);
+            const data = await response.json();
+
+            if (!data.success || !data.result || data.result.length === 0) return;
+            const autoData = data.result[0];
+
+            const firstRow = formRowsContainer.querySelector(".form-row");
+            if (!firstRow) return;
+
+            const elementSelect = firstRow.querySelector(".materielSelect");
+            const uomNameSelect = firstRow.querySelector(".uom-name-select");
+            const uomUnitSelect = firstRow.querySelector(".uom-unit-select");
+            const quantityInput = firstRow.querySelector('input[data-id="valued1"]');
+
+            const selectWhenReady = (selectEl, targetText) => {
+                return new Promise((resolve) => {
+                    const triggerSelection = () => {
+                        const options = [...selectEl.options];
+                        const match = options.find(opt => opt.textContent.trim() === targetText.trim());
+                        if (match) {
+                            selectEl.value = match.value;
+                            selectEl.dispatchEvent(new Event("change"));
+                            return true;
+                        }
+                        return false;
+                    };
+
+                    if (triggerSelection()) {
+                        resolve();
+                        return;
+                    }
+
+                    const observer = new MutationObserver(() => {
+                        if (triggerSelection()) {
+                            observer.disconnect();
+                            resolve();
+                        }
+                    });
+
+                    observer.observe(selectEl, { childList: true });
+                });
+            };
+
+            quantityInput.value = autoData.ValueD;
+
+            await selectWhenReady(elementSelect, autoData.EName);
+            await selectWhenReady(uomNameSelect, autoData.UName);
+            await selectWhenReady(uomUnitSelect, autoData.Unit);
+
+            const addRowBtn = document.querySelector(".add-row");
+            if (addRowBtn && !addRowBtn.disabled) {
+                addRowBtn.click();
+            }
+        } catch (err) {
+            console.error("Auto fill materials failed:", err);
+        }
+    }
+
+    async function autoFillForestRegeneration(formRowsContainer, configKey) {
+        if (configKey !== "Forest Operation|+ Input Materials and Energy") return;
+
+        try {
+            const response = await fetch("/get_regeneration_user");
+            const data = await response.json();
+
+            if (!("value" in data)) return;
+            const regenerationValue = data.value;
+
+            const firstRow = formRowsContainer.querySelector(".form-row");
+            if (!firstRow) return;
+
+            const elementSelect = firstRow.querySelector(".materielSelect");
+            const quantityInput = firstRow.querySelector('input[data-id="valued1"]');
+
+            if (!elementSelect || !quantityInput) return;
+
+            const observer = new MutationObserver(() => {
+                const options = [...elementSelect.options];
+                const treeOption = options.find(
+                    opt => opt.textContent.trim().toLowerCase() === "tree"
+                );
+
+                if (treeOption) {
+                    elementSelect.value = treeOption.value;
+                    elementSelect.dispatchEvent(new Event("change"));
+                    observer.disconnect();
+                }
+            });
+
+            observer.observe(elementSelect, { childList: true });
+
+            quantityInput.value = regenerationValue;
+
+            const addRowBtn = document.querySelector(".add-row");
+            if (addRowBtn && !addRowBtn.disabled) {
+                addRowBtn.click();
+            }
+        } catch (err) {
+            console.error("Auto regeneration fill failed:", err);
+        }
+    }
+
     function updateContent() {
         const { activeModule, activeCategory } = state;
         rightPanel.innerHTML = "";
 
         const configKey = `${activeModule}|${activeCategory}`;
-        const config = getFormConfig(activeModule, activeCategory); 
+        const config = getFormConfig(activeModule, activeCategory);
 
         const groupBox = document.createElement("div");
         groupBox.className = "group-box";
 
         const numColumns = config.header.length;
         if (configKey.startsWith("Transportation|+")) {
-            groupBox.classList.add('transport-columns');
-        } else if (numColumns === 6) { 
-            groupBox.classList.add('six-columns');
+            groupBox.classList.add("transport-columns");
+        } else if (numColumns === 6) {
+            groupBox.classList.add("six-columns");
         } else if (numColumns === 5) {
-            groupBox.classList.add('five-columns');
+            groupBox.classList.add("five-columns");
         }
 
         const groupIcons = document.createElement("div");
         groupIcons.className = "group-icons";
-        groupIcons.innerHTML = `<button title="Add Row" class="add-row" ${(state.activeCategory === "+ Product") || (state.activeModule ==="Transportation" && (state.activeCategory ==="+ Emissions" || state.activeCategory ==="+ Co-Products" || state.activeCategory ==="+ Input Energy")) ? "disabled" : ""}>➕</button>`;
+        groupIcons.innerHTML = `<button title="Add Row" class="add-row" type="button" ${
+            (state.activeCategory === "+ Product") ||
+            (state.activeModule === "Transportation" &&
+                (state.activeCategory === "+ Emissions" ||
+                 state.activeCategory === "+ Co-Products" ||
+                 state.activeCategory === "+ Input Energy"))
+                ? "disabled"
+                : ""
+        }>➕</button>`;
         groupBox.appendChild(groupIcons);
 
         const header = document.createElement("div");
@@ -334,6 +841,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const createFormRow = () => {
             const row = document.createElement("div");
             row.className = "form-row";
+
             const fields = config.row();
             fields.forEach(html => {
                 const cell = document.createElement("div");
@@ -344,10 +852,12 @@ document.addEventListener("DOMContentLoaded", () => {
             const deleteBtn = row.querySelector(".delete-row");
             if (deleteBtn) {
                 deleteBtn.addEventListener("click", () => {
-                    const confirmed = confirm("Are you sure you want to delete this row?");
-                    if (confirmed) row.remove();
+                    if (confirm("Are you sure you want to delete this row?")) {
+                        row.remove();
+                    }
                 });
             }
+
             return row;
         };
 
@@ -357,24 +867,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
         autoFillForestRegeneration(formRowsContainer, configKey);
 
-        // Inside updateContent function
-        const currentCategory = activeCategory.replace("+ ", "").trim(); // Cleans "+ Input Materials..." to "Input Materials..."
-
+        const currentCategory = activeCategory.replace("+ ", "").trim();
         if (activeModule !== "Forest Operation" && currentCategory === "Input Materials and Energy") {
             const selectedTaskName = taskInput.value;
             const selectedOption = taskList.querySelector(`option[value="${selectedTaskName}"]`);
-            
+
             if (selectedOption) {
                 const taskID = selectedOption.dataset.id;
                 const moduleName = activeModule;
-                
-                // Use a small timeout to ensure the DOM elements from updateContent are rendered
+
                 setTimeout(() => {
                     autoFillInputMaterials(formRowsContainer, taskID, currentCategory, moduleName);
                 }, 100);
             }
         }
-       
 
         groupBox.appendChild(formRowsContainer);
 
@@ -407,328 +913,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-
-    /**
-     * Populates the form selects in a given row with appropriate data,
-     * dynamically determining logic based on the configKey.
-     * @param {HTMLElement} rowElement The row to populate.
-     * @param {string} configKey The key for the form configuration (e.g., "Construction|+ Product").
-     */
-    function populateFormSelects(rowElement, configKey) {
-        // Determine the Element Type (e.g., "Product", "Input Energy") and select class from the category name
-        const parts = configKey.split("|+ ");
-        if (parts.length < 2) return; 
-
-        const activeModule = parts[0];
-        const categoryName = parts[1]; // e.g., "Product", "Input Materials and Energy"
-
-        // Map Category name to the appropriate select class for the element name dropdown
-        let selectClass;
-        if (categoryName.includes("Materials and Energy")) {
-            selectClass = "materielSelect";
-        } else if (categoryName.includes("Co-Products")) {
-            selectClass = "coproductSelect";
-        } else if (categoryName.includes("Emissions")) {
-            selectClass = "emissionsSelect";
-        } else if (categoryName.includes("Waste Treatment")) {
-            selectClass = "wasteSelect";
-        } else if (categoryName.includes("Product")) {
-            selectClass = "productSelect";
-        } else {
-            // If the category name is unknown, we can't populate the element select
-            return; 
-        }
-
-        // 1. All modules need the element select populated
-        populateElementSelect(rowElement, selectClass, categoryName);
-        const elementSelect = rowElement.querySelector(`.${selectClass}`);
-        populateAndLinkUomSelects(rowElement, elementSelect);
-        //populateAndLinkUomSelects(rowElement);
-    }
-
-    /**
-     * Auto-fills the first row with data and adds a new blank row below it.
-     */
-    async function autoFillInputMaterials(formRowsContainer, taskID, categoryName, moduleName) {
-        // Only proceed if we have a valid taskID
-        if (!taskID) return;
-
-        try {
-            const response = await fetch(`/get_in_datasheet/${encodeURIComponent(taskID)}/${encodeURIComponent(categoryName)}/${encodeURIComponent(moduleName)}`);
-            const data = await response.json();
-
-            if (!data.success || !data.result || data.result.length === 0) return;
-            const autoData = data.result[0]; // Get the "Tree" data object
-
-            const firstRow = formRowsContainer.querySelector(".form-row");
-            if (!firstRow) return;
-
-            const elementSelect = firstRow.querySelector(".materielSelect");
-            const uomNameSelect = firstRow.querySelector(".uom-name-select");
-            const uomUnitSelect = firstRow.querySelector(".uom-unit-select");
-            const quantityInput = firstRow.querySelector('input[data-id="valued1"]');
-
-            // Helper: Observes a select element and selects the target text once it appears
-            const selectWhenReady = (selectEl, targetText) => {
-                return new Promise((resolve) => {
-                    const triggerSelection = () => {
-                        const options = [...selectEl.options];
-                        const match = options.find(opt => opt.textContent.trim() === targetText.trim());
-                        if (match) {
-                            selectEl.value = match.value;
-                            selectEl.dispatchEvent(new Event("change"));
-                            return true;
-                        }
-                        return false;
-                    };
-
-                    // Try immediately
-                    if (triggerSelection()) {
-                        resolve();
-                        return;
-                    }
-
-                    // If not ready, observe changes
-                    const observer = new MutationObserver(() => {
-                        if (triggerSelection()) {
-                            observer.disconnect();
-                            resolve();
-                        }
-                    });
-                    observer.observe(selectEl, { childList: true });
-                });
-            };
-
-            // Execution Chain:
-            // 1. Set Quantity
-            quantityInput.value = autoData.ValueD;
-
-            // 2. Select Material (EName) -> This triggers UOM Name population via your existing listeners
-            await selectWhenReady(elementSelect, autoData.EName);
-
-            // 3. Select UOM Name (UName) -> This triggers UOM Unit population
-            await selectWhenReady(uomNameSelect, autoData.UName);
-
-            // 4. Select UOM Unit (Unit)
-            await selectWhenReady(uomUnitSelect, autoData.Unit);
-
-            // 5. Add a blank second row (matching your working function)
-            const addRowBtn = document.querySelector(".add-row");
-            if (addRowBtn && !addRowBtn.disabled) {
-                addRowBtn.click();
-            }
-
-        } catch (err) {
-            console.error("Auto fill materials failed:", err);
-        }
-    }
-
-    async function autoFillForestRegeneration(formRowsContainer, configKey) {
-        // Only apply to the exact condition
-        if (configKey !== "Forest Operation|+ Input Materials and Energy") return;
-
-        try {
-            // 1️⃣ Get regeneration value
-            const response = await fetch("/get_regeneration_user");
-            const data = await response.json();
-
-            if (!("value" in data)) return;
-            const regenerationValue = data.value;
-
-            // 2️⃣ Get first row
-            const firstRow = formRowsContainer.querySelector(".form-row");
-            if (!firstRow) return;
-
-            const elementSelect = firstRow.querySelector(".materielSelect");
-            const quantityInput = firstRow.querySelector('input[data-id="valued1"]');
-
-            if (!elementSelect || !quantityInput) return;
-
-            // 3️⃣ Select "Tree" once options exist
-            const selectTree = () => {
-                const options = [...elementSelect.options];
-                const treeOption = options.find(
-                    opt => opt.textContent.trim().toLowerCase() === "tree"
-                );
-
-                if (treeOption) {
-                    elementSelect.value = treeOption.value;
-                    elementSelect.dispatchEvent(new Event("change"));
-                }
-            };
-
-            // Options may load async → wait a bit
-            const selectTreeWhenReady = () => {
-                const observer = new MutationObserver(() => {
-                    const options = [...elementSelect.options];
-                    const treeOption = options.find(
-                        opt => opt.textContent.trim().toLowerCase() === "tree"
-                    );
-
-                    if (treeOption) {
-                        elementSelect.value = treeOption.value;
-                        elementSelect.dispatchEvent(new Event("change"));
-
-                        observer.disconnect(); // ✅ stop watching once done
-                    }
-                });
-
-                observer.observe(elementSelect, { childList: true });
-            };
-
-            selectTreeWhenReady();
-
-
-            // 4️⃣ Set regeneration value
-            quantityInput.value = regenerationValue;
-
-            // 5️⃣ Add a blank second row
-            const addRowBtn = document.querySelector(".add-row");
-            if (addRowBtn && !addRowBtn.disabled) {
-                addRowBtn.click();
-            }
-
-        } catch (err) {
-            console.error("Auto regeneration fill failed:", err);
-        }
-    }
-
-    /**
-     * Populates and links the UOM (Unit of Measure) name and unit selects.
-     * @param {HTMLElement} rowElement The row containing the selects.
-     */
-
-    function populateAndLinkUomSelects(rowElement, elementSelect) {
-        const uomNameSelect = rowElement.querySelector(".uom-name-select");
-        const uomUnitSelect = rowElement.querySelector(".uom-unit-select");
-
-        if (!uomNameSelect || !uomUnitSelect || !elementSelect) return;
-
-        elementSelect.addEventListener("change", () => {
-            const elementId = elementSelect.value;
-
-            uomNameSelect.innerHTML = '<option value="">Select...</option>';
-            uomUnitSelect.innerHTML = '<option value="">Select...</option>';
-
-            if (!elementId) return;
-
-            fetch(`/get_all_uoms_by_element/${encodeURIComponent(elementId)}`)
-                .then(res => res.json())
-                .then(data => {
-                    const uoms = data.uoms || [];
-                    if (!uoms.length) return;
-
-                    const uniqueNames = [...new Set(uoms.map(u => u.UName))];
-
-                    uniqueNames.forEach(name => {
-                        const opt = document.createElement("option");
-                        opt.value = name;
-                        opt.textContent = name;
-                        uomNameSelect.appendChild(opt);
-                    });
-                });
-        });
-
-        uomNameSelect.addEventListener("change", () => {
-            const elementId = elementSelect.value;
-            const uName = uomNameSelect.value;
-
-            uomUnitSelect.innerHTML = '<option value="">Select...</option>';
-            if (!elementId || !uName) return;
-
-            fetch(`/get_all_uoms_by_element/${encodeURIComponent(elementId)}`)
-                .then(res => res.json())
-                .then(data => {
-                    const uoms = data.uoms.filter(u => u.UName === uName);
-
-                    uoms.forEach(u => {
-                        const opt = document.createElement("option");
-                        opt.value = u.IDU;
-                        opt.textContent = u.Unit;
-                        uomUnitSelect.appendChild(opt);
-                    });
-                });
-        });
-    }
-
-
-    /**
-     * Populates an element select with options from a specific category.
-     * @param {HTMLElement} rowElement The row.
-     * @param {string} selectClass The CSS class of the select.
-     * @param {string} categoryName The category name to filter by.
-     */
-    function populateElementSelect(rowElement, selectClass, categoryName) {
-        const elementSelect = rowElement.querySelector(`.${selectClass}`);
-        const uomNameSelect = rowElement.querySelector(".uom-name-select");
-        const uomUnitSelect = rowElement.querySelector(".uom-unit-select");
-        const checkbox = rowElement.querySelector('input[type="checkbox"]');
-        
-        if (!elementSelect) return;
-
-        // Determine the value of ischk based on the existence of the checkbox
-        let ischk = 0;  // Default value
-        if (checkbox) {
-            ischk = checkbox.checked ? 1 : 0;
-
-            // Add event listener for checkbox state change
-            checkbox.addEventListener('change', () => {
-                ischk = checkbox.checked ? 1 : 0;
-                fetchElements(ischk); // Re-fetch based on updated checkbox state
-            });
-        }
-
-        // Function to fetch elements with the current ischk value
-        const fetchElements = (ischk) => {
-            fetch(`/get_elements_by_category_for_datasheet/${encodeURIComponent(categoryName)}/${encodeURIComponent(ischk)}`)
-                .then(res => res.json())
-                .then(data => {
-                    const elements = data.elements || [];
-                    elementSelect.innerHTML = '';
-                    const defaultOption = document.createElement("option");
-                    defaultOption.value = "";
-                    defaultOption.textContent = "Select ...";
-                    elementSelect.appendChild(defaultOption);
-
-                    elements.forEach(element => {
-                        const option = document.createElement("option");
-                        let txtcontent = element.EName
-                        if (element.SName) { txtcontent = txtcontent + ' | ' + element.SName;}
-                        if (element.TName) { txtcontent = txtcontent + ' | ' + element.TName;}
-                        option.value = element.IDE;
-                        option.textContent = txtcontent;
-                        elementSelect.appendChild(option);
-                    });
-                })
-                .catch(err => {
-                    console.error(`Error loading ${categoryName} options:`, err);
-                });
-        }
-
-        // Initial fetch with ischk value (0 if checkbox is missing, 1 or 0 based on checkbox state)
-        fetchElements(ischk);
-
-        // Event listener for UOM name change to populate UOM units
-        elementSelect.addEventListener("change", function (event) {
-            selectedElement = event.target.value;
-
-            fetch(`/get_all_uoms_by_element/${encodeURIComponent(selectedElement)}`)
-                .then(res => res.json())
-                .then(data => {
-                    const uoms = data.uoms || [];
-                    if (!uoms.length) return;
-
-                    uomNameSelect.value = uoms[0].UName;
-                    uomNameSelect.dispatchEvent(new Event("change"));
-                    uomUnitSelect.value = uoms[0].Unit;
-                })
-                .catch(err => console.error("Error loading units:", err));
-        });
-    }
-
-
-
-    // Event listeners for module tabs and category buttons
     moduleTabs.forEach(tab => {
         tab.addEventListener("click", () => {
             moduleTabs.forEach(t => t.classList.remove("active"));
@@ -745,360 +929,104 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    // Initial content load
-    updateContent();
+    rightPanel.addEventListener("click", async (event) => {
+        if (!event.target.classList.contains("check-button")) return;
 
+        clearMessage();
 
-    // ----------------------------------------------------
-    // Data Saving Logic (Validation & Submission)
-    // ----------------------------------------------------
-
-    /**
-     * Fetches the step ID by its name from the server.
-     * @param {string} stepName The name of the step.
-     * @returns {Promise<string|null>} The step ID or null if not found.
-     */
-    async function getStepIdByName(stepName) {
-        try {
-            const response = await fetch(`/get_step_id/${encodeURIComponent(stepName)}`);
-            const data = await response.json();
-            if (data.success) {
-                return data.ids;
-            } else {
-                console.error("Error fetching step ID:", data.message);
-                return null;
-            }
-        } catch (error) {
-            console.error("Network error fetching step ID:", error);
-            return null;
-        }
-    }
-
-    /**
-     * Collects and validates form data from the rows.
-     * Ignores rows that have already been successfully validated (green checkmark).
-     * @returns {{data: Array, isValid: boolean, submittedRows: Array}} The data, a validation flag, and the submitted row references.
-     */
-    function collectFormData() {
-        const rows = document.querySelectorAll('.form-rows .form-row');
-        const formData = [];
-        const submittedRows = [];
-        let isValid = true;
-
-        rows.forEach(row => {
-            if (row.querySelector('.status-icon.green-check')) {
-                return; // Skip this row if it's already saved
-            }
-
-            const selectElement = row.querySelector('select:not(.uom-name-select)');
-            const quantityInput = row.querySelector('input[data-id="valued1"]');
-            const unitSelect = row.querySelector('select[data-id="unitd1"]');
-            const checkbox = row.querySelector('input[type="checkbox"]');
-            //const quantityInput2 = row.querySelector('input[data-id="valued2"]');
-            //const unitSelect2 = row.querySelector('select[data-id="unitd2"]');
-            //const modetransportation = row.querySelector('select[data-id="selectmodetransport"]');
-
-            const ide = selectElement ? selectElement.value : null;
-            const quantity = quantityInput ? quantityInput.value : null;
-            const unitId = unitSelect ? unitSelect.value : null;
-            const isChecked = checkbox ? checkbox.checked : null;
-            //const quantity2 = quantityInput2 ? quantityInput2.value : null;
-            //const unitId2 = unitSelect2 ? unitSelect2.value : null;
-            const modtransport = null;
-
-            // Basic validation: Check if Quantity/Unit are filled if anything is entered
-            if (quantity && unitId) { // ide &&
-                const rowData = {
-                    IDE: ide,
-                    ValueD1: parseFloat(quantity),
-                    IDU1: unitId
-                };
-
-                // if (quantity2 && unitId2){
-                //     rowData.ValueD2 = parseFloat(quantity2);
-                //     rowData.IDU2 = unitId2
-                // } else if (quantity2 || unitId2) {
-                //     // Fail validation if only one of ValueD2 or IDU2 is present
-                //     isValid = false; 
-                // }
-
-                if (modtransport){
-                     rowData.IDM = modtransport;
-                }
-
-                if (isChecked !== null) {
-                    rowData.CHK = isChecked ? 1 : 0;
-                }
-                formData.push(rowData);
-                submittedRows.push(row);
-            } else if (quantity || unitId) { // ide || 
-                isValid = false;
-            }
-        });
-        return { data: formData, isValid: isValid, submittedRows: submittedRows };
-    }
-
-
-    /**
-     * Disables all input fields in a given row.
-     * @param {HTMLElement} row The row to disable.
-     */
-    function disableRowInputs(row) {
-        const inputs = row.querySelectorAll('input, select');
-        inputs.forEach(input => {
-            input.disabled = true;
-        });
-        const deleteBtn = row.querySelector('.delete-row');
-        if (deleteBtn) {
-            deleteBtn.disabled = true;
-        }
-    }
-
-    /**
-     * Updates the status indicators for the rows.
-     * @param {boolean} isSuccess - Success or failure of the submission.
-     * @param {HTMLElement[]} submittedRows - The rows that were submitted.
-     * @param {HTMLElement[]} allRows - All rows in the form.
-     */
-    function updateStatusIndicators(isSuccess, submittedRows, allRows) {
-        submittedRows.forEach(row => {
-            const indicator = row.querySelector('.status-indicator');
-            if (indicator) {
-                indicator.innerHTML = '';
-                if (isSuccess) {
-                    indicator.innerHTML = '<span class="status-icon green-check">✓</span>';
-                    disableRowInputs(row);
-                } else {
-                    indicator.innerHTML = '<span class="status-icon red-cross">✗</span>';
-                }
-            }
-        });
-
-        allRows.forEach(row => {
-            if (!submittedRows.includes(row)) {
-                const indicator = row.querySelector('.status-indicator');
-                // Simplified check for "has data" (might need refinement based on exact requirements)
-                const hasData = Array.from(row.querySelectorAll('select, input')).some(
-                    el => (el.value && el.value !== "Select...") || (el.type === 'checkbox' && el.checked)
-                );
-
-                if (hasData && !indicator.querySelector('.status-icon')) {
-                    if (indicator) {
-                        indicator.innerHTML = '<span class="status-icon red-cross">✗</span>';
-                    }
-                }
-            }
-        });
-    }
-
-
-    // Event listener for the "Validate" button
-    rightPanel.addEventListener('click', async (event) => {
-        if (event.target.classList.contains('check-button')) {
-            if (messageArea) {
-                messageArea.textContent = '';
-                messageArea.style.display = 'none';
-            }
-
-            const selectedTaskName = taskInput.value;
-            const selectedOption = taskList.querySelector(`option[value="${selectedTaskName}"]`);
-            
-            let taskId = null;
-            if (selectedOption) {
-                // Retrieve the stored ID from the custom data attribute
-                taskId = selectedOption.dataset.id; 
-            } else {
-                // If the user typed something custom or the input is empty but not in the list, 
-                // we should treat it as invalid unless your application allows new task creation here.
-                // For now, treat it as an unselected task.
-                taskId = null;
-            }
-
-            if (!taskId) {
-                showMessage("Please select a task from the list or ensure your input matches a valid task.", "error");
-                return;
-            }
-           // const stepName = state.activeModule;
-
-            if (!taskId) {
-                showMessage("Please select a task.", "error");
-                return;
-            }
-
-            const stepName = state.activeModule; // e.g., "Forest Operation", "Construction"
-            let stepId = null;
-
-            // Determine the source of the Step ID based on the active module
-            if (stepName === "Forest Operation" || stepName === "Transportation" || stepName === "Wood Processing") {
-                // For fixed modules, we fetch the ID based on the module name
-                stepId = await getStepIdByName(stepName); 
-            } else {
-                // For other modules (e.g., Construction) which might be selected via the dropdown
-                // We use the ID directly from the selected option's value
-                stepId = activeStepsSelect.value;
-                
-                // Optional validation: Ensure a value was actually selected in the dropdown
-                if (!stepId || stepId === "Select an active step...") {
-                    showMessage("Please select an active step from the list.", "error");
-                    return;
-                }
-            }
-
-            if (!stepId) {
-                // This catches errors from getStepIdByName or if the activeStepsSelect validation fails
-                showMessage(`Error: Could not find step '${stepName}'.`, "error");
-                return;
-            }
-
-
-            const allRows = document.querySelectorAll('.form-rows .form-row');
-            const { data, isValid, submittedRows } = collectFormData();
-
-            if (!isValid) {
-                showMessage("One or more form rows are incomplete.", "error");
-                updateStatusIndicators(false, submittedRows, allRows);
-                return;
-            }
-
-            if (data.length === 0) {
-                showMessage("The form is empty, or all valid rows have been saved.", "warning");
-                return;
-            }
-
-            const userConfirmed = confirm("Do you want to save this data to the database?");
-
-            if (!userConfirmed) {
-                showMessage("Data saving canceled.", "warning");
-                return;
-            }
-
-            try {
-                const response = await fetch('/save_datasheetregister', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        rows: data,
-                        step_id: stepId,
-                        task_id: taskId
-                    })
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    showMessage(result.message, "success");
-                    updateStatusIndicators(true, submittedRows, allRows);
-
-                    // ------------------------------------
-                    // Ask user ONLY if ALL rows are saved
-                    // ------------------------------------
-                    if (areAllRowsSaved()) {
-                        setTimeout(() => {
-                            showYesNoConfirm(
-                                "All rows are saved successfully.\n\nDo you finish with the registration?",
-                                () => redirectToEditPage(),
-                                () => {} // stay on page
-                            );
-                        }, 300);
-                    }
-
-                }
-                /* if (result.success) {
-                    showMessage(result.message, "success");
-                    updateStatusIndicators(true, submittedRows, allRows);
-                } */ else {
-                    showMessage(`Error: ${result.message}`, "error");
-                    updateStatusIndicators(false, submittedRows, allRows);
-                }
-            } catch (error) {
-                console.error("Error submitting form:", error);
-                showMessage("An unexpected error occurred.", "error");
-                updateStatusIndicators(false, submittedRows, allRows);
-            }
-        }
-    });
-
-    /* area all rows save */
-    function areAllRowsSaved() {
-        const rows = document.querySelectorAll('.form-rows .form-row');
-        return [...rows].every(row =>
-            row.querySelector('.status-icon.green-check')
-        );
-    }
-
-    /* Redirect page */
-    function redirectToEditPage() {
         const selectedTaskName = taskInput.value;
-        const selectedOption = taskList.querySelector(
-            `option[value="${selectedTaskName}"]`
-        );
+        const selectedOption = taskList.querySelector(`option[value="${selectedTaskName}"]`);
+        const taskId = selectedOption ? selectedOption.dataset.id : null;
 
-        if (!selectedOption) {
-            showMessage("Unable to determine the selected task.", "error");
+        if (!taskId) {
+            showMessage("Please select a task from the list or ensure your input matches a valid task.", "error");
             return;
         }
 
-        const taskId = selectedOption.dataset.id;
+        const stepName = state.activeModule;
+        let stepId = null;
 
-        // SAME pattern used in main.js
-        const editUrl = "/datasheetupdate";
-
-        window.location.href =
-            `${editUrl}?id=${taskId}&name=${encodeURIComponent(selectedTaskName)}`;
-    }
-
-    // Show message after success registration
-    function showYesNoConfirm(message, onYes, onNo) {
-        const modal = document.getElementById('confirmModal');
-        const messageEl = document.getElementById('confirmModalMessage');
-        const yesBtn = document.getElementById('confirmYes');
-        const noBtn = document.getElementById('confirmNo');
-
-        messageEl.textContent = message;
-        modal.style.display = 'flex';
-
-        const cleanup = () => {
-            modal.style.display = 'none';
-            yesBtn.onclick = null;
-            noBtn.onclick = null;
-        };
-
-        yesBtn.onclick = () => {
-            cleanup();
-            onYes();
-        };
-
-        noBtn.onclick = () => {
-            cleanup();
-            if (onNo) onNo();
-        };
-    }
-
-
-    /**
-     * Displays a temporary message to the user.
-     * @param {string} message The message to display.
-     * @param {string} type The message type ('success', 'error', 'warning').
-     */
-    function showMessage(message, type) {
-        if (!messageArea) {
-            messageArea = document.createElement('div');
-            messageArea.id = 'message-area';
-            messageArea.className = 'message-area';
-            rightPanel.prepend(messageArea);
+        if (stepName === "Forest Operation" || stepName === "Transportation" || stepName === "Wood Processing") {
+            stepId = await getStepIdByName(stepName);
+        } else {
+            stepId = activeStepsSelect.value;
+            if (!stepId || stepId === "Select an active step...") {
+                showMessage("Please select an active step from the list.", "error");
+                return;
+            }
         }
-        messageArea.textContent = message;
-        messageArea.className = `message-area ${type}-message`;
-        messageArea.style.display = 'block';
+
+        if (!stepId) {
+            showMessage(`Error: Could not find step '${stepName}'.`, "error");
+            return;
+        }
+
+        const allRows = document.querySelectorAll(".form-rows .form-row");
+        const { data, isValid, submittedRows } = collectFormData();
+
+        if (!isValid) {
+            showMessage("One or more form rows are incomplete.", "error");
+            updateStatusIndicators(false, submittedRows, allRows);
+            return;
+        }
+
+        if (data.length === 0) {
+            showMessage("The form is empty, or all valid rows have been saved.", "warning");
+            return;
+        }
+
+        const userConfirmed = confirm("Do you want to save this data to the database?");
+        if (!userConfirmed) {
+            showMessage("Data saving canceled.", "warning");
+            return;
+        }
+
+        try {
+            const result = await fetchFlowsForAllocation(stepId, taskId, data);
+
+            if (result.requires_allocation) {
+                openManualAllocationModal(result.flows, data, stepId, taskId, submittedRows, allRows);
+                return;
+            }
+
+            if (result.success) {
+                showMessage(result.message, "success");
+                updateStatusIndicators(true, submittedRows, allRows);
+
+                if (areAllRowsSaved()) {
+                    setTimeout(() => {
+                        showYesNoConfirm(
+                            "All rows are saved successfully.\n\nDo you finish with the registration?",
+                            () => redirectToEditPage(),
+                            () => {}
+                        );
+                    }, 300);
+                }
+            } else {
+                showMessage(`Error: ${result.message}`, "error");
+                updateStatusIndicators(false, submittedRows, allRows);
+            }
+        } catch (error) {
+            console.error("Error submitting form:", error);
+            showMessage("An unexpected error occurred.", "error");
+            updateStatusIndicators(false, submittedRows, allRows);
+        }
+    });
+
+    const manualAllocationCloseBtn = document.getElementById("manualAllocationCloseBtn");
+    if (manualAllocationCloseBtn) {
+        manualAllocationCloseBtn.addEventListener("click", closeManualAllocationModal);
     }
 
-    // ----------------------------------------------------
-    // Initial Select Box Loading
-    // ----------------------------------------------------
+    const manualAllocationModal = document.getElementById("manualAllocationModal");
+    if (manualAllocationModal) {
+        manualAllocationModal.addEventListener("click", (e) => {
+            if (e.target === manualAllocationModal) {
+                closeManualAllocationModal();
+            }
+        });
+    }
 
-    /**
-     * Fetches and populates the list of active steps.
-     */
     fetch("/active_steps")
         .then(response => response.json())
         .then(data => {
@@ -1119,13 +1047,10 @@ document.addEventListener("DOMContentLoaded", () => {
             activeStepsSelect.innerHTML = '<option value="" disabled selected>Error loading steps</option>';
         });
 
-    /**
-     * Fetches and populates the list of tasks.
-     */
     fetch("/listtasks_with_out_datasheet")
         .then(response => response.json())
         .then(data => {
-            taskList.innerHTML = ''; 
+            taskList.innerHTML = "";
             if (data.success && Array.isArray(data.tasks)) {
                 data.tasks.forEach(task => {
                     const option = document.createElement("option");
@@ -1134,15 +1059,17 @@ document.addEventListener("DOMContentLoaded", () => {
                     taskList.appendChild(option);
                 });
             } else {
-                taskList.innerHTML = '<option value="" disabled selected>No tasks available</option>';
+                const option = document.createElement("option");
+                option.value = "No tasks available";
+                taskList.appendChild(option);
             }
         })
         .catch(err => {
             console.error("Error fetching tasks:", err);
-            // Add a temporary option to the datalist on error
             const option = document.createElement("option");
             option.value = "Error loading tasks";
             taskList.appendChild(option);
         });
 
+    updateContent();
 });

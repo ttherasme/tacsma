@@ -7,44 +7,54 @@ document.addEventListener("DOMContentLoaded", () => {
     const deleteAllBtn = document.querySelector(".delete-all-btn");
     const editIcon = document.querySelector(".uoc-icon.edit-icon");
 
-    function handleCheckboxChange(event) {
-        const box = event.target;
+    const prevPageBtn = document.getElementById("prev-page-btn");
+    const nextPageBtn = document.getElementById("next-page-btn");
+    const pageNumbers = document.getElementById("page-numbers");
+
+    let currentPage = window.uocPagination?.initialPage || 1;
+    let currentQuery = "";
+    let totalPages = Math.max(
+        1,
+        Math.ceil(
+            (window.uocPagination?.totalCount || 0) /
+            (window.uocPagination?.perPage || 10)
+        )
+    );
+
+    // ------------------------------
+    // EXISTING BEHAVIOR (UNCHANGED)
+    // ------------------------------
+    function handleCheckboxChange(e) {
+        const box = e.target;
         box.closest("tr").classList.toggle("selected-row", box.checked);
         updateCheckAllState();
         updateEditIconState();
     }
 
-    function handleRowClick(event) {
+    function handleRowClick(e) {
         if (
-            event.target.classList.contains("uoc-checkbox") ||
-            event.target.closest(".delete-uoc-btn") ||
-            event.target.closest("a")
-        ) {
-            return;
-        }
+            e.target.classList.contains("uoc-checkbox") ||
+            e.target.closest(".delete-uoc-btn") ||
+            e.target.closest("a")
+        ) return;
 
-        const row = event.currentTarget;
+        const row = e.currentTarget;
         const box = row.querySelector(".uoc-checkbox");
 
         box.checked = !box.checked;
         row.classList.toggle("selected-row", box.checked);
+
         updateCheckAllState();
         updateEditIconState();
     }
 
-    function attachCheckboxBehavior() {
-        const boxes = document.querySelectorAll(".uoc-checkbox");
-
-        boxes.forEach(box => {
+    function attachBehaviors() {
+        document.querySelectorAll(".uoc-checkbox").forEach(box => {
             box.removeEventListener("change", handleCheckboxChange);
             box.addEventListener("change", handleCheckboxChange);
         });
-    }
 
-    function attachRowClickBehavior() {
-        const rows = document.querySelectorAll("#uoc-table-body tr");
-
-        rows.forEach(row => {
+        document.querySelectorAll("#uoc-table-body tr").forEach(row => {
             row.removeEventListener("click", handleRowClick);
             row.addEventListener("click", handleRowClick);
         });
@@ -53,10 +63,8 @@ document.addEventListener("DOMContentLoaded", () => {
     function updateTable(uocs) {
         tableBody.innerHTML = "";
 
-        if (uocs.length === 0) {
+        if (!uocs || uocs.length === 0) {
             tableBody.innerHTML = "<tr><td colspan='9'>No results found</td></tr>";
-            updateCheckAllState();
-            updateEditIconState();
             return;
         }
 
@@ -74,7 +82,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <td><a href="/auoc?id=${uoc.IDU}">Alias</a></td>
                 <td>
                     <button class="delete-uoc-btn" data-id="${uoc.IDU}">
-                        <img src="/static/img/trash-red.png" alt="Delete">
+                        <img src="/static/img/trash-red.png">
                     </button>
                 </td>
             `;
@@ -82,136 +90,158 @@ document.addEventListener("DOMContentLoaded", () => {
             tableBody.appendChild(row);
         });
 
-        attachRowClickBehavior();
-        attachCheckboxBehavior();
+        attachBehaviors();
         updateCheckAllState();
         updateEditIconState();
     }
 
     function updateCheckAllState() {
-        const allBoxes = document.querySelectorAll(".uoc-checkbox");
-        const checkedBoxes = document.querySelectorAll(".uoc-checkbox:checked");
+        const all = document.querySelectorAll(".uoc-checkbox");
+        const checked = document.querySelectorAll(".uoc-checkbox:checked");
 
-        checkAllBox.checked = allBoxes.length > 0 && checkedBoxes.length === allBoxes.length;
+        checkAllBox.checked = all.length > 0 && all.length === checked.length;
     }
 
     checkAllBox.addEventListener("change", () => {
-        const allBoxes = document.querySelectorAll(".uoc-checkbox");
-
-        allBoxes.forEach(box => {
+        document.querySelectorAll(".uoc-checkbox").forEach(box => {
             box.checked = checkAllBox.checked;
             box.closest("tr").classList.toggle("selected-row", box.checked);
         });
-
         updateEditIconState();
     });
 
     function updateEditIconState() {
-        if (!editIcon) return;
-
         const count = document.querySelectorAll(".uoc-checkbox:checked").length;
-        editIcon.classList.toggle("disabled", count !== 1);
+        editIcon?.classList.toggle("disabled", count !== 1);
     }
 
-    if (editIcon) {
-        editIcon.addEventListener("click", () => {
-            const checked = document.querySelectorAll(".uoc-checkbox:checked");
-
-            if (checked.length === 0) {
-                alert("Please select a uoc to edit.");
-                return;
-            }
-
-            if (checked.length > 1) {
-                alert("Please select only one uoc to edit.");
-                return;
-            }
-
-            const id = checked[0].dataset.id;
-            const url = editIcon.querySelector("img").dataset.url;
-
-            window.location.href = `${url}?idu=${id}`;
-        });
-    }
-
-    document.addEventListener("click", async (event) => {
-        const btn = event.target.closest(".delete-uoc-btn");
+    // ------------------------------
+    // DELETE FIX (IMPORTANT)
+    // ------------------------------
+    document.addEventListener("click", async (e) => {
+        const btn = e.target.closest(".delete-uoc-btn");
         if (!btn) return;
 
         const id = btn.dataset.id;
 
-        if (!confirm("Do you want to delete this uoc?")) return;
+        if (!confirm("Delete this uoc?")) return;
 
-        try {
-            const response = await fetch(`/delete_uoc/${id}`, { method: "DELETE" });
-            const data = await response.json();
+        const res = await fetch(`/delete_uoc/${id}`, { method: "DELETE" });
+        const data = await res.json();
 
-            if (data.success) {
-                btn.closest("tr").remove();
-                updateCheckAllState();
-                updateEditIconState();
-            } else {
-                alert(data.message || "Failed to delete uoc.");
-            }
-        } catch {
-            alert("Error deleting uoc.");
+        if (data.success) {
+            loadPage(currentPage); // 🔥 FIX: reload page instead of removing row
         }
     });
 
     deleteAllBtn.addEventListener("click", async () => {
         const selected = [...document.querySelectorAll(".uoc-checkbox:checked")];
 
-        if (selected.length === 0) {
-            alert("No uocs selected.");
-            return;
-        }
+        if (!selected.length) return alert("No uocs selected.");
+        if (!confirm("Delete ALL selected?")) return;
 
-        if (!confirm("Do you want to delete ALL selected uocs?")) return;
+        const ids = selected.map(x => x.dataset.id);
 
-        const ids = selected.map(box => box.dataset.id);
+        const res = await fetch("/delete_uocs", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ uoc_ids: ids })
+        });
 
-        try {
-            const response = await fetch("/delete_uocs", {
-                method: "DELETE",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ uoc_ids: ids }),
-            });
+        const data = await res.json();
 
-            const data = await response.json();
-
-            if (data.success) {
-                ids.forEach(id => {
-                    const row = document.querySelector(`.uoc-checkbox[data-id="${id}"]`)?.closest("tr");
-                    if (row) row.remove();
-                });
-
-                updateCheckAllState();
-                updateEditIconState();
-                alert("Deletion completed.");
-            } else {
-                alert("An error occurred while deleting uocs.");
-            }
-        } catch {
-            alert("Error deleting uocs.");
+        if (data.success) {
+            loadPage(currentPage); // 🔥 FIX
         }
     });
 
-    function searchuocs(query) {
-        fetch(`/searchuocs?q=${encodeURIComponent(query)}`)
-            .then(res => res.json())
-            .then(updateTable)
-            .catch(() => {
-                tableBody.innerHTML = "<tr><td colspan='9'>Error loading results</td></tr>";
+    // ------------------------------
+    // PAGINATION
+    // ------------------------------
+    function createBtn(page, active = false) {
+        const btn = document.createElement("button");
+        btn.textContent = page;
+
+        if (active) {
+            btn.disabled = true;
+            btn.classList.add("active-page");
+        }
+
+        btn.onclick = () => loadPage(page);
+        return btn;
+    }
+
+    function dots() {
+        const s = document.createElement("span");
+        s.textContent = "...";
+        return s;
+    }
+
+    function renderPages() {
+        pageNumbers.innerHTML = "";
+
+        if (totalPages <= 1) return;
+
+        let start = Math.max(1, currentPage - 2);
+        let end = Math.min(totalPages, currentPage + 2);
+
+        if (start > 1) {
+            pageNumbers.appendChild(createBtn(1, currentPage === 1));
+            if (start > 2) pageNumbers.appendChild(dots());
+        }
+
+        for (let i = start; i <= end; i++) {
+            pageNumbers.appendChild(createBtn(i, i === currentPage));
+        }
+
+        if (end < totalPages) {
+            if (end < totalPages - 1) pageNumbers.appendChild(dots());
+            pageNumbers.appendChild(createBtn(totalPages, currentPage === totalPages));
+        }
+    }
+
+    function updatePagination(meta) {
+        currentPage = meta.page;
+        totalPages = Math.max(1, Math.ceil(meta.total_count / meta.per_page));
+
+        prevPageBtn.disabled = !meta.has_prev;
+        nextPageBtn.disabled = !meta.has_next;
+
+        renderPages();
+    }
+
+    function loadPage(page) {
+        fetch(`/searchuocs?q=${encodeURIComponent(currentQuery)}&page=${page}`)
+            .then(r => r.json())
+            .then(data => {
+                updateTable(data.uocs);
+                updatePagination(data);
             });
     }
 
+    // ------------------------------
+    // SEARCH
+    // ------------------------------
     searchInput.addEventListener("input", () => {
-        searchuocs(searchInput.value.trim());
+        currentQuery = searchInput.value.trim();
+        currentPage = 1;
+        loadPage(1);
     });
 
     searchButton.addEventListener("click", () => {
-        searchuocs(searchInput.value.trim());
+        currentQuery = searchInput.value.trim();
+        currentPage = 1;
+        loadPage(1);
     });
 
-    searchuocs("");
+    prevPageBtn.addEventListener("click", () => {
+        if (currentPage > 1) loadPage(currentPage - 1);
+    });
+
+    nextPageBtn.addEventListener("click", () => {
+        if (currentPage < totalPages) loadPage(currentPage + 1);
+    });
+
+    // INIT
+    loadPage(currentPage);
 });

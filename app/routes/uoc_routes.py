@@ -18,8 +18,101 @@ def uoc():
     if 'username' not in session:
         return redirect(url_for('auth_bp.login'))
 
-    uoc_list = UnitConversion.query.order_by(UnitConversion.unit_name.desc()).limit(20).all()
-    return render_template('uoc/uoc.html', uocs=uoc_list)
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+
+    if page < 1:
+        page = 1
+
+    base_query = UnitConversion.query.order_by(UnitConversion.unit_name.desc())
+
+    total_count = base_query.count()
+    offset = (page - 1) * per_page
+
+    uoc_list = base_query.offset(offset).limit(per_page).all()
+
+    return render_template(
+        'uoc/uoc.html',
+        uocs=uoc_list,
+        page=page,
+        per_page=per_page,
+        total_count=total_count,
+        has_prev=page > 1,
+        has_next=offset + per_page < total_count
+    )
+
+
+# ------------------------------------------
+# Route: Search Units of Conversion
+# ------------------------------------------
+@uoc_bp.route('/searchuocs', methods=['GET'])
+def search_uocs():
+    if 'username' not in session:
+        return jsonify({
+            "uocs": [],
+            "page": 1,
+            "per_page": 10,
+            "total_count": 0,
+            "has_prev": False,
+            "has_next": False
+        })
+
+    query = request.args.get('q', '').strip().lower()
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+
+    if page < 1:
+        page = 1
+
+    base_query = UnitConversion.query
+
+    if not query:
+        base_query = base_query.order_by(UnitConversion.unit_name.desc())
+    else:
+        like_query = f"%{query}%"
+
+        state_filter = None
+        if "active".startswith(query):
+            state_filter = UnitConversion.is_active.is_(True)
+        elif "inactive".startswith(query):
+            state_filter = UnitConversion.is_active.is_(False)
+
+        filters = [
+            UnitConversion.unit_name.ilike(like_query),
+            cast(UnitConversion.factor_to_si, String).ilike(like_query),
+            UnitConversion.si_unit.ilike(like_query),
+            UnitConversion.category.ilike(like_query),
+        ]
+
+        if state_filter is not None:
+            filters.append(state_filter)
+        else:
+            filters.append(cast(UnitConversion.is_active, String).ilike(like_query))
+
+        base_query = base_query.filter(or_(*filters)).order_by(UnitConversion.unit_name.desc())
+
+    total_count = base_query.count()
+    offset = (page - 1) * per_page
+
+    uocs = base_query.offset(offset).limit(per_page).all()
+
+    result = [{
+        "IDU": uoc.id,
+        "UName": uoc.unit_name,
+        "UFactor": uoc.factor_to_si,
+        "Unit": uoc.si_unit,
+        "UCategory": uoc.category,
+        "State": "Active" if uoc.is_active else "Inactive"
+    } for uoc in uocs]
+
+    return jsonify({
+        "uocs": result,
+        "page": page,
+        "per_page": per_page,
+        "total_count": total_count,
+        "has_prev": page > 1,
+        "has_next": offset + per_page < total_count
+    })
 
 # ------------------------------------------
 # Route: Registration Page + Submission
@@ -151,54 +244,6 @@ def updateuoc():
     uoc_id_param = request.args.get("idu", type=int)
     uoc_data = db.session.get(UnitConversion, uoc_id_param) if uoc_id_param else None
     return render_template("uoc/uocupdate.html", uoc=uoc_data)
-
-# ------------------------------------------
-# Route: Search Units of Conversion
-# ------------------------------------------
-@uoc_bp.route('/searchuocs', methods=['GET'])
-def search_uocs():
-    if 'username' not in session:
-        return jsonify([])
-
-    query = request.args.get('q', '').strip().lower()
-
-    if not query:
-        uocs = UnitConversion.query.order_by(UnitConversion.unit_name.desc()).limit(20).all()
-    else:
-        like_query = f"%{query}%"
-
-        state_filter = None
-        if "active".startswith(query):
-            state_filter = UnitConversion.is_active.is_(True)
-        elif "inactive".startswith(query):
-            state_filter = UnitConversion.is_active.is_(False)
-
-        filters = [
-            UnitConversion.unit_name.ilike(like_query),
-            cast(UnitConversion.factor_to_si, String).ilike(like_query),
-            UnitConversion.si_unit.ilike(like_query),
-            UnitConversion.category.ilike(like_query),
-        ]
-
-        if state_filter is not None:
-            filters.append(state_filter)
-        else:
-            filters.append(cast(UnitConversion.is_active, String).ilike(like_query))
-
-        uocs = UnitConversion.query.filter(
-            or_(*filters)
-        ).order_by(UnitConversion.unit_name.desc()).limit(20).all()
-
-    result = [{
-        "IDU": uoc.id,
-        "UName": uoc.unit_name,
-        "UFactor": uoc.factor_to_si,
-        "Unit": uoc.si_unit,
-        "UCategory": uoc.category,
-        "State": "Active" if uoc.is_active else "Inactive"
-    } for uoc in uocs]
-
-    return jsonify(result)
 
 # ------------------------------------------
 # Route: Delete Unit Conversion by ID

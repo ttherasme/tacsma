@@ -77,11 +77,23 @@
                 {% endfor %}
             </tbody>
         </table>
+        <div class="pagination">
+            <button id="prev-page-btn" {% if not has_prev %}disabled{% endif %}>Previous</button>
+            <div id="page-numbers"></div>
+            <button id="next-page-btn" {% if not has_next %}disabled{% endif %}>Next</button>
+        </div>
     </section>
 </section>
 {% endblock %}
 
 {% block scripts %}
+<script>
+    window.uomPagination = {
+        initialPage: {{ page|default(1) }},
+        totalCount: {{ total_count|default(0) }},
+        perPage: {{ per_page|default(10) }}
+    };
+</script>
 <script src="{{ url_for('static', filename='js/uom/uomsearch.js') }}"></script> {# Link your new JS file #}
 <script src="{{ url_for('static', filename='js/openother.js') }}"></script>
 {% endblock %}

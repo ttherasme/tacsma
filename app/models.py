@@ -180,6 +180,7 @@ class Datasheet(db.Model):
     ValueD = db.Column(db.Float, default=0)
     IDM = db.Column(db.String(6), db.ForeignKey('mtransp.IDM'))  
     CHK = db.Column(db.Integer, default=0)
+    ManualAllocation = db.Column(db.Float, default=0)
     EntryDate = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     UpdateDate = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

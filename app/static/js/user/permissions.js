@@ -4,181 +4,480 @@ document.addEventListener('DOMContentLoaded', function() {
     const addRuleForm = document.getElementById('add-rule-form');
     const rulesBody = document.getElementById('permission-rules-body');
     const saveAllButton = document.getElementById('save-all-rules');
-    
+
     const filterLevelSelect = document.getElementById('filter-level');
     const filterPageSelect = document.getElementById('filter-page');
 
-    // Load data passed from Flask template (level.html)
+    const undoButton = document.getElementById('undo-rules');
+    const redoButton = document.getElementById('redo-rules');
+
+    const prevPageBtn = document.getElementById('prev-page-btn');
+    const nextPageBtn = document.getElementById('next-page-btn');
+    const pageNumbers = document.getElementById('page-numbers');
+
     const elementsMapData = document.getElementById('elements-map-data').textContent;
     const levelsData = document.getElementById('levels-data').textContent;
     const actionsData = document.getElementById('actions-data').textContent;
-    
-    const ELEMENTS_MAP = JSON.parse(elementsMapData); 
-    const LEVELS = JSON.parse(levelsData);     // {1: 'ReadOnly User', ...}
-    const ACTIONS = JSON.parse(actionsData);   // ['view', 'click', ...]
 
-    // State tracking variables
+    const ELEMENTS_MAP = JSON.parse(elementsMapData);
+    const LEVELS = JSON.parse(levelsData);
+    const ACTIONS = JSON.parse(actionsData);
+
+    const STORAGE_KEY = 'permission_rules_unsaved_state_v1';
+    const PAGINATION_PER_PAGE = 10;
+
     let newRules = [];
     let deletedRules = [];
-    let updatedRules = {}; // {ruleId: {level: 2, action: 'view'}, ...}
-    let tempIdCounter = 0; 
-    
-    // Store original HTML rows for filtering reference
-    const allRows = Array.from(rulesBody.querySelectorAll('tr'));
+    let updatedRules = {};
+    let tempIdCounter = 0;
 
+    let allRows = Array.from(rulesBody.querySelectorAll('tr'));
+    let filteredRows = [...allRows];
+    let currentPage = 1;
 
-    // ----------------------------------------------------------------------
-    // 1. FILTERING LOGIC
-    // ----------------------------------------------------------------------
-    function applyFilters() {
-        const levelFilter = filterLevelSelect.value;
-        const pageFilter = filterPageSelect.value;
+    let undoStack = [];
+    let redoStack = [];
 
-        allRows.forEach(row => {
+    // ------------------------------------------------------------
+    // HELPERS
+    // ------------------------------------------------------------
+    function capitalize(value) {
+        if (!value) return '';
+        return value.charAt(0).toUpperCase() + value.slice(1);
+    }
+
+    function getLevelLabel(levelId) {
+        return `Level ${levelId} - ${LEVELS[levelId] || 'Unknown'}`;
+    }
+
+    function markCellModified(cell, modified = true) {
+        if (!cell) return;
+        cell.classList.toggle('modified-cell', modified);
+    }
+
+    function markRowModified(row, modified = true) {
+        if (!row) return;
+        row.classList.toggle('modified-row', modified);
+    }
+
+    function syncTempCounter() {
+        const tempNumbers = newRules
+            .map(r => String(r.temp_id || ''))
+            .filter(id => id.startsWith('temp-'))
+            .map(id => parseInt(id.replace('temp-', ''), 10))
+            .filter(n => !Number.isNaN(n));
+
+        tempIdCounter = tempNumbers.length ? Math.max(...tempNumbers) : 0;
+    }
+
+    function updateUndoRedoButtons() {
+        if (undoButton) undoButton.disabled = undoStack.length === 0;
+        if (redoButton) redoButton.disabled = redoStack.length === 0;
+    }
+
+    function createHistorySnapshot() {
+        return {
+            newRules: JSON.parse(JSON.stringify(newRules)),
+            deletedRules: JSON.parse(JSON.stringify(deletedRules)),
+            updatedRules: JSON.parse(JSON.stringify(updatedRules)),
+            tempIdCounter,
+            filterLevel: filterLevelSelect ? filterLevelSelect.value : '',
+            filterPage: filterPageSelect ? filterPageSelect.value : '',
+            currentPage
+        };
+    }
+
+    function pushHistory() {
+        undoStack.push(createHistorySnapshot());
+        if (undoStack.length > 100) {
+            undoStack.shift();
+        }
+        redoStack = [];
+        updateUndoRedoButtons();
+    }
+
+    function persistState() {
+        const payload = {
+            newRules,
+            deletedRules,
+            updatedRules,
+            tempIdCounter,
+            filterLevel: filterLevelSelect ? filterLevelSelect.value : '',
+            filterPage: filterPageSelect ? filterPageSelect.value : '',
+            currentPage
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    }
+
+    function clearPersistedState() {
+        localStorage.removeItem(STORAGE_KEY);
+    }
+
+    function buildExistingRulesFromDOM() {
+        return Array.from(rulesBody.querySelectorAll('tr'))
+            .map(row => ({
+                id: parseInt(row.getAttribute('data-id'), 10),
+                level: parseInt(row.getAttribute('data-level'), 10),
+                page: row.getAttribute('data-page'),
+                element: row.children[2]?.textContent.trim() || '',
+                action: (row.children[3]?.textContent.trim() || '').toLowerCase()
+            }))
+            .filter(r => !Number.isNaN(r.id));
+    }
+
+    const BASE_EXISTING_RULES = buildExistingRulesFromDOM();
+
+    function buildRuleRow({
+        id,
+        level,
+        page,
+        element,
+        action,
+        status = 'existing',
+        statusText = 'Saved'
+    }) {
+        const row = document.createElement('tr');
+        row.setAttribute('data-id', id);
+        row.setAttribute('data-status', status);
+        row.setAttribute('data-level', String(level));
+        row.setAttribute('data-page', page);
+
+        row.innerHTML = `
+            <td class="editable-level">${getLevelLabel(level)}</td>
+            <td>${capitalize(page)}</td>
+            <td>${element}</td>
+            <td class="editable-action">${capitalize(action)}</td>
+            <td>${statusText}</td>
+            <td>
+                <button class="update-rule-button" type="button">Update</button>
+                <button class="delete-rule-button" type="button">Delete</button>
+            </td>
+        `;
+
+        return row;
+    }
+
+    function applyStateToRowVisuals(row) {
+        const ruleId = row.getAttribute('data-id');
+        const status = row.getAttribute('data-status');
+        const levelCell = row.querySelector('.editable-level');
+        const actionCell = row.querySelector('.editable-action');
+        const statusCell = row.querySelector('td:nth-child(5)');
+
+        markRowModified(row, false);
+        markCellModified(levelCell, false);
+        markCellModified(actionCell, false);
+
+        if (status === 'pending') {
+            statusCell.textContent = 'Pending Save';
+            markRowModified(row, true);
+            markCellModified(levelCell, true);
+            markCellModified(actionCell, true);
+            return;
+        }
+
+        if (status === 'deleted') {
+            statusCell.textContent = 'Pending Delete';
+            markRowModified(row, true);
+            return;
+        }
+
+        if (updatedRules[ruleId]) {
+            statusCell.textContent = 'Modified';
+            markRowModified(row, true);
+            if (Object.prototype.hasOwnProperty.call(updatedRules[ruleId], 'level')) {
+                markCellModified(levelCell, true);
+            }
+            if (Object.prototype.hasOwnProperty.call(updatedRules[ruleId], 'action')) {
+                markCellModified(actionCell, true);
+            }
+            return;
+        }
+
+        statusCell.textContent = 'Saved';
+    }
+
+    function rebuildTableFromState() {
+        rulesBody.innerHTML = '';
+        allRows = [];
+
+        // Existing rows from DB, excluding deleted ones, with updates applied
+        BASE_EXISTING_RULES.forEach(baseRule => {
+            const ruleId = String(baseRule.id);
+            const isDeleted = deletedRules.includes(baseRule.id);
+            const update = updatedRules[ruleId] || {};
+
+            const row = buildRuleRow({
+                id: baseRule.id,
+                level: update.level ?? baseRule.level,
+                page: baseRule.page,
+                element: baseRule.element,
+                action: update.action ?? baseRule.action,
+                status: isDeleted ? 'deleted' : 'existing',
+                statusText: isDeleted ? 'Pending Delete' : (updatedRules[ruleId] ? 'Modified' : 'Saved')
+            });
+
+            allRows.push(row);
+        });
+
+        // New unsaved rules
+        newRules.forEach(rule => {
+            const row = buildRuleRow({
+                id: rule.temp_id,
+                level: parseInt(rule.level, 10),
+                page: rule.page,
+                element: rule.element_desc || rule.element,
+                action: rule.action,
+                status: 'pending',
+                statusText: 'Pending Save'
+            });
+
+            allRows.push(row);
+        });
+
+        allRows.forEach(row => applyStateToRowVisuals(row));
+
+        applyFilters(false);
+    }
+
+    function restoreState(snapshot, pushToStorage = true) {
+        newRules = JSON.parse(JSON.stringify(snapshot.newRules || []));
+        deletedRules = JSON.parse(JSON.stringify(snapshot.deletedRules || []));
+        updatedRules = JSON.parse(JSON.stringify(snapshot.updatedRules || {}));
+        tempIdCounter = snapshot.tempIdCounter || 0;
+
+        if (filterLevelSelect) filterLevelSelect.value = snapshot.filterLevel || '';
+        if (filterPageSelect) filterPageSelect.value = snapshot.filterPage || '';
+
+        currentPage = snapshot.currentPage || 1;
+
+        rebuildTableFromState();
+        syncTempCounter();
+
+        if (pushToStorage) persistState();
+        updateUndoRedoButtons();
+    }
+
+    function loadPersistedState() {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+
+        try {
+            const saved = JSON.parse(raw);
+            restoreState(saved, false);
+        } catch (err) {
+            console.error('Failed to restore permission state:', err);
+            clearPersistedState();
+        }
+    }
+
+    // ------------------------------------------------------------
+    // PAGINATION
+    // ------------------------------------------------------------
+    function createPageButton(page, isActive = false) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = page;
+
+        if (isActive) {
+            btn.disabled = true;
+            btn.classList.add('active-page');
+        }
+
+        btn.addEventListener('click', () => {
+            currentPage = page;
+            renderTablePage();
+            persistState();
+        });
+
+        return btn;
+    }
+
+    function createDots() {
+        const span = document.createElement('span');
+        span.textContent = '...';
+        return span;
+    }
+
+    function renderPageButtons() {
+        if (!pageNumbers) return;
+
+        pageNumbers.innerHTML = '';
+
+        const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGINATION_PER_PAGE));
+        currentPage = Math.min(Math.max(1, currentPage), totalPages);
+
+        let start = Math.max(1, currentPage - 2);
+        let end = Math.min(totalPages, currentPage + 2);
+
+        if (start > 1) {
+            pageNumbers.appendChild(createPageButton(1, currentPage === 1));
+            if (start > 2) pageNumbers.appendChild(createDots());
+        }
+
+        for (let i = start; i <= end; i++) {
+            pageNumbers.appendChild(createPageButton(i, i === currentPage));
+        }
+
+        if (end < totalPages) {
+            if (end < totalPages - 1) pageNumbers.appendChild(createDots());
+            pageNumbers.appendChild(createPageButton(totalPages, currentPage === totalPages));
+        }
+
+        if (prevPageBtn) prevPageBtn.disabled = currentPage === 1;
+        if (nextPageBtn) nextPageBtn.disabled = currentPage === totalPages;
+    }
+
+    function renderTablePage() {
+        rulesBody.innerHTML = '';
+
+        const start = (currentPage - 1) * PAGINATION_PER_PAGE;
+        const end = start + PAGINATION_PER_PAGE;
+        const pageRows = filteredRows.slice(start, end);
+
+        pageRows.forEach(row => {
+            rulesBody.appendChild(row);
+            applyStateToRowVisuals(row);
+        });
+
+        renderPageButtons();
+    }
+
+    // ------------------------------------------------------------
+    // FILTERING
+    // ------------------------------------------------------------
+    function applyFilters(resetPage = true) {
+        const levelFilter = filterLevelSelect ? filterLevelSelect.value : '';
+        const pageFilter = filterPageSelect ? filterPageSelect.value : '';
+
+        filteredRows = allRows.filter(row => {
             const rowLevel = row.getAttribute('data-level');
             const rowPage = row.getAttribute('data-page');
-            
+
             const matchLevel = !levelFilter || rowLevel === levelFilter;
             const matchPage = !pageFilter || rowPage === pageFilter;
 
-            row.style.display = (matchLevel && matchPage) ? '' : 'none';
+            return matchLevel && matchPage;
         });
+
+        if (resetPage) currentPage = 1;
+        renderTablePage();
+        persistState();
     }
 
-    filterLevelSelect.addEventListener('change', applyFilters);
-    filterPageSelect.addEventListener('change', applyFilters);
+    if (filterLevelSelect) filterLevelSelect.addEventListener('change', () => applyFilters(true));
+    if (filterPageSelect) filterPageSelect.addEventListener('change', () => applyFilters(true));
 
-
-    // ----------------------------------------------------------------------
-    // 2. INLINE EDITING LOGIC (Using Selects)
-    // ----------------------------------------------------------------------
-    
-    /** Creates a select element populated with allowed options (Levels or Actions). */
+    // ------------------------------------------------------------
+    // INLINE EDITING
+    // ------------------------------------------------------------
     function createSelectElement(type, currentValue) {
         const select = document.createElement('select');
         select.className = type === 'level' ? 'edit-level-select' : 'edit-action-select';
-        
-        let initialValue = type === 'level' ? parseInt(currentValue) : currentValue.toLowerCase();
 
+        let initialValue;
         if (type === 'level') {
-            // Populate Level options (ID as value, ID + description as text)
+            const match = String(currentValue).match(/Level\s+(\d+)/i);
+            initialValue = match ? parseInt(match[1], 10) : parseInt(currentValue, 10);
+
             for (const [id, desc] of Object.entries(LEVELS)) {
                 const option = document.createElement('option');
                 option.value = id;
                 option.textContent = `Level ${id} - ${desc}`;
-                if (parseInt(id) === initialValue) {
-                    option.selected = true;
-                }
+                if (parseInt(id, 10) === initialValue) option.selected = true;
                 select.appendChild(option);
             }
-        } else { // Action
-            // Populate Action options
+        } else {
+            initialValue = String(currentValue).toLowerCase();
             ACTIONS.forEach(action => {
                 const option = document.createElement('option');
                 option.value = action;
-                option.textContent = action.charAt(0).toUpperCase() + action.slice(1);
-                if (action === initialValue) {
-                    option.selected = true;
-                }
+                option.textContent = capitalize(action);
+                if (action === initialValue) option.selected = true;
                 select.appendChild(option);
             });
         }
+
         return select;
     }
 
-    /** Replaces the text content of Level and Action cells with dynamic select elements. */
     function makeEditable(row) {
         const levelCell = row.querySelector('.editable-level');
         const actionCell = row.querySelector('.editable-action');
-        
-        // Use text content as the current value
+
         const currentLevel = levelCell.textContent.trim();
         const currentAction = actionCell.textContent.trim();
-        
-        // 1. Create and inject select for Level
+
         const levelSelect = createSelectElement('level', currentLevel);
+        const actionSelect = createSelectElement('action', currentAction);
+
         levelCell.innerHTML = '';
         levelCell.appendChild(levelSelect);
-        
-        // 2. Create and inject select for Action
-        const actionSelect = createSelectElement('action', currentAction);
+
         actionCell.innerHTML = '';
         actionCell.appendChild(actionSelect);
-        
-        // 3. Attach a single change listener to the row to track updates
+
         row.addEventListener('change', trackInlineChange);
-        
-        // Update the status column
+        row.querySelector('.update-rule-button').textContent = 'Done Editing';
         row.querySelector('td:nth-child(5)').textContent = 'Editing';
     }
-    
-    /** Reverts the select elements back to displaying text content. */
-     function revertToText(row) {
+
+    function revertToText(row) {
         const levelCell = row.querySelector('.editable-level');
         const actionCell = row.querySelector('.editable-action');
-        
+
         const levelSelect = levelCell.querySelector('select');
         const actionSelect = actionCell.querySelector('select');
-        
-        if (!levelSelect && !actionSelect) return; // Not in editing mode
-        
-        // Remove the listener
+
+        if (!levelSelect && !actionSelect) return;
+
         row.removeEventListener('change', trackInlineChange);
-        
-        // Revert Level cell (CRITICAL UPDATE HERE)
+
         if (levelSelect) {
             const levelId = levelSelect.value;
-            const levelDesc = LEVELS[levelId];
-            
-            // Display the descriptive format: "Level ID - Description"
-            levelCell.textContent = `Level ${levelId} - ${levelDesc}`;
-            
-            // Ensure data-level is updated for filtering
-            row.setAttribute('data-level', levelId); 
+            levelCell.textContent = getLevelLabel(levelId);
+            row.setAttribute('data-level', String(levelId));
         }
-        
-        // Revert Action cell
+
         if (actionSelect) {
-            const actionValue = actionSelect.value;
-            actionCell.textContent = actionValue.charAt(0).toUpperCase() + actionValue.slice(1);
+            actionCell.textContent = capitalize(actionSelect.value);
         }
+
+        row.querySelector('.update-rule-button').textContent = 'Update';
+        applyStateToRowVisuals(row);
+        persistState();
     }
 
-    /** Tracks changes made via the inline select elements. */
     function trackInlineChange(event) {
         const target = event.target;
         if (target.tagName !== 'SELECT') return;
 
         const row = target.closest('tr');
         const ruleId = row.getAttribute('data-id');
-        
         const levelSelect = row.querySelector('.edit-level-select');
         const actionSelect = row.querySelector('.edit-action-select');
-        
-        // Get the current committed values from the selects
-        const newLevel = parseInt(levelSelect.value);
+
+        const newLevel = parseInt(levelSelect.value, 10);
         const newAction = actionSelect.value;
-        
-        // Update status and track change
-        row.querySelector('td:nth-child(5)').textContent = 'Modified'; 
-        
-        if (!updatedRules[ruleId]) {
-            updatedRules[ruleId] = {};
-        }
-        updatedRules[ruleId]['level'] = newLevel;
-        updatedRules[ruleId]['action'] = newAction;
-        
-        // Also update the row's data-level attribute for immediate filtering consistency
-        row.setAttribute('data-level', newLevel);
-        applyFilters(); 
+
+        row.querySelector('td:nth-child(5)').textContent = 'Modified';
+        row.setAttribute('data-level', String(newLevel));
+
+        if (!updatedRules[ruleId]) updatedRules[ruleId] = {};
+        updatedRules[ruleId].level = newLevel;
+        updatedRules[ruleId].action = newAction;
+
+        markRowModified(row, true);
+        markCellModified(row.querySelector('.editable-level'), true);
+        markCellModified(row.querySelector('.editable-action'), true);
+
+        persistState();
+        applyFilters(false);
     }
 
-
-    // ----------------------------------------------------------------------
-    // 3. ADD NEW RULE LOGIC
-    // ----------------------------------------------------------------------
-    
-    // Element Select Population Logic (for the main form)
+    // ------------------------------------------------------------
+    // PAGE/ELEMENT FORM
+    // ------------------------------------------------------------
     pageSelect.addEventListener('change', function() {
         const selectedPage = this.value;
         elementSelect.innerHTML = '<option value="">-- Select Element --</option>';
@@ -188,21 +487,25 @@ document.addEventListener('DOMContentLoaded', function() {
             ELEMENTS_MAP[selectedPage].forEach(element => {
                 const option = document.createElement('option');
                 option.value = element.id;
-                option.textContent = `${element.id} - ${element.desc}`; 
+                option.textContent = `${element.id} - ${element.desc}`;
                 elementSelect.appendChild(option);
             });
             elementSelect.disabled = false;
         }
     });
-    
-    // Add Rule to Table
+
+    // ------------------------------------------------------------
+    // ADD NEW RULE
+    // ------------------------------------------------------------
     addRuleForm.addEventListener('submit', function(event) {
         event.preventDefault();
 
         if (!pageSelect.value || !elementSelect.value) {
-            alert("Please select a Page and an Element.");
+            alert('Please select a Page and an Element.');
             return;
         }
+
+        pushHistory();
 
         const newRule = {
             level: document.getElementById('level-select').value,
@@ -210,41 +513,30 @@ document.addEventListener('DOMContentLoaded', function() {
             element: elementSelect.value,
             action: document.getElementById('action-select').value
         };
-        
+
         const elementDetails = ELEMENTS_MAP[newRule.page].find(e => e.id === newRule.element);
         const elementDesc = elementDetails ? elementDetails.desc : newRule.element;
 
         tempIdCounter++;
         const tempId = `temp-${tempIdCounter}`;
-        newRules.push({ ...newRule, temp_id: tempId });
 
-        const newRow = rulesBody.insertRow();
-        newRow.setAttribute('data-id', tempId);
-        newRow.setAttribute('data-status', 'pending');
-        newRow.setAttribute('data-level', newRule.level); 
-        newRow.setAttribute('data-page', newRule.page);   
+        newRules.push({
+            ...newRule,
+            element_desc: elementDesc,
+            temp_id: tempId
+        });
 
-        newRow.innerHTML = `
-            <td class="editable-level">${newRule.level}</td>
-            <td>${newRule.page.charAt(0).toUpperCase() + newRule.page.slice(1)}</td>
-            <td>${elementDesc}</td>
-            <td class="editable-action">${newRule.action.charAt(0).toUpperCase() + newRule.action.slice(1)}</td>
-            <td>Pending Save</td>
-           <td><button class="update-rule-button">Update</button><button class="delete-rule-button">Delete</button></td>
-        `;
-
-        allRows.push(newRow); 
-        applyFilters();       
+        rebuildTableFromState();
+        persistState();
 
         addRuleForm.reset();
         elementSelect.innerHTML = '<option value="">-- Select Element --</option>';
         elementSelect.disabled = true;
     });
 
-
-    // ----------------------------------------------------------------------
-    // 4. BUTTON DELEGATION (Delete & Update)
-    // ----------------------------------------------------------------------
+    // ------------------------------------------------------------
+    // BUTTON DELEGATION
+    // ------------------------------------------------------------
     rulesBody.addEventListener('click', function(event) {
         const target = event.target;
         const row = target.closest('tr');
@@ -252,53 +544,88 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const ruleId = row.getAttribute('data-id');
         const status = row.getAttribute('data-status');
-        const updateButton = row.querySelector('.update-rule-button');
 
-        // DELETE BUTTON
         if (target.classList.contains('delete-rule-button')) {
-            revertToText(row); // Revert editing mode if active
-            
+            pushHistory();
+
+            revertToText(row);
+
             if (status === 'existing') {
-                if (confirm(`Mark SAVED rule ${ruleId} for deletion?`)) {
-                    deletedRules.push(parseInt(ruleId));
-                    row.setAttribute('data-status', 'deleted');
+                const numericId = parseInt(ruleId, 10);
+
+                if (deletedRules.includes(numericId)) {
+                    deletedRules = deletedRules.filter(id => id !== numericId);
+                    row.setAttribute('data-status', 'existing');
+                } else {
+                    if (confirm(`Mark SAVED rule ${ruleId} for deletion?`)) {
+                        deletedRules.push(numericId);
+                        row.setAttribute('data-status', 'deleted');
+                    }
                 }
             } else if (status === 'pending') {
-                const index = newRules.findIndex(r => r.temp_id === ruleId);
-                if (index !== -1) newRules.splice(index, 1);
-                row.remove();
+                newRules = newRules.filter(r => r.temp_id !== ruleId);
             } else if (status === 'deleted') {
-                const index = deletedRules.indexOf(parseInt(ruleId));
-                if (index !== -1) deletedRules.splice(index, 1);
+                const numericId = parseInt(ruleId, 10);
+                deletedRules = deletedRules.filter(id => id !== numericId);
                 row.setAttribute('data-status', 'existing');
             }
-            
-            delete updatedRules[ruleId]; // Remove from updates if being deleted
 
-        // UPDATE BUTTON (Toggles inline edit mode)
-        } else if (target.classList.contains('update-rule-button')) {
+            delete updatedRules[ruleId];
+            rebuildTableFromState();
+            persistState();
+        }
+
+        if (target.classList.contains('update-rule-button')) {
             if (row.querySelector('select')) {
-                // Currently in editing mode: Commit changes locally and revert
                 revertToText(row);
-                updateButton.textContent = 'Update';
                 alert('Changes recorded. Click "Save All Rules" to commit to database.');
             } else {
-                // Not in editing mode: Initiate edit
+                pushHistory();
                 makeEditable(row);
-                updateButton.textContent = 'Done Editing';
+                persistState();
             }
         }
     });
 
-    // ----------------------------------------------------------------------
-    // 5. SAVE ALL RULES LOGIC
-    // ----------------------------------------------------------------------
-    saveAllButton.addEventListener('click', function() {
-        // Prepare updatedRules for backend
-        const updatesArray = Object.keys(updatedRules).map(id => {
-            const update = updatedRules[id];
-            return { id: parseInt(id), ...update };
+    // ------------------------------------------------------------
+    // UNDO / REDO
+    // ------------------------------------------------------------
+    if (undoButton) {
+        undoButton.addEventListener('click', () => {
+            if (undoStack.length === 0) return;
+
+            const currentSnapshot = createHistorySnapshot();
+            redoStack.push(currentSnapshot);
+
+            const previous = undoStack.pop();
+            restoreState(previous);
+            updateUndoRedoButtons();
         });
+    }
+
+    if (redoButton) {
+        redoButton.addEventListener('click', () => {
+            if (redoStack.length === 0) return;
+
+            const currentSnapshot = createHistorySnapshot();
+            undoStack.push(currentSnapshot);
+
+            const next = redoStack.pop();
+            restoreState(next);
+            updateUndoRedoButtons();
+        });
+    }
+
+    // ------------------------------------------------------------
+    // SAVE ALL
+    // ------------------------------------------------------------
+    saveAllButton.addEventListener('click', function() {
+        const updatesArray = Object.keys(updatedRules)
+            .filter(id => !String(id).startsWith('temp-'))
+            .map(id => {
+                const update = updatedRules[id];
+                return { id: parseInt(id, 10), ...update };
+            });
 
         const totalChanges = newRules.length + deletedRules.length + updatesArray.length;
 
@@ -310,26 +637,32 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!confirm(`Confirm saving ${newRules.length} new, ${deletedRules.length} deleted, and ${updatesArray.length} updated rule(s)?`)) {
             return;
         }
-        
+
         fetch('/save-permission-rules', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                new_rules: newRules,
+                new_rules: newRules.map(r => ({
+                    level: r.level,
+                    page: r.page,
+                    element: r.element,
+                    action: r.action
+                })),
                 deleted_rules: deletedRules,
                 updates: updatesArray
             })
         })
         .then(response => {
-             if (!response.ok) {
+            if (!response.ok) {
                 return response.json().then(data => Promise.reject(data.error || 'Server error'));
             }
             return response.json();
         })
         .then(data => {
             if (data.success) {
+                clearPersistedState();
                 alert('Permission rules updated successfully. Page will now reload.');
-                window.location.reload(); 
+                window.location.reload();
             } else {
                 alert('Error saving rules: ' + (data.error || 'Unknown error.'));
             }
@@ -339,4 +672,39 @@ document.addEventListener('DOMContentLoaded', function() {
             alert(`An unexpected error occurred: ${error}`);
         });
     });
+
+    // ------------------------------------------------------------
+    // PAGINATION BUTTON EVENTS
+    // ------------------------------------------------------------
+    if (prevPageBtn) {
+        prevPageBtn.addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                renderTablePage();
+                persistState();
+            }
+        });
+    }
+
+    if (nextPageBtn) {
+        nextPageBtn.addEventListener('click', () => {
+            const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGINATION_PER_PAGE));
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderTablePage();
+                persistState();
+            }
+        });
+    }
+
+    // ------------------------------------------------------------
+    // INIT
+    // ------------------------------------------------------------
+    loadPersistedState();
+
+    if (!localStorage.getItem(STORAGE_KEY)) {
+        rebuildTableFromState();
+    }
+
+    updateUndoRedoButtons();
 });

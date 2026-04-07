@@ -1,5 +1,4 @@
 document.addEventListener("DOMContentLoaded", () => {
-
     // ------------------------------
     // DOM ELEMENTS
     // ------------------------------
@@ -11,32 +10,41 @@ document.addEventListener("DOMContentLoaded", () => {
     const deleteAllBtn = document.querySelector(".delete-all-btn");
     const editIcon = document.querySelector(".uom-icon.edit-icon");
 
+    const prevPageBtn = document.getElementById("prev-page-btn");
+    const nextPageBtn = document.getElementById("next-page-btn");
+    const pageNumbers = document.getElementById("page-numbers");
+
+    let currentPage = window.elementPagination?.initialPage || 1;
+    let currentQuery = "";
+    let totalPages = Math.max(
+        1,
+        Math.ceil((window.elementPagination?.totalCount || 0) / (window.elementPagination?.perPage || 10))
+    );
+
     // ------------------------------
     // HANDLERS FOR MULTIPLE SELECTION
     // ------------------------------
     function handleCheckboxChange(event) {
         const box = event.target;
-        // FIX: Toggle the selected-row class based only on the current checkbox state
         box.closest("tr").classList.toggle("selected-row", box.checked);
-        
         updateCheckAllState();
         updateEditIconState();
     }
 
     function handleRowClick(event) {
-        if (event.target.classList.contains("uom-checkbox") ||
-            event.target.closest(".delete-uom-btn")) {
-            return; // ignore clicks on checkbox or delete button
+        if (
+            event.target.classList.contains("uom-checkbox") ||
+            event.target.closest(".delete-uom-btn")
+        ) {
+            return;
         }
 
         const row = event.currentTarget;
         const box = row.querySelector(".uom-checkbox");
-        
-        // Toggle the checkbox state
-        box.checked = !box.checked;
 
-        // Manually update the row class and states
+        box.checked = !box.checked;
         row.classList.toggle("selected-row", box.checked);
+
         updateCheckAllState();
         updateEditIconState();
     }
@@ -48,17 +56,15 @@ document.addEventListener("DOMContentLoaded", () => {
         const boxes = document.querySelectorAll(".uom-checkbox");
 
         boxes.forEach(box => {
-            // Remove previous listeners to prevent duplicates
-            box.removeEventListener("change", handleCheckboxChange); 
+            box.removeEventListener("change", handleCheckboxChange);
             box.addEventListener("change", handleCheckboxChange);
         });
     }
-    
+
     function attachRowClickBehavior() {
         const rows = document.querySelectorAll("#uom-table-body tr");
 
         rows.forEach(row => {
-            // Remove previous listeners to prevent duplicates
             row.removeEventListener("click", handleRowClick);
             row.addEventListener("click", handleRowClick);
         });
@@ -70,17 +76,16 @@ document.addEventListener("DOMContentLoaded", () => {
     function updateTable(elements) {
         tableBody.innerHTML = "";
 
-        if (elements.length === 0) {
-            // FIX: colspan must be 7 to cover all columns
-            tableBody.innerHTML = "<tr><td colspan='7'>No results found</td></tr>";
+        if (!elements || elements.length === 0) {
+            tableBody.innerHTML = "<tr><td colspan='6'>No results found</td></tr>";
+            updateCheckAllState();
+            updateEditIconState();
             return;
         }
 
         elements.forEach(element => {
             const row = document.createElement("tr");
-            
-            // Format the date if it's not already formatted (assuming it comes from the server)
-            const entryDate = element.EntryDate ? element.EntryDate : ''; 
+            const entryDate = element.EntryDate ? element.EntryDate : "";
 
             row.innerHTML = `
                 <td><input type="checkbox" class="uom-checkbox" data-id="${element.IDE}"></td>
@@ -98,13 +103,11 @@ document.addEventListener("DOMContentLoaded", () => {
             tableBody.appendChild(row);
         });
 
-        // Re-attach behaviors to the new elements
         attachRowClickBehavior();
-        attachCheckboxBehavior(); // Now attaches the multi-select change handler
+        attachCheckboxBehavior();
         updateCheckAllState();
         updateEditIconState();
     }
-
 
     // ------------------------------
     // CHECK-ALL SYNC
@@ -116,7 +119,6 @@ document.addEventListener("DOMContentLoaded", () => {
         checkAllBox.checked = allBoxes.length > 0 && checkedBoxes.length === allBoxes.length;
     }
 
-
     // ------------------------------
     // CHECK ALL action
     // ------------------------------
@@ -125,13 +127,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
         allBoxes.forEach(box => {
             box.checked = checkAllBox.checked;
-            // FIX: Ensure the row highlighting is updated
             box.closest("tr").classList.toggle("selected-row", box.checked);
         });
 
         updateEditIconState();
     });
-
 
     // ------------------------------
     // EDIT ICON
@@ -140,8 +140,6 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!editIcon) return;
 
         const count = document.querySelectorAll(".uom-checkbox:checked").length;
-
-        // The edit icon should be enabled ONLY if exactly one box is checked
         editIcon.classList.toggle("disabled", count !== 1);
     }
 
@@ -149,11 +147,13 @@ document.addEventListener("DOMContentLoaded", () => {
         editIcon.addEventListener("click", () => {
             const checked = document.querySelectorAll(".uom-checkbox:checked");
 
-            if (checked.length === 0)
-                return alert("Please select a uom to edit.");
+            if (checked.length === 0) {
+                return alert("Please select an element to edit.");
+            }
 
-            if (checked.length > 1)
-                return alert("Please select only one uom to edit.");
+            if (checked.length > 1) {
+                return alert("Please select only one element to edit.");
+            }
 
             const id = checked[0].dataset.id;
             const url = editIcon.querySelector("img").dataset.url;
@@ -161,7 +161,6 @@ document.addEventListener("DOMContentLoaded", () => {
             window.location.href = `${url}?id=${id}`;
         });
     }
-
 
     // ------------------------------
     // DELETE ONE
@@ -179,9 +178,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const data = await response.json();
 
             if (data.success) {
-                btn.closest("tr").remove();
-                updateCheckAllState();
-                updateEditIconState();
+                loadPage(currentPage);
             } else {
                 alert(data.message || "Failed to delete element.");
             }
@@ -190,15 +187,15 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-
     // ------------------------------
     // DELETE ALL
     // ------------------------------
     deleteAllBtn.addEventListener("click", async () => {
         const selected = [...document.querySelectorAll(".uom-checkbox:checked")];
 
-        if (selected.length === 0)
+        if (selected.length === 0) {
             return alert("No elements selected.");
+        }
 
         if (!confirm("Do you want to delete ALL selected elements?")) return;
 
@@ -214,42 +211,134 @@ document.addEventListener("DOMContentLoaded", () => {
             const data = await response.json();
 
             if (data.success) {
-                ids.forEach(id => {
-                    const row = document.querySelector(`.uom-checkbox[data-id="${id}"]`)?.closest("tr");
-                    if (row) row.remove();
-                });
-
-                updateCheckAllState();
-                updateEditIconState();
+                loadPage(currentPage);
                 alert("Deletion completed.");
             } else {
-                alert("An error occurred while deleting elements.");
+                alert(data.message || "An error occurred while deleting elements.");
             }
         } catch {
             alert("Error deleting elements.");
         }
     });
 
+    // ------------------------------
+    // PAGE BUTTONS
+    // ------------------------------
+    function createPageButton(page, isActive = false) {
+        const btn = document.createElement("button");
+        btn.textContent = page;
+        btn.type = "button";
+
+        if (isActive) {
+            btn.disabled = true;
+            btn.classList.add("active-page");
+        }
+
+        btn.addEventListener("click", () => {
+            loadPage(page);
+        });
+
+        return btn;
+    }
+
+    function createDots() {
+        const span = document.createElement("span");
+        span.textContent = "...";
+        span.style.padding = "0 4px";
+        return span;
+    }
+
+    function renderPageNumbers() {
+        pageNumbers.innerHTML = "";
+
+        if (totalPages <= 1) return;
+
+        const maxVisible = 5;
+
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(totalPages, currentPage + 2);
+
+        if ((endPage - startPage + 1) < maxVisible) {
+            if (startPage === 1) {
+                endPage = Math.min(totalPages, startPage + maxVisible - 1);
+            } else if (endPage === totalPages) {
+                startPage = Math.max(1, totalPages - maxVisible + 1);
+            }
+        }
+
+        if (startPage > 1) {
+            pageNumbers.appendChild(createPageButton(1, currentPage === 1));
+            if (startPage > 2) {
+                pageNumbers.appendChild(createDots());
+            }
+        }
+
+        for (let page = startPage; page <= endPage; page++) {
+            pageNumbers.appendChild(createPageButton(page, page === currentPage));
+        }
+
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) {
+                pageNumbers.appendChild(createDots());
+            }
+            pageNumbers.appendChild(createPageButton(totalPages, currentPage === totalPages));
+        }
+    }
 
     // ------------------------------
-    // SEARCH
+    // PAGINATION UI
     // ------------------------------
-    function searchUOMs(query) {
-        fetch(`/search_elements?q=${encodeURIComponent(query)}`)
+    function updatePagination(meta) {
+        currentPage = meta.page;
+        totalPages = Math.max(1, Math.ceil(meta.total_count / meta.per_page));
+
+        prevPageBtn.disabled = !meta.has_prev;
+        nextPageBtn.disabled = !meta.has_next;
+
+        renderPageNumbers();
+    }
+
+    // ------------------------------
+    // SEARCH + LOAD PAGE
+    // ------------------------------
+    function loadPage(page) {
+        fetch(`/search_elements?q=${encodeURIComponent(currentQuery)}&page=${page}`)
             .then(res => res.json())
-            .then(updateTable)
+            .then(data => {
+                updateTable(data.elements);
+                updatePagination(data);
+            })
             .catch(() => {
-                tableBody.innerHTML = "<tr><td colspan='7'>Error loading results</td></tr>";
+                tableBody.innerHTML = "<tr><td colspan='6'>Error loading results</td></tr>";
             });
     }
 
     searchInput.addEventListener("input", () => {
-        searchUOMs(searchInput.value.trim());
+        currentQuery = searchInput.value.trim();
+        currentPage = 1;
+        loadPage(1);
     });
 
     searchButton.addEventListener("click", () => {
-        searchUOMs(searchInput.value.trim());
+        currentQuery = searchInput.value.trim();
+        currentPage = 1;
+        loadPage(1);
     });
 
-    searchUOMs(""); // initial load
+    prevPageBtn.addEventListener("click", () => {
+        if (currentPage > 1) {
+            loadPage(currentPage - 1);
+        }
+    });
+
+    nextPageBtn.addEventListener("click", () => {
+        if (currentPage < totalPages) {
+            loadPage(currentPage + 1);
+        }
+    });
+
+    // ------------------------------
+    // INITIAL LOAD
+    // ------------------------------
+    loadPage(currentPage);
 });

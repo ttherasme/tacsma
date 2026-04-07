@@ -241,6 +241,36 @@
     cursor: not-allowed;
 }
 
+/* ---------- PAGINATION ---------- */
+.pagination {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+}
+
+#page-numbers {
+    display: flex;
+    gap: 6px;
+}
+
+.pagination button,
+#page-numbers button {
+    min-width: 36px;
+    height: 36px;
+    border: 1px solid #ccc;
+    background: white;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+#page-numbers button.active-page {
+    background: #2f80ed;
+    color: white;
+    font-weight: bold;
+}
+
 /* ---------- RESPONSIVE ADJUSTMENTS ---------- */
 @media (max-width: 768px) {
     .sop-actions { 

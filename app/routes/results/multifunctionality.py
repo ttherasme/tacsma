@@ -2,9 +2,11 @@ import numpy as np
 import pandas as pd
 import logging
 
-logger = logging.getLogger(__name__)
-
+from app import db
+from app.models import Datasheet, Element, Item, Step
 from .unit_conversion import unit_conversion, get_si_unit
+
+logger = logging.getLogger(__name__)
 
 
 class ManualAllocationRequired(Exception):
@@ -17,39 +19,116 @@ class ManualAllocationRequired(Exception):
         self.outputs = outputs or []
 
 
-def calculate_allocation_factors_with_units(A, retained_columns_Aa, process_idx, process_name=None, process_id=None):
+def get_relevant_output_rows(A, retained_columns_Aa, process_idx, task_id, process_name):
+    """
+    Return only matrix row indices corresponding to relevant outputs for allocation:
+      - Product
+      - Co-Products with CHK == 0
+    for the same task and same process/step.
+
+    Falls back to all positive outputs if task_id is missing.
+    """
+    if not task_id or not process_name:
+        return np.where(A[:, process_idx] > 0)[0]
+
+    db_rows = (
+        db.session.query(
+            Element.IDBE.label("flow_id")
+        )
+        .join(Datasheet, Datasheet.IDE == Element.IDE)
+        .join(Item, Element.IDI == Item.IDI)
+        .join(Step, Datasheet.IDS == Step.IDS)
+        .filter(Datasheet.IDT == task_id)
+        .filter(Step.SName == process_name)
+        .filter(
+            db.or_(
+                Item.IName == "Product",
+                db.and_(Item.IName == "Co-Products", Datasheet.CHK == 0)
+            )
+        )
+        .all()
+    )
+
+    allowed_flow_ids = {str(r.flow_id) for r in db_rows}
+
+    output_rows = []
+    for row_idx in np.where(A[:, process_idx] > 0)[0]:
+        matrix_flow_id = str(retained_columns_Aa.iloc[row_idx, 1])
+        if matrix_flow_id in allowed_flow_ids:
+            output_rows.append(row_idx)
+
+    return np.array(output_rows, dtype=int)
+
+
+def build_output_payload(output_rows, retained_columns_Aa, raw_values, raw_units, si_units):
+    outputs = []
+    for row, raw_value, raw_unit, si_unit in zip(output_rows, raw_values, raw_units, si_units):
+        outputs.append({
+            "row_index": int(row),
+            "flow_name": str(retained_columns_Aa.iloc[row, 0]),
+            "flow_id": str(retained_columns_Aa.iloc[row, 1]),
+            "raw_value": float(raw_value),
+            "raw_unit": str(raw_unit),
+            "si_unit": str(si_unit)
+        })
+    return outputs
+
+
+def calculate_allocation_factors_with_units(
+    A,
+    retained_columns_Aa,
+    process_idx,
+    process_name=None,
+    process_id=None,
+    task_id=None
+):
     """
     Automatic allocation:
-    - uses only positive outputs in the given process column
-    - all outputs must have the same SI property
+    - considers only relevant outputs:
+        * Product
+        * Co-Products with CHK == 0
+      for the same task/process
+    - all relevant outputs must have the same SI property
     - converts values to SI before calculating allocation factors
     """
-    positive_mask = A[:, process_idx] > 0
-    output_rows = np.where(positive_mask)[0]
+    output_rows = get_relevant_output_rows(
+        A,
+        retained_columns_Aa,
+        process_idx,
+        task_id,
+        process_name
+    )
 
     if len(output_rows) == 0:
-        raise ValueError(f"Process column {process_idx} has no positive outputs.")
+        raise ValueError(
+            f"Process '{process_name}' has no relevant outputs "
+            f"(Product / Co-Products with CHK = 0)."
+        )
 
     if len(output_rows) == 1:
         return np.array([1.0]), output_rows
 
-    raw_values = A[positive_mask, process_idx]
+    raw_values = A[output_rows, process_idx]
     raw_units = [str(retained_columns_Aa.iloc[row, 2]).strip() for row in output_rows]
 
-    si_units = [get_si_unit(unit) for unit in raw_units]
+    try:
+        si_units = [get_si_unit(unit) for unit in raw_units]
+    except Exception as e:
+        raise ManualAllocationRequired(
+            message=f"Could not determine comparable unit properties automatically: {e}",
+            process_name=process_name,
+            process_id=process_id,
+            process_index=int(process_idx),
+            outputs=build_output_payload(
+                output_rows,
+                retained_columns_Aa,
+                raw_values,
+                raw_units,
+                ["unknown"] * len(output_rows)
+            )
+        )
 
     if not all(si == si_units[0] for si in si_units):
-        outputs = []
-        for row, raw_value, raw_unit, si_unit in zip(output_rows, raw_values, raw_units, si_units):
-            outputs.append({
-                "row_index": int(row),
-                "flow_name": str(retained_columns_Aa.iloc[row, 0]),
-                "flow_id": str(retained_columns_Aa.iloc[row, 1]),
-                "raw_value": float(raw_value),
-                "raw_unit": str(raw_unit),
-                "si_unit": str(si_unit)
-            })
-
         raise ManualAllocationRequired(
             message=(
                 "Flows have different properties (for example mass and volume). "
@@ -58,7 +137,13 @@ def calculate_allocation_factors_with_units(A, retained_columns_Aa, process_idx,
             process_name=process_name,
             process_id=process_id,
             process_index=int(process_idx),
-            outputs=outputs
+            outputs=build_output_payload(
+                output_rows,
+                retained_columns_Aa,
+                raw_values,
+                raw_units,
+                si_units
+            )
         )
 
     values_si = np.array([
@@ -70,8 +155,9 @@ def calculate_allocation_factors_with_units(A, retained_columns_Aa, process_idx,
 
     if total_output_si == 0:
         logger.warning(
-            f"Process {process_idx} has multiple outputs but zero total SI value. "
-            f"Using uniform allocation."
+            "Process '%s' has multiple relevant outputs but zero total SI value. "
+            "Using uniform allocation.",
+            process_name
         )
         allocation_factors = np.full(len(values_si), 1.0 / len(values_si))
     else:
@@ -80,20 +166,39 @@ def calculate_allocation_factors_with_units(A, retained_columns_Aa, process_idx,
     return allocation_factors, output_rows
 
 
-def get_manual_allocation_factors(A, retained_columns_Aa, process_idx, provided_factors, process_id):
+def get_manual_allocation_factors(
+    A,
+    retained_columns_Aa,
+    process_idx,
+    provided_factors,
+    process_id,
+    task_id=None,
+    process_name=None
+):
     """
     Manual allocation:
-    - applies to positive outputs only
+    - applies only to relevant outputs:
+        * Product
+        * Co-Products with CHK == 0
+      for the same task/process
     - each factor must be between 0 and 1
-    - sum must equal 1
+    - sum must be <= 1
     """
-    positive_mask = A[:, process_idx] > 0
-    output_rows = np.where(positive_mask)[0]
+    output_rows = get_relevant_output_rows(
+        A,
+        retained_columns_Aa,
+        process_idx,
+        task_id,
+        process_name
+    )
 
     if len(output_rows) == 0:
-        raise ValueError(f"Process '{process_id}' has no positive outputs for manual allocation.")
+        raise ValueError(
+            f"Process '{process_id}' has no relevant outputs for manual allocation."
+        )
 
     allocation_factors = []
+
     for row in output_rows:
         flow_id = str(retained_columns_Aa.iloc[row, 1])
 
@@ -112,22 +217,68 @@ def get_manual_allocation_factors(A, retained_columns_Aa, process_idx, provided_
         allocation_factors.append(factor)
 
     allocation_factors = np.array(allocation_factors, dtype=float)
-
     total = allocation_factors.sum()
-    if abs(total - 1.0) > 1e-6:
-        raise ValueError(
-            f"Manual allocation factors for process '{process_id}' must sum to 1."
-        )
-    
-    """ if total > 1.0000001:
+
+    if total > 1.0000001:
         raise ValueError(
             f"Manual allocation factors for process '{process_id}' exceed 1."
-    ) """
+        )
 
     return allocation_factors, output_rows
 
 
-def adjust_matrix_for_multiple_outputs(Aa, Bb, manual_allocation=None):
+def get_db_allocation_for_process(retained_columns_Aa, output_rows, task_id, process_name):
+    """
+    Get allocation from Datasheet only for relevant outputs:
+      - Product
+      - Co-Products with CHK == 0
+    in the same task and same process.
+
+    IMPORTANT:
+    Matrix flow ids use Element.IDBE, so DB matching must also use IDBE.
+    Returns dict: {flow_id(IDBE): factor}
+    """
+    if not task_id or not process_name:
+        return {}
+
+    db_rows = (
+        db.session.query(
+            Element.IDBE.label("flow_id"),
+            Datasheet.ManualAllocation.label("manual_allocation")
+        )
+        .join(Datasheet, Datasheet.IDE == Element.IDE)
+        .join(Item, Element.IDI == Item.IDI)
+        .join(Step, Datasheet.IDS == Step.IDS)
+        .filter(Datasheet.IDT == task_id)
+        .filter(Step.SName == process_name)
+        .filter(
+            db.or_(
+                Item.IName == "Product",
+                db.and_(Item.IName == "Co-Products", Datasheet.CHK == 0)
+            )
+        )
+        .all()
+    )
+
+    db_alloc = {}
+
+    for row in output_rows:
+        flow_id = str(retained_columns_Aa.iloc[row, 1])  # this is IDBE in matrix
+
+        matches = [
+            float(r.manual_allocation)
+            for r in db_rows
+            if str(r.flow_id) == flow_id and r.manual_allocation is not None
+        ]
+
+        if matches:
+            # use the first non-null value
+            db_alloc[flow_id] = matches[0]
+
+    return db_alloc
+
+
+def adjust_matrix_for_multiple_outputs(Aa, Bb, manual_allocation=None, task_id=None):
     """
     Adjust A and B matrices for multifunctionality.
 
@@ -141,7 +292,10 @@ def adjust_matrix_for_multiple_outputs(Aa, Bb, manual_allocation=None):
 
     Notes:
     - process_key is generated as: "{process_name}__col_{col}"
-    - this avoids unstable/fake ids like '0.0'
+    - relevant outputs for allocation are only:
+        * Product
+        * Co-Products with CHK == 0
+      for the same task and same process
     """
     manual_allocation = manual_allocation or {}
 
@@ -157,7 +311,7 @@ def adjust_matrix_for_multiple_outputs(Aa, Bb, manual_allocation=None):
     B = B_val.values.astype(float)
 
     num_rows, num_columns = A.shape
-    num_rowsB, num_columnsB = B.shape
+    num_rowsB, _ = B.shape
 
     new_A = []
     new_B = []
@@ -165,12 +319,20 @@ def adjust_matrix_for_multiple_outputs(Aa, Bb, manual_allocation=None):
     new_column_id = []
 
     for col in range(num_columns):
-        is_output = A[:, col] > 0
-        num_outputs = np.sum(is_output)
-
         process_name = str(process_names[col])
         process_id = f"{process_name}__col_{col}"
 
+        output_rows = get_relevant_output_rows(
+            A,
+            retained_columns_Aa,
+            col,
+            task_id,
+            process_name
+        )
+
+        num_outputs = len(output_rows)
+
+        # No relevant outputs or only one relevant output -> no allocation split needed
         if num_outputs <= 1:
             new_A.append(A[:, col])
             new_B.append(B[:, col])
@@ -184,20 +346,49 @@ def adjust_matrix_for_multiple_outputs(Aa, Bb, manual_allocation=None):
                 retained_columns_Aa,
                 col,
                 process_name=process_name,
-                process_id=process_id
+                process_id=process_id,
+                task_id=task_id
             )
+
         except ManualAllocationRequired as e:
+            # 1. Try frontend-provided manual allocation
             if process_id in manual_allocation:
                 provided_factors = manual_allocation[process_id]
+
                 allocation_factors, output_rows = get_manual_allocation_factors(
                     A,
                     retained_columns_Aa,
                     col,
                     provided_factors,
-                    process_id
+                    process_id,
+                    task_id=task_id,
+                    process_name=process_name
                 )
+
             else:
-                raise e
+                # 2. Try DB allocation from Datasheet
+                db_alloc = get_db_allocation_for_process(
+                    retained_columns_Aa,
+                    output_rows,
+                    task_id,
+                    process_name
+                )
+
+                logger.debug("Relevant outputs for %s: %s", process_name, output_rows)
+                logger.debug("DB allocation found for %s: %s", process_name, db_alloc)
+
+                if db_alloc and len(db_alloc) == len(output_rows):
+                    allocation_factors, output_rows = get_manual_allocation_factors(
+                        A,
+                        retained_columns_Aa,
+                        col,
+                        db_alloc,
+                        process_id,
+                        task_id=task_id,
+                        process_name=process_name
+                    )
+                else:
+                    raise e
 
         for i, factor in enumerate(allocation_factors):
             new_column_A = np.zeros(num_rows)
@@ -209,7 +400,7 @@ def adjust_matrix_for_multiple_outputs(Aa, Bb, manual_allocation=None):
             # Allocate B entirely by factor
             new_column_B = B[:, col] * factor
 
-            # Keep only one output in each split column
+            # Keep only one relevant output in each split column
             new_column_A[output_rows] = 0.0
             new_column_A[output_rows[i]] = A[output_rows[i], col]
 

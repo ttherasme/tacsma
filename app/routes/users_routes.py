@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from werkzeug.security import generate_password_hash
 from app import db
 from app.models import User
@@ -6,10 +6,98 @@ from config import LEVELS
 
 user_bp = Blueprint('user_bp', __name__, url_prefix='/users')
 
+# ------------------------------------------
+# Route: List Users (Paginated)
+# ------------------------------------------
 @user_bp.route('/list_users')
 def list_users():
-    users = User.query.all()
-    return render_template('users/list.html', users=users, levels=LEVELS)
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+
+    if page < 1:
+        page = 1
+
+    base_query = User.query
+
+    total_count = base_query.count()
+    offset = (page - 1) * per_page
+
+    users = (
+        base_query
+        .order_by(User.id.desc())
+        .offset(offset)
+        .limit(per_page)
+        .all()
+    )
+
+    return render_template(
+        'users/list.html',
+        users=users,
+        levels=LEVELS,
+        page=page,
+        per_page=per_page,
+        total_count=total_count,
+        has_prev=page > 1,
+        has_next=offset + per_page < total_count
+    )
+
+
+# ------------------------------------------
+# Route: Search Users (JSON + Pagination)
+# ------------------------------------------
+@user_bp.route('/searchusers', methods=['GET'])
+def search_users():
+    query = request.args.get('q', '').strip().lower()
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+
+    if page < 1:
+        page = 1
+
+    base_query = User.query
+
+    if query:
+        like = f"%{query}%"
+
+        base_query = base_query.filter(
+            db.or_(
+                User.username.ilike(like),
+                db.cast(User.id, db.String).ilike(like),
+                db.cast(User.level, db.String).ilike(like),
+                db.cast(User.state, db.String).ilike(like),
+                db.cast(User.change, db.String).ilike(like),
+            )
+        )
+
+    total_count = base_query.count()
+    offset = (page - 1) * per_page
+
+    users = (
+        base_query
+        .order_by(User.id.desc())
+        .offset(offset)
+        .limit(per_page)
+        .all()
+    )
+
+    result = [{
+        "id": u.id,
+        "username": u.username,
+        "state": "Active" if u.state else "Inactive",
+        "level": u.level,
+        "level_name": LEVELS.get(u.level, "Unknown"),
+        "change": "Yes" if u.change else "No"
+    } for u in users]
+
+    return jsonify({
+        "users": result,
+        "page": page,
+        "per_page": per_page,
+        "total_count": total_count,
+        "has_prev": page > 1,
+        "has_next": offset + per_page < total_count
+    })
+
 
 @user_bp.route('/create_user', methods=['GET', 'POST'])
 def create_user():

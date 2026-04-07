@@ -1,4 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
+
     const searchInput = document.getElementById("ds-search-input");
     const tableBody = document.getElementById("ds-table-body");
     const checkAllBox = document.getElementById("check-all");
@@ -7,23 +8,39 @@ document.addEventListener("DOMContentLoaded", () => {
     const editIcon = document.querySelector(".ds-icon.edit-icon");
     const viewIcon = document.querySelector(".ds-icon.view-icon");
 
+    const prevPageBtn = document.getElementById("prev-page-btn");
+    const nextPageBtn = document.getElementById("next-page-btn");
+    const pageNumbers = document.getElementById("page-numbers");
+
+    let currentPage = window.dsPagination?.initialPage || 1;
+    let currentQuery = "";
+    let totalPages = Math.max(
+        1,
+        Math.ceil(
+            (window.dsPagination?.totalCount || 0) /
+            (window.dsPagination?.perPage || 10)
+        )
+    );
+
     // ------------------------------
-    // Render task table rows
+    // TABLE RENDER
     // ------------------------------
     function updateTable(rows) {
         tableBody.innerHTML = "";
 
-        if (rows.length === 0) {
+        if (!rows || rows.length === 0) {
             tableBody.innerHTML = "<tr><td colspan='7'>No results found</td></tr>";
+            updateCheckAllBox();
+            updateEditIconState();
+            updateViewIconState();
             return;
         }
 
         rows.forEach(task => {
             const row = document.createElement("tr");
+
             row.innerHTML = `
-                <td>
-                    <input type="checkbox" class="ds-checkbox" data-id="${task.IDT}">
-                </td>
+                <td><input type="checkbox" class="ds-checkbox" data-id="${task.IDT}"></td>
                 <td>${task.IDT}</td>
                 <td>${task.TName}</td>
                 <td>${task.Region}</td>
@@ -31,73 +48,59 @@ document.addEventListener("DOMContentLoaded", () => {
                 <td>${task.EntryDate}</td>
                 <td>
                     <button class="delete-ds-btn" data-id="${task.IDT}">
-                        <img src="/static/img/trash-red.png" alt="Delete" />
+                        <img src="/static/img/trash-red.png">
                     </button>
                 </td>
             `;
+
             tableBody.appendChild(row);
         });
 
-        attachRowAndCheckboxBehavior();
+        attachBehavior();
+        updateCheckAllBox();
         updateEditIconState();
         updateViewIconState();
     }
 
     // ------------------------------
-    // Multi-select behavior
+    // SELECTION BEHAVIOR
     // ------------------------------
-    function attachRowAndCheckboxBehavior() {
-        const rows = document.querySelectorAll("#ds-table-body tr");
-        // FIX #4: Removed unused variable 'checkboxes'
+    function attachBehavior() {
+        document.querySelectorAll("#ds-table-body tr").forEach(row => {
+            row.onclick = (e) => {
+                if (
+                    e.target.classList.contains("ds-checkbox") ||
+                    e.target.closest(".delete-ds-btn")
+                ) return;
 
-        // Row click toggles checkbox
-        rows.forEach(row => {
-            row.addEventListener("click", (event) => {
-                // Check if the click target is the checkbox or the delete button
-                if (event.target.classList.contains("ds-checkbox") || 
-                    event.target.closest(".delete-ds-btn")) return;
-
-                const checkbox = row.querySelector(".ds-checkbox");
-                checkbox.checked = !checkbox.checked;
-
-                row.classList.toggle("selected-row", checkbox.checked);
-
-                updateCheckAllBox();
-                updateEditIconState();
-                updateViewIconState();
-            });
-        });
-
-        // Checkbox change toggles row highlight
-        // FIX #1: Corrected selector from .task-checkbox to .ds-checkbox
-        document.querySelectorAll(".ds-checkbox").forEach(box => {
-            box.addEventListener("change", () => {
-                const row = box.closest("tr");
+                const box = row.querySelector(".ds-checkbox");
+                box.checked = !box.checked;
                 row.classList.toggle("selected-row", box.checked);
 
                 updateCheckAllBox();
                 updateEditIconState();
                 updateViewIconState();
-            });
+            };
+        });
+
+        document.querySelectorAll(".ds-checkbox").forEach(box => {
+            box.onchange = () => {
+                box.closest("tr").classList.toggle("selected-row", box.checked);
+                updateCheckAllBox();
+                updateEditIconState();
+                updateViewIconState();
+            };
         });
     }
 
-    // ------------------------------
-    // Update Check All checkbox
-    // ------------------------------
     function updateCheckAllBox() {
-        const allBoxes = document.querySelectorAll(".ds-checkbox");
-        const checkedBoxes = document.querySelectorAll(".ds-checkbox:checked");
-        checkAllBox.checked = allBoxes.length > 0 && allBoxes.length === checkedBoxes.length;
+        const all = document.querySelectorAll(".ds-checkbox");
+        const checked = document.querySelectorAll(".ds-checkbox:checked");
+        checkAllBox.checked = all.length > 0 && all.length === checked.length;
     }
 
-    // ------------------------------
-    // Check All / Uncheck All
-    // ------------------------------
     checkAllBox.addEventListener("change", () => {
-        const allCheckboxes = document.querySelectorAll(".ds-checkbox");
-
-        allCheckboxes.forEach(box => {
+        document.querySelectorAll(".ds-checkbox").forEach(box => {
             box.checked = checkAllBox.checked;
             box.closest("tr").classList.toggle("selected-row", box.checked);
         });
@@ -107,181 +110,184 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // ------------------------------
-    // Edit icon behavior (single selection)
-    // ------------------------------
-    if (editIcon) {
-        editIcon.addEventListener("click", (event) => {
-            // Check if the icon is disabled before proceeding
-            if (editIcon.classList.contains('disabled')) return; 
-
-            const checkedBoxes = document.querySelectorAll(".ds-checkbox:checked");
-
-            if (checkedBoxes.length !== 1) {
-                alert("Please select exactly one task to edit the corresponding datasheet.");
-                return;
-            }
-
-            const checkedBox = checkedBoxes[0];
-            const taskId = checkedBox.dataset.id;
-            
-            // Find the Task Name from the third column (index 2) of the row
-            const row = checkedBox.closest('tr');
-            // Assuming the TName is in the 3rd column (index 2) after Checkbox (0) and IDT (1)
-            const taskName = row.children[2].textContent.trim(); 
-
-            const url = editIcon.querySelector("img").dataset.url;
-            
-            // Construct and navigate to the new URL with ID and Name
-            window.location.href = `${url}?id=${taskId}&name=${encodeURIComponent(taskName)}`;
-        });
-    }
-
-    // ------------------------------
-    // View icon behavior (single selection)
-    // ------------------------------
-    if (viewIcon) {
-        viewIcon.addEventListener("click", (event) => {
-            // Check if the icon is disabled before proceeding
-            if (viewIcon.classList.contains('disabled')) return; 
-
-            const checkedBoxes = document.querySelectorAll(".ds-checkbox:checked");
-
-            if (checkedBoxes.length !== 1) {
-                alert("Please select exactly one task to view the corresponding datasheet.");
-                return;
-            }
-
-            const checkedBox = checkedBoxes[0];
-            const taskId = checkedBox.dataset.id;
-            
-            // Find the Task Name from the third column (index 2) of the row
-            const row = checkedBox.closest('tr');
-            const taskName = row.children[2].textContent.trim(); 
-
-            const url = viewIcon.querySelector("img").dataset.url;
-            
-            // Construct and navigate to the new URL with ID and Name
-            window.location.href = `${url}?id=${taskId}&name=${encodeURIComponent(taskName)}`;
-        });
-    }
-    
-
-
-    // ------------------------------
-    // Enable/disable Edit icon based on selection
+    // EDIT / VIEW STATE
     // ------------------------------
     function updateEditIconState() {
-        const checkedBoxes = document.querySelectorAll(".ds-checkbox:checked");
-        if (!editIcon) return;
-        editIcon.classList.toggle("disabled", checkedBoxes.length !== 1);
+        const checked = document.querySelectorAll(".ds-checkbox:checked");
+        editIcon?.classList.toggle("disabled", checked.length !== 1);
     }
 
     function updateViewIconState() {
-        const checkedBoxes = document.querySelectorAll(".ds-checkbox:checked");
-        if (!viewIcon) return;
-        // FIX #2: Corrected target from editIcon to viewIcon
-        viewIcon.classList.toggle("disabled", checkedBoxes.length !== 1); 
+        const checked = document.querySelectorAll(".ds-checkbox:checked");
+        viewIcon?.classList.toggle("disabled", checked.length !== 1);
     }
 
     // ------------------------------
-    // Delete single task and their datasheet
+    // EDIT CLICK
     // ------------------------------
-    document.addEventListener("click", async (event) => {
-        const btn = event.target.closest(".delete-ds-btn");
+    if (editIcon) {
+        editIcon.addEventListener("click", () => {
+            if (editIcon.classList.contains("disabled")) return;
+
+            const checked = document.querySelectorAll(".ds-checkbox:checked");
+            if (checked.length !== 1) return;
+
+            const row = checked[0].closest("tr");
+            const id = checked[0].dataset.id;
+            const name = row.children[2].textContent.trim();
+
+            const url = editIcon.querySelector("img").dataset.url;
+            window.location.href = `${url}?id=${id}&name=${encodeURIComponent(name)}`;
+        });
+    }
+
+    // ------------------------------
+    // VIEW CLICK
+    // ------------------------------
+    if (viewIcon) {
+        viewIcon.addEventListener("click", () => {
+            if (viewIcon.classList.contains("disabled")) return;
+
+            const checked = document.querySelectorAll(".ds-checkbox:checked");
+            if (checked.length !== 1) return;
+
+            const row = checked[0].closest("tr");
+            const id = checked[0].dataset.id;
+            const name = row.children[2].textContent.trim();
+
+            const url = viewIcon.querySelector("img").dataset.url;
+            window.location.href = `${url}?id=${id}&name=${encodeURIComponent(name)}`;
+        });
+    }
+
+    // ------------------------------
+    // DELETE SINGLE
+    // ------------------------------
+    document.addEventListener("click", async (e) => {
+        const btn = e.target.closest(".delete-ds-btn");
         if (!btn) return;
 
-        const taskId = btn.dataset.id;
-        if (!confirm("Do you want to delete this task and their datasheet?")) return;
+        const id = btn.dataset.id;
 
-        try {
-            const response = await fetch(`/delete_datasheet/${taskId}`, { method: "DELETE" });
-            const data = await response.json();
-            if (data.success) {
-                btn.closest("tr").remove();
-                updateCheckAllBox();
-                updateEditIconState();
-                updateViewIconState();
-                // NOTE: Consider adding a success alert here
-            } else {
-                alert(data.message || "Failed to delete task.");
-            }
-        } catch (err) {
-            console.error(err);
-            alert("Error deleting task.");
+        if (!confirm("Delete this task and datasheet?")) return;
+
+        const res = await fetch(`/delete_datasheet/${id}`, { method: "DELETE" });
+        const data = await res.json();
+
+        if (data.success) {
+            loadPage(currentPage); // 🔥 important fix
         }
     });
 
     // ------------------------------
-    // Delete all checked tasks
+    // DELETE ALL
     // ------------------------------
     deleteAllBtn.addEventListener("click", async () => {
-        // FIX #1: Corrected selector from .task-checkbox to .ds-checkbox
-        const checkedBoxes = [...document.querySelectorAll(".ds-checkbox:checked")]; 
-        
-        if (checkedBoxes.length === 0) {
-            alert("No tasks selected.");
-            return;
-        }
+        const selected = [...document.querySelectorAll(".ds-checkbox:checked")];
 
-        if (!confirm("Do you want to delete ALL selected tasks and their datasheet?")) return;
+        if (!selected.length) return alert("No tasks selected.");
+        if (!confirm("Delete ALL selected?")) return;
 
-        const taskIds = checkedBoxes.map(box => box.dataset.id);
+        const ids = selected.map(x => x.dataset.id);
 
-        try {
-            const response = await fetch("/delete_datasheets", {
-                method: "DELETE",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ task_ids: taskIds })
-            });
+        const res = await fetch("/delete_datasheets", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ task_ids: ids })
+        });
 
-            const data = await response.json();
-            if (data.success) {
-                data.results.forEach(result => {
-                    if (result.status === "deleted") {
-                        // FIX #1: Corrected selector from .task-checkbox to .ds-checkbox
-                        const row = document.querySelector(`.ds-checkbox[data-id="${result.id}"]`)?.closest("tr");
-                        if (row) row.remove();
-                    }
-                });
-                updateCheckAllBox();
-                updateEditIconState();
-                updateViewIconState();
-                alert("Deletion completed.");
-            } else {
-                alert("An error occurred while deleting tasks.");
-            }
-        } catch (err) {
-            console.error(err);
-            alert("Error deleting tasks.");
+        const data = await res.json();
+
+        if (data.success) {
+            loadPage(currentPage); // 🔥 important fix
         }
     });
 
     // ------------------------------
-    // Search tasks
+    // PAGINATION
     // ------------------------------
-    function searchTasks(query) {
-        // Assumes that /searchtasks returns a JSON array of task objects
-        fetch(`/searchtasks?q=${encodeURIComponent(query)}`)
-            .then(res => res.json())
-            .then(data => {
-                // NOTE: Assumes data is the array of tasks, not {success: true, tasks: [...]}
-                updateTable(data);
-            })
-            .catch(err => {
-                console.error(err);
-                tableBody.innerHTML = "<tr><td colspan='7'>Error loading results</td></tr>";
-            });
+    function createBtn(page, active = false) {
+        const btn = document.createElement("button");
+        btn.textContent = page;
+
+        if (active) {
+            btn.disabled = true;
+            btn.classList.add("active-page");
+        }
+
+        btn.onclick = () => loadPage(page);
+        return btn;
     }
 
+    function dots() {
+        const s = document.createElement("span");
+        s.textContent = "...";
+        return s;
+    }
+
+    function renderPages() {
+        pageNumbers.innerHTML = "";
+
+        if (totalPages <= 1) return;
+
+        let start = Math.max(1, currentPage - 2);
+        let end = Math.min(totalPages, currentPage + 2);
+
+        if (start > 1) {
+            pageNumbers.appendChild(createBtn(1, currentPage === 1));
+            if (start > 2) pageNumbers.appendChild(dots());
+        }
+
+        for (let i = start; i <= end; i++) {
+            pageNumbers.appendChild(createBtn(i, i === currentPage));
+        }
+
+        if (end < totalPages) {
+            if (end < totalPages - 1) pageNumbers.appendChild(dots());
+            pageNumbers.appendChild(createBtn(totalPages, currentPage === totalPages));
+        }
+    }
+
+    function updatePagination(meta) {
+        currentPage = meta.page;
+        totalPages = Math.max(1, Math.ceil(meta.total_count / meta.per_page));
+
+        prevPageBtn.disabled = !meta.has_prev;
+        nextPageBtn.disabled = !meta.has_next;
+
+        renderPages();
+    }
+
+    function loadPage(page) {
+        // Note the updated URL here:
+        fetch(`/searchtasks_with_datasheet?q=${encodeURIComponent(currentQuery)}&page=${page}`)
+            .then(res => res.json())
+            .then(data => {
+                updateTable(data.tasks);
+                updatePagination(data);
+            })
+            .catch(err => console.error("Error loading tasks:", err));
+    }
+
+    // ------------------------------
+    // SEARCH
+    // ------------------------------
     searchInput.addEventListener("input", () => {
-        searchTasks(searchInput.value.trim());
+        currentQuery = searchInput.value.trim();
+        currentPage = 1;
+        loadPage(1);
+    });
+
+    prevPageBtn.addEventListener("click", () => {
+        if (currentPage > 1) loadPage(currentPage - 1);
+    });
+
+    nextPageBtn.addEventListener("click", () => {
+        if (currentPage < totalPages) loadPage(currentPage + 1);
     });
 
     // ------------------------------
-    // Initial load
+    // INIT
     // ------------------------------
-    // NOTE: This call only works if the initial tasks are NOT rendered by Jinja in the HTML.
-    // If tasks are initially rendered by Jinja, this call will cause a double-load/flicker.
-    // Assuming the Flask view passes an empty table and relies on JS for initial load:
-    searchTasks(""); 
+    loadPage(currentPage);
 });

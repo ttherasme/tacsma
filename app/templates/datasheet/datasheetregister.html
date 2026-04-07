@@ -14,100 +14,114 @@
       data-register-input-materials-url="{{ url_for('element_bp.registerelement', elementname='Input Materials and ressources') }}"
       data-register-co-products-url="{{ url_for('element_bp.registerelement', elementname='Co-Products') }}">
     </div>
-  <h1>Data Sheet - Register</h1>
-  <div class="page-wrapper">
 
-    <div class="top-tabs">
-      <div class="tabs-left-controls">
-        <input list="taskList" name="task" class="task-input" id="taskSelect" placeholder="Select or type a Task..." required>
-        <datalist id="taskList"></datalist>
-        <button title="Add Task" class="task-button" >+</button>
-      </div>
+    <h1>Data Sheet - Register</h1>
 
-      <div class="tabs-center">
-          <button class="module-tab active">Forest Operation</button>
-          <button class="module-tab">Transportation</button>
-          <button class="module-tab">Wood Processing</button>
+    <div class="page-wrapper">
+        <div class="top-tabs">
+            <div class="tabs-left-controls">
+                <input list="taskList" name="task" class="task-input" id="taskSelect" placeholder="Select or type a Task..." required>
+                <datalist id="taskList"></datalist>
+                <button title="Add Task" class="task-button" type="button">+</button>
+            </div>
 
-          <select class="module-tab" id="activeStepsSelect">
-              </select>
+            <div class="tabs-center">
+                <button class="module-tab active" type="button">Forest Operation</button>
+                <button class="module-tab" type="button">Transportation</button>
+                <button class="module-tab" type="button">Wood Processing</button>
 
-          <button title="Add Step" class="step-button" data-url="{{ url_for('stepofprocess_bp.registersop') }}">+</button>
-      </div>
+                <select class="module-tab" id="activeStepsSelect"></select>
+
+                <button title="Add Step" class="step-button" type="button" data-url="{{ url_for('stepofprocess_bp.registersop') }}">+</button>
+            </div>
+        </div>
+
+        <div class="main-layout">
+            <div class="left-panel">
+                <button class="category selected" type="button">+ Product</button>
+                <button class="category" type="button">+ Co-Products</button>
+                <button class="category" type="button">+ Input Materials and Energy</button>
+                <button class="category" type="button">+ Emissions</button>
+                <button class="category" type="button">+ Waste Treatment</button>
+            </div>
+
+            <div class="right-panel" id="rightPanel"></div>
+        </div>
     </div>
-
-    <div class="main-layout">
-      <div class="left-panel">
-        <button class="category selected">+ Product</button>
-        <button class="category">+ Co-Products</button>
-        <button class="category">+ Input Materials and Energy</button>
-        <!--<button class="category">+ Input Energy</button> -->
-        <button class="category">+ Emissions</button>
-        <button class="category">+ Waste Treatment</button>
-      </div>
-
-      <div class="right-panel" id="rightPanel">
-
-      </div>
-    </div>
-    
-  </div>
 </section>
 
-
-<!-- ✅ CONFIRM MODAL — MUST BE HERE -->
+<!-- Confirm modal -->
 <div id="confirmModal" class="confirm-modal" style="display:none;">
     <div class="confirm-modal-content">
         <p id="confirmModalMessage"></p>
         <div class="confirm-actions">
-            <button id="confirmYes" class="action-button">Yes</button>
-            <button id="confirmNo" class="action-button secondary">No</button>
+            <button id="confirmYes" class="action-button" type="button">Yes</button>
+            <button id="confirmNo" class="action-button secondary" type="button">No</button>
         </div>
     </div>
 </div>
 
 <!-- Task Registration Popup -->
 <div id="taskPopup" class="taskmodal">
-  <div class="taskmodal-content wide-modal">
-    <span class="close-popup">&times;</span>
+    <div class="taskmodal-content wide-modal">
+        <span class="close-popup">&times;</span>
 
-    <h2>Register Task(s)</h2>
+        <h2>Register Task(s)</h2>
 
-    <div class="form-header-top">
-      <div></div>
-      <div class="form-actions-top">
-        <button class="icon-button" id="popup-add-row">➕</button>
-      </div>
+        <div class="form-header-top">
+            <div></div>
+            <div class="form-actions-top">
+                <button class="icon-button" id="popup-add-row" type="button">➕</button>
+            </div>
+        </div>
+
+        <div id="popup-message-area" class="message-area"></div>
+
+        <div class="form-box">
+            <div class="form-header">
+                <div>Name</div>
+                <div>Region</div>
+                <div>Detail (optional)</div>
+                <div></div>
+                <div></div>
+            </div>
+
+            <div id="popup-form-rows"></div>
+
+            <div class="run-button-wrapper">
+                <button class="run-button" id="popup-register" type="button">Register</button>
+                <button class="run-button clear-form-button" id="popup-clear" type="button">Clear Form</button>
+            </div>
+        </div>
     </div>
-
-    <div id="popup-message-area" class="message-area"></div>
-
-    <div class="form-box">
-      <div class="form-header">
-        <div>Name</div>
-        <div>Region</div>
-        <div>Detail (optional)</div>
-        <div></div>
-        <div></div>
-      </div>
-
-      <div id="popup-form-rows"></div>
-
-      <div class="run-button-wrapper">
-        <button class="run-button" id="popup-register">Register</button>
-        <button class="run-button clear-form-button" id="popup-clear">Clear Form</button>
-      </div>
-    </div>
-  </div>
 </div>
 
-<!-- Modal container element-->
+<!-- Element Registration Modal -->
 <div id="elementModal" class="modal">
-  <div class="modal-content">
-    <span class="close-button">&times;</span>
-    <div id="modal-body">
-      </div>
-  </div>
+    <div class="modal-content">
+        <span class="close-button">&times;</span>
+        <div id="modal-body"></div>
+    </div>
+</div>
+
+<!-- Manual Allocation Modal -->
+<div id="manualAllocationModal" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="manualAllocationModalLabel">Manual Allocation Required</h5>
+                <button type="button" class="btn-close" id="manualAllocationCloseBtn">✕</button>
+            </div>
+            <div class="modal-body">
+                <div id="manualAllocationMessage" class="mb-3"></div>
+                <div id="manualAllocationFields"></div>
+                <div id="manualAllocationError" class="text-danger mt-3"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="saveManualAllocationBtn">Save Allocation</button>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 

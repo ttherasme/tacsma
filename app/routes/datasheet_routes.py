@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, session, redirect, url_for, reques
 from sqlalchemy import func, or_
 from app import db
 from app.models import Datasheet, Element, Step, UOM, Tasks, Item, UserParameterValue, BElement
+from app.routes.results.unit_conversion import get_si_unit
 
 
 import logging
@@ -9,6 +10,186 @@ logging.basicConfig(level=logging.DEBUG)
 
 datasheet_bp = Blueprint('datasheet_bp', __name__)
 
+# ----------------------------------------------------------------
+# Helper Functions
+# ----------------------------------------------------------------
+def get_current_user():
+    if 'user_id' not in session:
+        return None
+    return session.get('user_id')
+
+
+def normalize_existing_rows_for_task_step(task_id, step_id):
+    existing_rows = (
+        db.session.query(
+            Datasheet.IDD,
+            Datasheet.IDE,
+            Datasheet.IDU,
+            Datasheet.ValueD,
+            Datasheet.CHK,
+            Datasheet.ManualAllocation,
+            Item.IName.label("Category"),
+            BElement.EName.label("FlowName"),
+            UOM.Unit.label("UnitText")
+        )
+        .join(Element, Datasheet.IDE == Element.IDE)
+        .join(BElement, Element.IDBE == BElement.IDBE)
+        .join(Item, Element.IDI == Item.IDI)
+        .join(UOM, Datasheet.IDU == UOM.IDU)
+        .filter(Datasheet.IDT == task_id, Datasheet.IDS == step_id)
+        .all()
+    )
+
+    normalized = []
+    for r in existing_rows:
+        normalized.append({
+            "IDD": r.IDD,
+            "IDE": r.IDE,
+            "IDU1": r.IDU,
+            "ValueD1": float(r.ValueD),
+            "CHK": int(r.CHK or 0),
+            "Category": r.Category,
+            "FlowName": r.FlowName,
+            "UnitText": r.UnitText,
+            "ManualAllocation": float(r.ManualAllocation or 0)
+        })
+
+    return normalized
+
+
+def normalize_incoming_rows(valid_rows):
+    normalized = []
+
+    for r in valid_rows:
+        info = (
+            db.session.query(
+                BElement.EName,
+                UOM.Unit,
+                Datasheet.ManualAllocation
+            )
+            .join(Element, Element.IDBE == BElement.IDBE)
+            .join(UOM, UOM.IDU == r["IDU1"])
+            .outerjoin(Datasheet, Datasheet.IDD == r.get("IDD"))
+            .filter(Element.IDE == r["IDE"])
+            .first()
+        )
+
+        flow_name = info.EName if info else f"Flow {r['IDE']}"
+        unit_text = info.Unit if info else ""
+        manual_allocation = float(info.ManualAllocation or 0) if info else 0.0
+
+        normalized.append({
+            **r,
+            "FlowName": flow_name,
+            "UnitText": unit_text,
+            "ManualAllocation": manual_allocation
+        })
+
+    return normalized
+
+
+def get_relevant_outputs(rows):
+    return [
+        r for r in rows
+        if r.get("Category") == "Product"
+        or (r.get("Category") == "Co-Products" and int(r.get("CHK", 0)) == 0)
+    ]
+
+
+def outputs_need_manual_allocation(rows):
+    """
+    Relevant outputs:
+      - Product
+      - Co-Products with CHK == 0
+
+    Rules:
+      - if <= 1 relevant output: no popup
+      - if > 1 relevant outputs:
+          * same SI property -> no popup
+          * different SI properties -> popup
+    """
+    relevant_rows = get_relevant_outputs(rows)
+
+    if len(relevant_rows) <= 1:
+        return False, relevant_rows, "Single output"
+
+    try:
+        si_units = [get_si_unit(str(r.get("UnitText", "")).strip()) for r in relevant_rows]
+    except Exception:
+        return True, relevant_rows, "Unknown unit"
+
+    if all(u == si_units[0] for u in si_units):
+        return False, relevant_rows, "Same property"
+
+    return True, relevant_rows, "Different properties"
+
+
+def build_popup_flows(relevant_rows):
+    dedup = {}
+
+    for r in relevant_rows:
+        ide_str = str(r["IDE"])
+        current_alloc = float(r.get("ManualAllocation", 0) or 0)
+
+        if ide_str not in dedup:
+            dedup[ide_str] = {
+                "IDE": ide_str,
+                "name": r.get("FlowName") or f"Flow {ide_str}",
+                "category": r.get("Category"),
+                "chk": int(r.get("CHK", 0)),
+                "unit": r.get("UnitText", ""),
+                "manual_allocation": current_alloc
+            }
+        else:
+            if current_alloc > 0:
+                dedup[ide_str]["manual_allocation"] = current_alloc
+
+    return list(dedup.values())
+
+
+def validate_allocation_payload(allocation):
+    allocation_clean = {}
+
+    if not allocation:
+        return allocation_clean, None
+
+    total_percentage = 0.0
+
+    for ide_key, alloc_value in allocation.items():
+        try:
+            alloc_value = float(alloc_value)
+        except (TypeError, ValueError):
+            return None, f"Invalid allocation value for IDE {ide_key}."
+
+        if alloc_value < 0 or alloc_value > 100:
+            return None, f"Allocation for IDE {ide_key} must be between 0 and 100."
+
+        allocation_clean[str(ide_key)] = alloc_value / 100.0
+        total_percentage += alloc_value
+
+    if total_percentage > 100.0000001:
+        return None, "Total allocation percentage cannot exceed 100."
+
+    return allocation_clean, None
+
+def apply_manual_allocation_to_existing_rows(task_id, step_id, allocation_clean):
+    """
+    Update ManualAllocation for existing relevant rows in DB
+    for the same task and step, based on IDE.
+    """
+    if not allocation_clean:
+        return
+
+    existing_rows = (
+        Datasheet.query
+        .filter(Datasheet.IDT == task_id, Datasheet.IDS == step_id)
+        .all()
+    )
+
+    for row in existing_rows:
+        ide_str = str(row.IDE)
+        if ide_str in allocation_clean:
+            row.ManualAllocation = allocation_clean[ide_str]
 
 # ----------- Pages HTML -----------
 @datasheet_bp.route('/datasheet')
@@ -360,16 +541,29 @@ def get_elements_by_category_for_datasheet(category_name, ischk):
                 "SName": row.SName
             })
 
+    elements = []
+
+    for ide, data in elements_map.items():
+        entry = {
+            "IDE": data["IDE"],
+            "EName": data["EName"],
+            "IDI": data["IDI"],
+            "Category": data["Category"],
+            "SName": None,
+            "TName": None
+        }
+
+        # Only attach Step/Task info for Product / Co-Products
+        if data["Category"] in ["Product", "Co-Products"] and data["datasheets"]:
+            # Take the FIRST datasheet (or customize if needed)
+            entry["SName"] = data["datasheets"][0]["SName"]
+            entry["TName"] = data["datasheets"][0]["TName"]
+
+        elements.append(entry)
+
     return jsonify(
         success=True,
-        elements=[{
-            "IDE": r.IDE,
-            "EName": r.EName,
-            "IDI": r.IDI,
-            "Category": item.IName,
-            "SName": r.SName,
-            "TName": r.TName
-        } for r in rows]
+        elements=elements
     )
 
 
@@ -645,131 +839,362 @@ def save_datasheetregister():
         return jsonify({"success": False, "message": "User not authenticated."}), 401
 
     data = request.get_json()
+
     if not data or 'rows' not in data or 'step_id' not in data or 'task_id' not in data:
-        return jsonify({"success": False, "message": "Invalid data format. Missing rows, step_id, or task_id."}), 400
+        return jsonify({
+            "success": False,
+            "message": "Invalid data format. Missing rows, step_id, or task_id."
+        }), 400
 
     step_id = data.get('step_id')
     task_id = data.get('task_id')
-    form_rows = data.get('rows')
-    
+    form_rows = data.get('rows', [])
+    allocation = data.get('allocation', {})
+
     if not step_id or not task_id:
-        return jsonify({"success": False, "message": "Step or Task not selected."}), 400
+        return jsonify({
+            "success": False,
+            "message": "Step or Task not selected."
+        }), 400
 
     try:
-        current_user = session['username']
         user_id = session.get('user_id')
-        
-       # Datasheet.query.filter_by(IDT=task_id, IDS=step_id).delete()
-       # db.session.commit()
-        
-        new_entries = []
+
+        # 1. Validate incoming rows
+        valid_rows = []
+
         for row in form_rows:
             ide = row.get('IDE')
             idu1 = row.get('IDU1')
             value_d1 = row.get('ValueD1')
-            chk = row.get('CHK', 0)  # Default to 0 if not provided
+            chk = row.get('CHK', 0)
             idm = row.get('IDM')
-            
-            if ide is not None and idu1 is not None and value_d1 is not None:
-                new_datasheet_entry = Datasheet(
-                    IDE=ide,
-                    IDS=step_id,
-                    IDT=task_id,
-                    IDU=idu1,
-                    ValueD=value_d1,
-                    IDM=idm,
-                    CHK=chk,
-                    user_id=user_id
-                )
-                new_entries.append(new_datasheet_entry)
-            else:
-                return jsonify({"success": False, "message": "Invalid data in a row."}), 400
+            category = row.get('Category')
+
+            if ide is None or idu1 is None or value_d1 is None or not category:
+                return jsonify({
+                    "success": False,
+                    "message": "Invalid data in one or more rows. Missing IDE, IDU1, ValueD1, or Category."
+                }), 400
+
+            try:
+                value_d1 = float(value_d1)
+            except (TypeError, ValueError):
+                return jsonify({
+                    "success": False,
+                    "message": f"Invalid quantity for IDE {ide}."
+                }), 400
+
+            try:
+                chk = int(chk) if chk is not None else 0
+            except (TypeError, ValueError):
+                chk = 0
+
+            valid_rows.append({
+                "IDE": ide,
+                "IDU1": idu1,
+                "ValueD1": value_d1,
+                "CHK": chk,
+                "IDM": idm,
+                "Category": str(category).strip()
+            })
+
+        if not valid_rows:
+            return jsonify({
+                "success": False,
+                "message": "No valid data to save."
+            }), 400
+
+        # 2. Combine DB rows + incoming rows for same task/process
+        existing_normalized = normalize_existing_rows_for_task_step(task_id, step_id)
+        incoming_normalized = normalize_incoming_rows(valid_rows)
+
+        combined_rows = existing_normalized + incoming_normalized
+
+        needs_popup, relevant_rows, reason = outputs_need_manual_allocation(combined_rows)
+
+        # 3. Return popup if needed and allocation not yet provided
+        if needs_popup and not allocation:
+            return jsonify({
+                "success": False,
+                "requires_allocation": True,
+                "message": (
+                    "Manual allocation is required because multiple outputs with "
+                    "different unit properties exist for this task and process."
+                ),
+                "reason": reason,
+                "flows": build_popup_flows(relevant_rows)
+            }), 200
+
+        # 4. Validate allocation if provided
+        allocation_clean, allocation_error = validate_allocation_payload(allocation)
+        if allocation_error:
+            return jsonify({
+                "success": False,
+                "message": allocation_error
+            }), 400
         
-        if not new_entries:
-            return jsonify({"success": False, "message": "No valid data to save."}), 400
-            
+        # 5. Save only incoming rows
+        # Update already-existing rows in DB
+        apply_manual_allocation_to_existing_rows(task_id, step_id, allocation_clean)
+
+        # Save only incoming rows
+        new_entries = []
+
+        for row in valid_rows:
+            ide = row["IDE"]
+            idu1 = row["IDU1"]
+            value_d1 = row["ValueD1"]
+            chk = row["CHK"]
+            idm = row["IDM"]
+
+            manual_alloc = 0.0
+            if str(ide) in allocation_clean:
+                manual_alloc = allocation_clean[str(ide)]
+
+            new_entry = Datasheet(
+                IDE=ide,
+                IDS=step_id,
+                IDT=task_id,
+                IDU=idu1,
+                ValueD=value_d1,
+                IDM=idm,
+                CHK=chk,
+                user_id=user_id,
+                ManualAllocation=manual_alloc
+            )
+            new_entries.append(new_entry)
+
         db.session.add_all(new_entries)
         db.session.commit()
-        
-        return jsonify({"success": True, "message": f"{len(new_entries)} rows saved successfully."}), 200
+
+        return jsonify({
+            "success": True,
+            "message": f"{len(new_entries)} rows saved successfully."
+        }), 200
 
     except Exception as e:
         db.session.rollback()
-        print(f"Error saving datasheet: {e}")
-        return jsonify({"success": False, "message": str(e)}), 500
-    
+        print(f"Error saving datasheet register: {e}")
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
+            
 # ----------- API: Update datasheet -----------
+
 @datasheet_bp.route('/save_datasheet', methods=['POST'])
 def save_datasheet():
     if 'username' not in session:
         return jsonify({"success": False, "message": "User not authenticated."}), 401
 
     data = request.get_json()
-    step_id = data.get('step_id')
-    task_id = data.get('task_id')
-    form_rows = data.get('rows')
 
-    if not step_id or not task_id or not form_rows:
-        return jsonify({"success": False, "message": "Missing data"}), 400
+    if not data or 'rows' not in data or 'step_id' not in data or 'task_id' not in data:
+        return jsonify({
+            "success": False,
+            "message": "Invalid data format. Missing rows, step_id, or task_id."
+        }), 400
+
+    task_id = data.get('task_id')
+    step_id = data.get('step_id')
+    form_rows = data.get('rows', [])
+    allocation = data.get('allocation', {})
+
+    if not task_id or not step_id:
+        return jsonify({
+            "success": False,
+            "message": "Task or Step not selected."
+        }), 400
 
     try:
-        current_user = session['username']
         user_id = session.get('user_id')
-        changes = 0
-        rows_status = []  
+
+        # ---------------------------------------------------------
+        # 1. Validate incoming rows
+        # ---------------------------------------------------------
+        valid_rows = []
 
         for row in form_rows:
-            idd = row.get('IDD')
             ide = row.get('IDE')
             idu1 = row.get('IDU1')
             value_d1 = row.get('ValueD1')
+            idd = row.get('IDD')
+            chk = row.get('CHK', 0)
+            category = row.get('Category')
             idm = row.get('IDM')
-            chk = row.get('CHK',None)
 
-            if ide is None or idu1 is None or value_d1 is None:
-                rows_status.append("❌")  
-                continue
+            if ide is None or idu1 is None or value_d1 is None or not category:
+                return jsonify({
+                    "success": False,
+                    "message": "Invalid data in one or more rows. Missing IDE, IDU1, ValueD1, or Category."
+                }), 400
 
-            if idd:  
-                existing = Datasheet.query.get(idd)
-                if existing:
-                    
-                    if existing.IDE != ide or existing.IDU1 != idu1 or existing.ValueD1 != value_d1:
-                        existing.IDE = ide
-                        existing.IDU = idu1
-                        existing.ValueD = value_d1
-                        existing.UpdateBy = current_user
-                        existing.CHK = chk
-                        existing.IDM=idm
-                        rows_status.append("success")  
-                        changes += 1
-                    else:
-                        rows_status.append("❌")  
-                else:
-                    rows_status.append("❌") 
-            else:  
-                new_ds = Datasheet(
-                    IDE=ide,
-                    IDS=step_id,
+            try:
+                value_d1 = float(value_d1)
+            except (TypeError, ValueError):
+                return jsonify({
+                    "success": False,
+                    "message": f"Invalid quantity for IDE {ide}."
+                }), 400
+
+            try:
+                chk = int(chk) if chk is not None else 0
+            except (TypeError, ValueError):
+                chk = 0
+
+            valid_rows.append({
+                "IDD": idd,
+                "IDE": ide,
+                "IDU1": idu1,
+                "ValueD1": value_d1,
+                "CHK": chk,
+                "Category": str(category).strip(),
+                "IDM": idm
+            })
+
+        if not valid_rows:
+            return jsonify({
+                "success": False,
+                "message": "No valid rows to save."
+            }), 400
+
+        # ---------------------------------------------------------
+        # 2. Build combined rows for allocation check
+        # Exclude DB rows being updated now, then add incoming versions
+        # ---------------------------------------------------------
+        incoming_idds = {str(r["IDD"]) for r in valid_rows if r.get("IDD")}
+        existing_normalized_all = normalize_existing_rows_for_task_step(task_id, step_id)
+
+        existing_normalized = [
+            r for r in existing_normalized_all
+            if str(r.get("IDD")) not in incoming_idds
+        ]
+
+        incoming_normalized = normalize_incoming_rows(valid_rows)
+        combined_rows = existing_normalized + incoming_normalized
+
+        needs_popup, relevant_rows, reason = outputs_need_manual_allocation(combined_rows)
+
+        # ---------------------------------------------------------
+        # 3. If popup needed and no allocation yet, return popup payload
+        # ---------------------------------------------------------
+        if needs_popup and not allocation:
+            return jsonify({
+                "success": False,
+                "requires_allocation": True,
+                "message": (
+                    "Manual allocation is required because multiple outputs with "
+                    "different unit properties exist for this task and process."
+                ),
+                "reason": reason,
+                "flows": build_popup_flows(relevant_rows)
+            }), 200
+
+        # ---------------------------------------------------------
+        # 4. Validate allocation payload
+        # ---------------------------------------------------------
+        allocation_clean, allocation_error = validate_allocation_payload(allocation)
+        if allocation_error:
+            return jsonify({
+                "success": False,
+                "message": allocation_error
+            }), 400
+
+        # ---------------------------------------------------------
+        # 5. If allocation provided, update ALL relevant existing rows
+        # for the same task + step + IDE
+        # ---------------------------------------------------------
+        if allocation_clean:
+            for r in relevant_rows:
+                ide_str = str(r["IDE"])
+
+                if ide_str not in allocation_clean:
+                    continue
+
+                matching_rows = Datasheet.query.filter_by(
                     IDT=task_id,
+                    IDS=step_id,
+                    IDE=r["IDE"]
+                ).all()
+
+                for db_row in matching_rows:
+                    db_row.ManualAllocation = allocation_clean[ide_str]
+
+        # ---------------------------------------------------------
+        # 6. Update existing rows / insert new rows
+        # IMPORTANT:
+        # - preserve existing ManualAllocation if no new allocation was sent
+        # - only overwrite ManualAllocation when IDE exists in allocation_clean
+        # ---------------------------------------------------------
+        rows_status = []
+
+        for row in valid_rows:
+            idd = row.get("IDD")
+            ide = row["IDE"]
+            idu1 = row["IDU1"]
+            value_d1 = row["ValueD1"]
+            chk = row["CHK"]
+            idm = row["IDM"]
+
+            if idd:
+                entry = Datasheet.query.filter_by(IDD=idd).first()
+
+                if not entry:
+                    rows_status.append("error")
+                    continue
+
+                entry.IDE = ide
+                entry.IDU = idu1
+                entry.ValueD = value_d1
+                entry.CHK = chk
+                entry.IDM = idm
+                entry.IDT = task_id
+                entry.IDS = step_id
+                entry.user_id = user_id
+
+                # Only overwrite if user supplied new allocation for this IDE
+                if str(ide) in allocation_clean:
+                    entry.ManualAllocation = allocation_clean[str(ide)]
+
+                rows_status.append("success")
+
+            else:
+                manual_alloc = 0.0
+                if str(ide) in allocation_clean:
+                    manual_alloc = allocation_clean[str(ide)]
+
+                new_entry = Datasheet(
+                    IDE=ide,
                     IDU=idu1,
                     ValueD=value_d1,
-                    user_id=user_id,
                     CHK=chk,
-                    IDM=idm
+                    IDM=idm,
+                    IDT=task_id,
+                    IDS=step_id,
+                    user_id=user_id,
+                    ManualAllocation=manual_alloc
                 )
-                db.session.add(new_ds)
-                rows_status.append("success") 
-                changes += 1
+                db.session.add(new_entry)
+                rows_status.append("success")
 
         db.session.commit()
-        return jsonify({"success": True, "message": f"{changes} row(s) saved.", "rowsStatus": rows_status}), 200
+
+        return jsonify({
+            "success": True,
+            "message": "Datasheet updated successfully.",
+            "rowsStatus": rows_status
+        }), 200
 
     except Exception as e:
         db.session.rollback()
-        print(f"Error saving datasheet: {e}")
-        return jsonify({"success": False, "message": str(e)}), 500
-
+        print(f"Error saving datasheet update: {e}")
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
+    
+    
 @datasheet_bp.route('/delete_datasheet_row/<int:idd>', methods=['DELETE'])
 def delete_datasheet_row(idd):
     if 'username' not in session:
@@ -788,3 +1213,122 @@ def delete_datasheet_row(idd):
         db.session.rollback()
         print(f"Error deleting datasheet with IDD {idd}: {e}")
         return jsonify({"success": False, "message": "Internal server error"}), 500
+
+
+@datasheet_bp.route('/searchtasks_with_datasheet', methods=['GET'])
+def search_tasks_with_datasheet():
+    user_id = get_current_user()
+    if not user_id:
+        return jsonify({
+            "tasks": [], "page": 1, "per_page": 10,
+            "total_count": 0, "has_prev": False, "has_next": False
+        })
+
+    query = request.args.get('q', '').strip()
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+    username = session.get('username', '')
+
+    # 1. Start with a query on Tasks joined with Datasheet
+    # This ensures only tasks with datasheets are returned
+    base_query = db.session.query(Tasks).join(Datasheet, Tasks.IDT == Datasheet.IDT)
+
+    # 2. Apply User/Admin filters
+    if username.lower() != "admin":
+        base_query = base_query.filter(Tasks.user_id == user_id)
+
+    # 3. Apply Search Filters
+    if query:
+        like_query = f"%{query}%"
+        base_query = base_query.filter(
+            db.or_(
+                Tasks.TName.ilike(like_query),
+                Tasks.Region.ilike(like_query),
+                Tasks.Description.ilike(like_query),
+                db.cast(Tasks.IDT, db.String).ilike(like_query),
+                db.cast(Tasks.EntryDate, db.String).ilike(like_query),
+            )
+        )
+
+    # 4. Make it DISTINCT and Sort
+    # We use distinct(Tasks.IDT) if your DB supports it, or just .distinct()
+    base_query = base_query.distinct().order_by(Tasks.EntryDate.desc())
+
+    # 5. Pagination Logic
+    total_count = base_query.count()
+    offset = (page - 1) * per_page
+    tasks = base_query.offset(offset).limit(per_page).all()
+
+    result = [{
+        "IDT": t.IDT,
+        "TName": t.TName,
+        "Region": t.Region,
+        "Description": t.Description,
+        "EntryDate": t.EntryDate.strftime('%Y-%m-%d %H:%M') if t.EntryDate else ""
+    } for t in tasks]
+
+    return jsonify({
+        "tasks": result,
+        "page": page,
+        "per_page": per_page,
+        "total_count": total_count,
+        "has_prev": page > 1,
+        "has_next": offset + per_page < total_count
+    })
+
+@datasheet_bp.route('/listtasks_with_datasheet', methods=['GET'])
+def listtasks_with_datasheet():
+    """
+    Fetch a full list of tasks. 
+    Admin sees all tasks; regular users see only theirs.
+    """
+    # 1. Check if user is authenticated
+    user_id = session.get('user_id')
+    username = session.get('username')
+
+    if not user_id:
+        return jsonify({
+            "success": False, 
+            "message": "User session not found. Please log in.",
+            "tasks": []
+        }), 401
+
+    try:
+        # 2. Define logic based on user role (Admin vs Regular User)
+        query = (
+            db.session.query(
+                Tasks.IDT,
+                Tasks.TName,
+                Tasks.Region,
+                Tasks.Description,
+                Tasks.EntryDate
+            )
+            .join(Datasheet, Datasheet.IDT == Tasks.IDT)
+            .distinct()
+        )
+
+        # Admin sees all, others only their own records
+        if username.lower() != "admin":
+            query = query.filter(Tasks.user_id == user_id)
+
+        # 3. Serialize data into JSON format
+        result = [{
+            "IDT": task.IDT,
+            "TName": task.TName,
+            "Region": task.Region,
+            "Description": task.Description,
+            "EntryDate": task.EntryDate.strftime('%Y-%m-%d %H:%M') if task.EntryDate else ""
+        } for task in query]
+
+        return jsonify({
+            "success": True, 
+            "count": len(result),
+            "tasks": result
+        }), 200
+
+    except Exception as e:
+        # Log error if something goes wrong with the database
+        return jsonify({
+            "success": False, 
+            "message": f"An error occurred while fetching tasks: {str(e)}"
+        }), 500

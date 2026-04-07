@@ -490,6 +490,89 @@ body {
     border-radius: 4px;
 }
 
+/* ===== CUSTOM MODAL manual Allocation ===== */
+
+#manualAllocationModal {
+    display: none; /* hidden by default */
+    position: fixed;
+    z-index: 9999;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5); /* overlay */
+    justify-content: center;
+    align-items: center;
+}
+
+/* Show modal */
+#manualAllocationModal.show {
+    display: flex;
+}
+
+/* Modal box */
+#manualAllocationModal .modal-dialog {
+    background: white;
+    border-radius: 10px;
+    width: 500px;
+    max-width: 90%;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    animation: modalFadeIn 0.25s ease;
+}
+
+/* Header */
+#manualAllocationModal .modal-header {
+    padding: 15px 20px;
+    border-bottom: 1px solid #eee;
+    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Body */
+#manualAllocationModal .modal-body {
+    padding: 20px;
+}
+
+/* Footer */
+#manualAllocationModal .modal-footer {
+    padding: 15px 20px;
+    border-top: 1px solid #eee;
+    text-align: right;
+}
+
+/* Close button */
+#manualAllocationModal .btn-close {
+    background: none;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+}
+
+/* Input fields */
+.allocation-input {
+    width: 100%;
+    padding: 8px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    margin-top: 5px;
+}
+
+/* Continue button */
+#saveManualAllocationBtn {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#saveManualAllocationBtn:hover {
+    background: #0056b3;
+}
+
 /* === Responsive Tweaks === */
 @media (max-width: 900px) {
     .main-layout {

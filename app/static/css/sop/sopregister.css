@@ -1,3 +1,7 @@
+/* ========================================= */
+/* === Page Title & Wrapper === */
+/* ========================================= */
+
 /* Space below H1 title */
 .page-content > h1 {
     margin-bottom: 10px;
@@ -5,9 +9,7 @@
 
 .dynamic-wrapper {
     max-width: 1200px;
-    margin-top: 15px;
-    margin-left: auto;
-    margin-right: auto;
+    margin: 15px auto 40px;
     padding: 0 20px;
     box-sizing: border-box;
     background-color: #fff;
@@ -15,44 +17,51 @@
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
 }
 
-/* Message Area Styles */
+/* ========================================= */
+/* === Messages & Status === */
+/* ========================================= */
 .message-area {
-    padding: 10px 15px;
-    margin-bottom: 15px;
-    border-radius: 5px;
+    padding: 12px;
+    margin-bottom: 20px;
+    border-radius: 6px;
     font-weight: bold;
     text-align: center;
-    display: none; /* Hidden by default, shown by JS */
+    display: none;
 }
 
 .success-message {
-    background-color: #d4edda; /* Light green */
-    color: #155724; /* Dark green */
+    background-color: #d4edda;
+    color: #155724;
     border: 1px solid #c3e6cb;
 }
 
 .error-message {
-    background-color: #f8d7da; /* Light red */
-    color: #721c24; /* Dark red */
+    background-color: #f8d7da;
+    color: #721c24;
     border: 1px solid #f5c6cb;
 }
 
-/* Status Indicator Styles */
 .status-indicator {
-    text-align: center;
-    font-size: 1.2em;
-    line-height: 2em; /* Aligns vertically with input fields */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.5rem;
+    padding: 0 5px;
+    min-height: 50px;
+    box-sizing: border-box;
 }
 
 .status-indicator.success {
-    color: green;
+    color: #4CAF50;
 }
 
 .status-indicator.error {
-    color: red;
+    color: #f44336;
 }
 
-/* Form Header and Rows Grid Layout */
+/* ========================================= */
+/* === Form Top Area === */
+/* ========================================= */
 .form-header-top {
     display: flex;
     justify-content: space-between;
@@ -73,38 +82,58 @@
 
 .form-box {
     border: 1px solid #ccc;
-    background: white;
+    background: #fff;
     padding: 15px;
     margin-bottom: 20px;
 }
 
+/* ========================================= */
+/* === Form Grid Layout === */
+/* ========================================= */
 .form-header,
 .form-row {
-    /* Grid for 3 columns: Name, Status, Delete Button */
     display: grid;
-    grid-template-columns: 1fr 40px 40px; /* Name (flexible), Status (fixed), Delete (fixed) */
-    gap: 10px;
+    grid-template-columns: 1fr 40px 40px;
+    gap: 1rem;
     align-items: center;
-    margin-bottom: 10px;
 }
 
 .form-header {
     font-weight: bold;
-    border-bottom: 1px solid #ccc;
-    padding-bottom: 5px;
+    border-bottom: 1px solid #aaa;
+    padding-bottom: 0.3rem;
+    text-align: left;
+    margin-bottom: 2px;
 }
 
-/* Input Field Styling */
+.form-row {
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #f0f0f0;
+    margin-bottom: 0;
+}
+
+/* ========================================= */
+/* === Inputs === */
+/* ========================================= */
 .form-row input {
     width: 100%;
-    padding: 5px;
-    margin-bottom: 5px; /* For consistency, even if only one input */
+    min-width: 0;
+    height: 50px;
+    font-size: 1.1rem;
+    padding: 0 0.8rem;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    box-sizing: border-box;
+    display: block;
+    margin-bottom: 0;
+    background-color: #fff;
+    color: #333;
 }
 
-.mode-input { /* Specific class for mode transportation input wrapper */
+.mode-input {
     display: flex;
     width: 100%;
-    gap: 5px;
+    gap: 0.5rem;
 }
 
 .mode-input input {
@@ -112,24 +141,44 @@
     width: 100%;
 }
 
-/* Button Styling */
+/* ========================================= */
+/* === Buttons === */
+/* ========================================= */
 .icon-button {
     padding: 5px 10px;
     background: #eee;
     border: 1px solid #aaa;
-    border-radius: 3px;
+    border-radius: 4px;
     cursor: pointer;
+    font-size: 1.2rem;
+    transition: background-color 0.3s;
+}
+
+.icon-button:hover {
+    background-color: #d0d8ff;
 }
 
 .delete-row {
     background-color: #e74c3c;
     color: white;
     border: none;
+    border-radius: 4px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    height: 40px;
+    line-height: 40px;
+    display: block;
+}
+
+.delete-row:hover {
+    background-color: #c0392b;
 }
 
 .run-button-wrapper {
     display: flex;
     justify-content: flex-end;
+    gap: 8px;
     margin-top: 10px;
 }
 
@@ -144,6 +193,11 @@
     height: 35px;
 }
 
+.run-button:hover {
+    background-color: green;
+    border-color: white;
+}
+
 .clear-form-button {
     background-color: #ffc107;
     color: #343a40;
@@ -155,7 +209,9 @@
     border-color: #c69500;
 }
 
-/* Responsive Layout */
+/* ========================================= */
+/* === Responsive === */
+/* ========================================= */
 @media (max-width: 768px) {
     .form-header {
         display: none;
@@ -179,7 +235,7 @@
     }
 
     .mode-input {
-        flex-direction: column; /* Stack input and any other elements vertically */
+        flex-direction: column;
         justify-content: flex-start;
     }
 

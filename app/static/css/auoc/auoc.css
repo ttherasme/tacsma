@@ -289,6 +289,23 @@
     cursor: not-allowed;
 }
 
+.pagination {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+#page-numbers {
+    display: flex;
+    gap: 6px;
+}
+
+#page-numbers button.active-page {
+    background: #2f80ed;
+    color: white;
+}
+
 /* ---------- RESPONSIVE ADJUSTMENTS ---------- */
 @media (max-width: 768px) {
     .uoc-actions {

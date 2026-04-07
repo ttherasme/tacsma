@@ -3,7 +3,7 @@ import numpy as np
 import logging
 from sqlalchemy.orm import aliased
 from sqlalchemy import and_
-from sqlalchemy import func
+from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 from app import db
 from app.models import Step, Datasheet, UOM, Element, Item, BElement
@@ -11,12 +11,18 @@ from app.models import Step, Datasheet, UOM, Element, Item, BElement
 logger = logging.getLogger(__name__)
 
 # --- Fetch all distinct processes globally ---
-def get_all_processes():
-    return [row[0] for row in db.session.query(Step.SName).distinct().all()]
+def get_all_processes(idt_param: int):
+    results = db.session.query(Step.SName)\
+        .join(Datasheet, Datasheet.IDS == Step.IDS)\
+        .filter(Datasheet.IDT == idt_param)\
+        .distinct()\
+        .all()
+    
+    return [row[0] for row in results]
 
 def get_matrix_a(idt_param: int):
     try:
-        all_processes = get_all_processes()
+        all_processes = get_all_processes(idt_param)
 
         # Base query
         base_query = (
@@ -102,7 +108,7 @@ def get_matrix_a(idt_param: int):
 
         # --- Step 3: Pivot tables ---
         pivot_value = df.pivot_table(
-            index=['Flow', 'Flow_id'],
+            index=['Flow', 'Flow_id', 'UnitD'], 
             columns='Process',
             values='Value_Final',
             aggfunc='sum',
@@ -110,7 +116,7 @@ def get_matrix_a(idt_param: int):
         )
 
         pivot_unit = df.pivot_table(
-            index=['Flow', 'Flow_id'],
+            index=['Flow', 'Flow_id', 'UnitD'],
             columns='Process',
             values='Unit_Final',
             aggfunc='first'
@@ -168,7 +174,7 @@ def get_matrix_a(idt_param: int):
 
 def get_matrix_b(idt_param: int):
     try:
-        all_processes = get_all_processes()
+        all_processes = get_all_processes(idt_param)
 
         # -----------------------------
         # Query 1: Products (exclude 'Product', 'Co-Products' and 'Input Materials and Energy')

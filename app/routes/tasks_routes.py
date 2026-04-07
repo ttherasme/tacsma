@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, session, redirect, url_for, request, jsonify
 from datetime import datetime
 from app import db
-from app.models import Tasks, User
+from app.models import Tasks
 
 tasks_bp = Blueprint('tasks_bp', __name__)
 
@@ -23,15 +23,102 @@ def tasks():
         return redirect(url_for('auth_bp.login'))
 
     username = session.get('username', '')
-    
-    # Base query: Admin sees all, regular users only see their own
+
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+    if page < 1:
+        page = 1
+
+    # Base query
     if username.lower() == "admin":
         task_query = Tasks.query
     else:
         task_query = Tasks.query.filter_by(user_id=user_id)
-        
-    task_list = task_query.order_by(Tasks.EntryDate.desc()).limit(10).all()
-    return render_template('tasks/tasks.html', tasks=task_list)
+
+    total_count = task_query.count()
+    offset = (page - 1) * per_page
+
+    task_list = (
+        task_query
+        .order_by(Tasks.EntryDate.desc())
+        .offset(offset)
+        .limit(per_page)
+        .all()
+    )
+
+    return render_template(
+        'tasks/tasks.html',
+        tasks=task_list,
+        page=page,
+        per_page=per_page,
+        total_count=total_count,
+        has_prev=page > 1,
+        has_next=offset + per_page < total_count
+    )
+
+
+# ----------------------------------------------------------------
+# Route: Search/Filter Tasks (JSON)
+# ----------------------------------------------------------------
+@tasks_bp.route('/searchtasks', methods=['GET'])
+def search_tasks():
+    user_id = get_current_user()
+    if not user_id:
+        return jsonify({
+            "tasks": [],
+            "page": 1,
+            "per_page": 10,
+            "total_count": 0,
+            "has_prev": False,
+            "has_next": False
+        })
+
+    query = request.args.get('q', '').strip()
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+
+    username = session.get('username', '')
+
+    if username.lower() == "admin":
+        base_query = Tasks.query
+    else:
+        base_query = Tasks.query.filter_by(user_id=user_id)
+
+    if query:
+        like_query = f"%{query}%"
+        base_query = base_query.filter(
+            db.or_(
+                Tasks.TName.ilike(like_query),
+                Tasks.Region.ilike(like_query),
+                Tasks.Description.ilike(like_query),
+                db.cast(Tasks.IDT, db.String).ilike(like_query),
+                db.cast(Tasks.EntryDate, db.String).ilike(like_query),
+            )
+        ).order_by(Tasks.EntryDate.desc())
+    else:
+        base_query = base_query.order_by(Tasks.EntryDate.desc())
+
+    total_count = base_query.count()
+    offset = (page - 1) * per_page
+
+    tasks = base_query.offset(offset).limit(per_page).all()
+
+    result = [{
+        "IDT": t.IDT,
+        "TName": t.TName,
+        "Region": t.Region,
+        "Description": t.Description,
+        "EntryDate": t.EntryDate.strftime('%Y-%m-%d %H:%M') if t.EntryDate else ""
+    } for t in tasks]
+
+    return jsonify({
+        "tasks": result,
+        "page": page,
+        "per_page": per_page,
+        "total_count": total_count,
+        "has_prev": page > 1,
+        "has_next": offset + per_page < total_count
+    })
 
 # ----------------------------------------------------------------
 # Route: Task Registration (AJAX/JSON)
@@ -113,48 +200,6 @@ def updatetask():
     task_id = request.args.get("id")
     task = Tasks.query.get(task_id) if task_id else None
     return render_template("tasks/taskupdate.html", task=task)
-
-# ----------------------------------------------------------------
-# Route: Search/Filter Tasks (JSON)
-# ----------------------------------------------------------------
-@tasks_bp.route('/searchtasks', methods=['GET'])
-def search_tasks():
-    user_id = get_current_user()
-    if not user_id:
-        return jsonify([])
-
-    query = request.args.get('q', '').strip()
-    username = session.get('username', '')
-
-    # Admin vs User filtering
-    if username.lower() == "admin":
-        base_query = Tasks.query
-    else:
-        base_query = Tasks.query.filter_by(user_id=user_id)
-
-    if query:
-        like_query = f"%{query}%"
-        tasks = base_query.filter(
-            db.or_(
-                Tasks.TName.ilike(like_query),
-                Tasks.Region.ilike(like_query),
-                Tasks.Description.ilike(like_query),
-                db.cast(Tasks.IDT, db.String).ilike(like_query),
-                db.cast(Tasks.EntryDate, db.String).ilike(like_query),
-            )
-        ).order_by(Tasks.EntryDate.desc()).limit(10).all()
-    else:
-        tasks = base_query.order_by(Tasks.EntryDate.desc()).limit(10).all()
-
-    result = [{
-        "IDT": t.IDT,
-        "TName": t.TName,
-        "Region": t.Region,
-        "Description": t.Description,
-        "EntryDate": t.EntryDate.strftime('%Y-%m-%d %H:%M') if t.EntryDate else ""
-    } for t in tasks]
-
-    return jsonify(result)
 
 
 # ------------------------------------------

@@ -17,8 +17,98 @@ def stepofprocess():
     if 'username' not in session:
         return redirect(url_for('auth_bp.login'))
 
-    step_list = Step.query.order_by(Step.EntryDate.desc()).limit(20).all()
-    return render_template('stepofprocess/stepofprocess.html', steps=step_list)
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+
+    if page < 1:
+        page = 1
+
+    base_query = Step.query.order_by(Step.EntryDate.desc())
+
+    total_count = base_query.count()
+    offset = (page - 1) * per_page
+
+    step_list = base_query.offset(offset).limit(per_page).all()
+
+    return render_template(
+        'stepofprocess/stepofprocess.html',
+        steps=step_list,
+        page=page,
+        per_page=per_page,
+        total_count=total_count,
+        has_prev=page > 1,
+        has_next=offset + per_page < total_count
+    )
+
+
+# ------------------------------------------
+# Route: Search Steps of Process
+# ------------------------------------------
+@stepofprocess_bp.route('/searchsops', methods=['GET'])
+def search_sops():
+    if 'username' not in session:
+        return jsonify({
+            "steps": [],
+            "page": 1,
+            "per_page": 10,
+            "total_count": 0,
+            "has_prev": False,
+            "has_next": False
+        })
+
+    query = request.args.get('q', '').strip().lower()
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+
+    if page < 1:
+        page = 1
+
+    base_query = Step.query
+
+    if not query:
+        base_query = base_query.order_by(Step.EntryDate.desc())
+    else:
+        like_query = f"%{query}%"
+
+        state_filter = None
+        if "active".startswith(query):
+            state_filter = Step.State == 1
+        elif "inactive".startswith(query):
+            state_filter = Step.State == 0
+
+        filters = [
+            Step.SName.ilike(like_query),
+            db.cast(Step.IDS, db.String).ilike(like_query),
+            db.cast(Step.EntryDate, db.String).ilike(like_query),
+        ]
+
+        if state_filter is not None:
+            filters.append(state_filter)
+        else:
+            filters.append(db.cast(Step.State, db.String).ilike(like_query))
+
+        base_query = base_query.filter(db.or_(*filters)).order_by(Step.EntryDate.desc())
+
+    total_count = base_query.count()
+    offset = (page - 1) * per_page
+
+    steps = base_query.offset(offset).limit(per_page).all()
+
+    result = [{
+        "IDS": step.IDS,
+        "SName": step.SName,
+        "State": "Active" if step.State == 1 else "Inactive",
+        "EntryDate": step.EntryDate.strftime('%Y-%m-%d %H:%M') if step.EntryDate else ""
+    } for step in steps]
+
+    return jsonify({
+        "steps": result,
+        "page": page,
+        "per_page": per_page,
+        "total_count": total_count,
+        "has_prev": page > 1,
+        "has_next": offset + per_page < total_count
+    })
 
 # ------------------------------------------
 # Route: Step of Process Registration Page + Submission
@@ -111,50 +201,6 @@ def updatesop():
     step_data = Step.query.get(sop_id_param) if sop_id_param else None
     return render_template("stepofprocess/sopupdate.html", step=step_data)
 
-# ------------------------------------------
-# Route: Search Steps of Process
-# ------------------------------------------
-@stepofprocess_bp.route('/searchsops', methods=['GET'])
-def search_sops():
-    if 'username' not in session:
-        return jsonify([])
-
-    query = request.args.get('q', '').strip().lower()
-
-    if not query:
-        steps = Step.query.order_by(Step.EntryDate.desc()).limit(20).all()
-    else:
-        like_query = f"%{query}%"
-
-        # Detect partial inputs for 'active' and 'inactive'
-        state_filter = None
-        if "active".startswith(query):
-            state_filter = Step.State == 1
-        elif "inactive".startswith(query):
-            state_filter = Step.State == 0
-
-        filters = [
-            Step.SName.ilike(like_query),
-            db.cast(Step.IDS, db.String).ilike(like_query),
-            db.cast(Step.EntryDate, db.String).ilike(like_query),
-        ]
-
-        # Apply custom state filter if partial match found
-        if state_filter is not None:
-            filters.append(state_filter)
-        else:
-            filters.append(db.cast(Step.State, db.String).ilike(like_query))
-
-        steps = Step.query.filter(db.or_(*filters)).order_by(Step.EntryDate.desc()).limit(20).all()
-
-    result = [{
-        "IDS": step.IDS,
-        "SName": step.SName,
-        "State": "Active" if step.State == 1 else "Inactive",
-        "EntryDate": step.EntryDate.strftime('%Y-%m-%d %H:%M') if step.EntryDate else ""
-    } for step in steps]
-
-    return jsonify(result)
 
 # ------------------------------------------
 # Route: Delete Steps of Process

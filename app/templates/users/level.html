@@ -86,7 +86,9 @@
                 <option value="{{ page }}">{{ page|capitalize }}</option>
                 {% endfor %}
             </select>
-            
+
+            <button id="undo-rules" class="secondary-action-button" type="button">Undo</button>
+            <button id="redo-rules" class="secondary-action-button" type="button">Redo</button>
             <button id="save-all-rules" class="save-all-button">Save All Rules</button>
         </div>
         <table class="rules-table">
@@ -115,6 +117,11 @@
                 {% endfor %}
             </tbody>
         </table>
+        <div class="pagination">
+            <button id="prev-page-btn">Previous</button>
+            <div id="page-numbers"></div>
+            <button id="next-page-btn">Next</button>
+        </div>
     </section>
 </div>
 

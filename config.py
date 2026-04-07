@@ -25,7 +25,6 @@ PAGES = [
 ELEMENTS_MAP = {
     # --- Standard Page Elements ---
     'parameters': [
-        {'id': 'parameters', 'type': 'page', 'desc': 'Access to the Parameters Page'},
         {'id': 'reset-to-default', 'type': 'button', 'desc': 'Reset to Default button'},
         {'id': 'save-row', 'type': 'button', 'desc': 'Save Parameter Changes'},
         {'id': 'add-row', 'type': 'button', 'desc': 'Add New Parameter Button'},
@@ -34,15 +33,13 @@ ELEMENTS_MAP = {
     ],
     
     'results': [
-        {'id': 'results', 'type': 'page', 'desc': 'Access to the Results Page'},
         {'id': 'view_all_scenarios', 'type': 'button', 'desc': 'View All Scenarios Button'}
     ],
     
     'reports': [
-        {'id': 'reports', 'type': 'page', 'desc': 'Access to the Reports Page'},
         {'id': 'report_generator', 'type': 'form', 'desc': 'Report Generation Form'}
     ]
-    # You will need to add mappings for 'user_levels' and 'data_sheet' elements as well.
+    
 } 
 
 

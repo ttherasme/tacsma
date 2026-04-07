@@ -1,154 +1,122 @@
-// app/static/js/soprocess/soprocess.js
-
 document.addEventListener("DOMContentLoaded", () => {
-    
-    // ------------------------------
-    // DOM ELEMENTS
-    // ------------------------------
+
     const searchInput = document.getElementById("sop-search-input");
     const tableBody = document.getElementById("sop-table-body");
-    // ADDED: Selectors for new functionality
     const searchButton = document.querySelector(".sop-search .search-btn");
+
     const checkAllBox = document.getElementById("check-all");
     const deleteAllBtn = document.querySelector(".delete-all-btn");
     const editIcon = document.querySelector(".sop-icon.edit-icon");
-    
+
+    const prevPageBtn = document.getElementById("prev-page-btn");
+    const nextPageBtn = document.getElementById("next-page-btn");
+    const pageNumbers = document.getElementById("page-numbers");
+
+    let currentPage = window.sopPagination?.initialPage || 1;
+    let currentQuery = "";
+    let totalPages = Math.max(
+        1,
+        Math.ceil(
+            (window.sopPagination?.totalCount || 0) /
+            (window.sopPagination?.perPage || 10)
+        )
+    );
+
     // ------------------------------
-    // HANDLERS FOR MULTIPLE SELECTION
+    // SELECTION HANDLERS
     // ------------------------------
-    function handleCheckboxChange(event) {
-        const box = event.target;
-        // FIX 1: Allow multiple selection and toggle highlight class
+    function handleCheckboxChange(e) {
+        const box = e.target;
         box.closest("tr").classList.toggle("selected-row", box.checked);
-        
         updateCheckAllState();
         updateEditIconState();
     }
 
-    function handleRowClick(event) {
-        if (event.target.classList.contains("sop-checkbox") ||
-            event.target.closest(".delete-sop-btn")) {
-            return; // ignore clicks on checkbox or delete button
-        }
+    function handleRowClick(e) {
+        if (e.target.classList.contains("sop-checkbox") ||
+            e.target.closest(".delete-sop-btn")) return;
 
-        const row = event.currentTarget;
+        const row = e.currentTarget;
         const box = row.querySelector(".sop-checkbox");
-        
-        // Toggle the checkbox state
-        box.checked = !box.checked;
 
-        // Manually update the row class and states
+        box.checked = !box.checked;
         row.classList.toggle("selected-row", box.checked);
+
         updateCheckAllState();
         updateEditIconState();
     }
 
-    // ------------------------------
-    // ATTACH BEHAVIORS
-    // ------------------------------
-    function attachCheckboxBehavior() {
-        const boxes = document.querySelectorAll(".sop-checkbox");
-
-        boxes.forEach(box => {
-            // Ensure single listener is attached
-            box.removeEventListener("change", handleCheckboxChange); 
+    function attachBehaviors() {
+        document.querySelectorAll(".sop-checkbox").forEach(box => {
+            box.removeEventListener("change", handleCheckboxChange);
             box.addEventListener("change", handleCheckboxChange);
         });
-    }
-    
-    function attachRowClickBehavior() {
-        const rows = document.querySelectorAll("#sop-table-body tr");
 
-        rows.forEach(row => {
-            // Ensure single listener is attached
+        document.querySelectorAll("#sop-table-body tr").forEach(row => {
             row.removeEventListener("click", handleRowClick);
             row.addEventListener("click", handleRowClick);
         });
     }
 
-
     // ------------------------------
-    // RENDER TABLE
+    // TABLE
     // ------------------------------
-    function updateTable(steps) { // Change rows to steps
-        tableBody.innerHTML = ""; // Clear existing rows
+    function updateTable(steps) {
+        tableBody.innerHTML = "";
 
-        if (steps.length === 0) {
-            // FIX 2: Updated colspan to 6 (total number of columns)
+        if (!steps || steps.length === 0) {
             tableBody.innerHTML = "<tr><td colspan='6'>No results found</td></tr>";
+            updateCheckAllState();
+            updateEditIconState();
             return;
         }
 
         steps.forEach(step => {
             const row = document.createElement("tr");
-            
-            // Format the date if it's not already formatted (assuming it comes from the server)
-            const entryDate = step.EntryDate ? step.EntryDate : ''; 
 
             row.innerHTML = `
                 <td><input type="checkbox" class="sop-checkbox" data-id="${step.IDS}"></td>
                 <td>${step.IDS}</td>
                 <td>${step.SName}</td>
                 <td>${step.State}</td>
-                <td>${entryDate}</td>
+                <td>${step.EntryDate || ""}</td>
                 <td>
                     <button class="delete-sop-btn" data-id="${step.IDS}">
-                        <img src="/static/img/trash-red.png" alt="Delete">
+                        <img src="/static/img/trash-red.png">
                     </button>
                 </td>
             `;
+
             tableBody.appendChild(row);
         });
 
-        // Re-attach behaviors to the new elements
-        attachRowClickBehavior();
-        attachCheckboxBehavior(); 
+        attachBehaviors();
         updateCheckAllState();
         updateEditIconState();
     }
 
-    // ------------------------------
-    // CHECK-ALL SYNC
-    // ------------------------------
     function updateCheckAllState() {
-        const allBoxes = document.querySelectorAll(".sop-checkbox");
-        const checkedBoxes = document.querySelectorAll(".sop-checkbox:checked");
-        
-        // Ensure checkAllBox is available before using it
+        const all = document.querySelectorAll(".sop-checkbox");
+        const checked = document.querySelectorAll(".sop-checkbox:checked");
+
         if (!checkAllBox) return;
 
-        checkAllBox.checked = allBoxes.length > 0 && checkedBoxes.length === allBoxes.length;
+        checkAllBox.checked = all.length > 0 && all.length === checked.length;
     }
 
-
-    // ------------------------------
-    // CHECK ALL action
-    // ------------------------------
     if (checkAllBox) {
         checkAllBox.addEventListener("change", () => {
-            const allBoxes = document.querySelectorAll(".sop-checkbox");
-
-            allBoxes.forEach(box => {
+            document.querySelectorAll(".sop-checkbox").forEach(box => {
                 box.checked = checkAllBox.checked;
-                // FIX 3: Ensure row highlighting is updated
                 box.closest("tr").classList.toggle("selected-row", box.checked);
             });
-
             updateEditIconState();
         });
     }
 
-
-    // ------------------------------
-    // EDIT ICON
-    // ------------------------------
     function updateEditIconState() {
-        if (!editIcon) return;
-
         const count = document.querySelectorAll(".sop-checkbox:checked").length;
-
-        // The edit icon should be enabled ONLY if exactly one box is checked
-        editIcon.classList.toggle("disabled", count !== 1);
+        editIcon?.classList.toggle("disabled", count !== 1);
     }
 
     if (editIcon) {
@@ -156,114 +124,150 @@ document.addEventListener("DOMContentLoaded", () => {
             const checked = document.querySelectorAll(".sop-checkbox:checked");
 
             if (checked.length !== 1) {
-                 // Check if disabled class is present, then alert
-                 if (editIcon.classList.contains('disabled')) return;
+                if (editIcon.classList.contains("disabled")) return;
             }
 
             const id = checked[0].dataset.id;
             const url = editIcon.querySelector("img").dataset.url;
-
             window.location.href = `${url}?id=${id}`;
         });
     }
 
-
     // ------------------------------
-    // DELETE ONE
+    // DELETE
     // ------------------------------
-    document.addEventListener("click", async (event) => {
-        const btn = event.target.closest(".delete-sop-btn");
+    document.addEventListener("click", async (e) => {
+        const btn = e.target.closest(".delete-sop-btn");
         if (!btn) return;
 
         const id = btn.dataset.id;
 
-        if (!confirm("Do you want to delete this step?")) return;
+        if (!confirm("Delete this step?")) return;
 
-        try {
-            // FIX 4: Correct delete endpoint URL
-            const response = await fetch(`/delete_step/${id}`, { method: "DELETE" });
-            const data = await response.json();
+        const res = await fetch(`/delete_step/${id}`, { method: "DELETE" });
+        const data = await res.json();
 
-            if (data.success) {
-                btn.closest("tr").remove();
-                updateCheckAllState();
-                updateEditIconState();
-            } else {
-                alert(data.message || "Failed to delete step.");
-            }
-        } catch {
-            alert("Error deleting step.");
+        if (data.success) {
+            loadPage(currentPage);
+        } else {
+            alert("Delete failed");
         }
     });
 
-
-    // ------------------------------
-    // DELETE ALL
-    // ------------------------------
     if (deleteAllBtn) {
         deleteAllBtn.addEventListener("click", async () => {
             const selected = [...document.querySelectorAll(".sop-checkbox:checked")];
 
-            if (selected.length === 0)
-                return alert("No steps selected.");
+            if (!selected.length) return alert("No steps selected.");
+            if (!confirm("Delete ALL selected?")) return;
 
-            if (!confirm("Do you want to delete ALL selected steps?")) return;
+            const ids = selected.map(x => x.dataset.id);
 
-            const ids = selected.map(box => box.dataset.id);
+            const res = await fetch("/delete_steps", {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ step_ids: ids })
+            });
 
-            try {
-                // FIX 5: Correct multi-delete endpoint URL
-                const response = await fetch("/delete_steps", { 
-                    method: "DELETE",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ step_ids: ids }), // FIX 6: Use step_ids payload
-                });
+            const data = await res.json();
 
-                const data = await response.json();
-
-                if (data.success) {
-                    ids.forEach(id => {
-                        const row = document.querySelector(`.sop-checkbox[data-id="${id}"]`)?.closest("tr");
-                        if (row) row.remove();
-                    });
-
-                    updateCheckAllState();
-                    updateEditIconState();
-                    alert("Deletion completed.");
-                } else {
-                    alert("An error occurred while deleting steps.");
-                }
-            } catch {
-                alert("Error deleting steps.");
+            if (data.success) {
+                loadPage(currentPage);
+            } else {
+                alert("Delete failed");
             }
         });
     }
 
+    // ------------------------------
+    // PAGINATION
+    // ------------------------------
+    function createBtn(page, active = false) {
+        const btn = document.createElement("button");
+        btn.textContent = page;
+
+        if (active) {
+            btn.disabled = true;
+            btn.classList.add("active-page");
+        }
+
+        btn.onclick = () => loadPage(page);
+        return btn;
+    }
+
+    function dots() {
+        const s = document.createElement("span");
+        s.textContent = "...";
+        return s;
+    }
+
+    function renderPages() {
+        pageNumbers.innerHTML = "";
+
+        if (totalPages <= 1) return;
+
+        let start = Math.max(1, currentPage - 2);
+        let end = Math.min(totalPages, currentPage + 2);
+
+        if (start > 1) {
+            pageNumbers.appendChild(createBtn(1, currentPage === 1));
+            if (start > 2) pageNumbers.appendChild(dots());
+        }
+
+        for (let i = start; i <= end; i++) {
+            pageNumbers.appendChild(createBtn(i, i === currentPage));
+        }
+
+        if (end < totalPages) {
+            if (end < totalPages - 1) pageNumbers.appendChild(dots());
+            pageNumbers.appendChild(createBtn(totalPages, currentPage === totalPages));
+        }
+    }
+
+    function updatePagination(meta) {
+        currentPage = meta.page;
+        totalPages = Math.max(1, Math.ceil(meta.total_count / meta.per_page));
+
+        prevPageBtn.disabled = !meta.has_prev;
+        nextPageBtn.disabled = !meta.has_next;
+
+        renderPages();
+    }
+
+    function loadPage(page) {
+        fetch(`/searchsops?q=${encodeURIComponent(currentQuery)}&page=${page}`)
+            .then(r => r.json())
+            .then(data => {
+                updateTable(data.steps);
+                updatePagination(data);
+            });
+    }
 
     // ------------------------------
     // SEARCH
     // ------------------------------
-    function searchSops(query) { 
-        fetch(`/searchsops?q=${encodeURIComponent(query)}`) 
-            .then(res => res.json())
-            .then(data => {
-                updateTable(data);
-            })
-            .catch(() => {
-                // FIX 7: Correct colspan to 6
-                tableBody.innerHTML = "<tr><td colspan='6'>Error loading results</td></tr>";
-            });
-    }
-
     searchInput.addEventListener("input", () => {
-        searchSops(searchInput.value.trim());
+        currentQuery = searchInput.value.trim();
+        currentPage = 1;
+        loadPage(1);
     });
 
     if (searchButton) {
         searchButton.addEventListener("click", () => {
-            searchSops(searchInput.value.trim());
+            currentQuery = searchInput.value.trim();
+            currentPage = 1;
+            loadPage(1);
         });
     }
 
-    searchSops(""); // initial load
+    prevPageBtn.addEventListener("click", () => {
+        if (currentPage > 1) loadPage(currentPage - 1);
+    });
+
+    nextPageBtn.addEventListener("click", () => {
+        if (currentPage < totalPages) loadPage(currentPage + 1);
+    });
+
+    // INIT
+    loadPage(currentPage);
 });

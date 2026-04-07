@@ -13,15 +13,15 @@
         <div class="uom-header">
             <div class="uom-actions">
                 <div class="uom-icon open-icon">
-                    <img src="{{ url_for('static', filename='img/addtask.png') }}" 
+                    <img src="{{ url_for('static', filename='img/addtask.png') }}"
                         alt="Add"
-                        data-url="{{ url_for('element_bp.registerelement_global')}}"/>
+                        data-url="{{ url_for('element_bp.registerelement_global') }}"/>
                     <span>Add</span>
                 </div>
                 <div class="uom-icon edit-icon">
-                    <img src="{{ url_for('static', filename='img/edittask.png') }}" 
+                    <img src="{{ url_for('static', filename='img/edittask.png') }}"
                         alt="Edit"
-                        data-url="{{ url_for('element_bp.updateelement')}}"/>
+                        data-url="{{ url_for('element_bp.updateelement') }}"/>
                     <span>Edit</span>
                 </div>
             </div>
@@ -41,22 +41,20 @@
                         <input type="checkbox" id="check-all"> Check All
                     </label>
                     <span class="separator">|</span>
-                    <button class="delete-all-btn">Delete All</button> 
+                    <button class="delete-all-btn">Delete All</button>
                 </div>
             </div>
-
         </div>
-
 
         <table class="uom-table">
             <thead>
                 <tr>
-                    <th></th> {# Checkbox column header #}
+                    <th></th>
                     <th>ID</th>
                     <th>Name</th>
                     <th>Type</th>
                     <th>Entry date</th>
-                    <th></th> {# delete column header #}
+                    <th></th>
                 </tr>
             </thead>
             <tbody id="uom-table-body">
@@ -72,17 +70,32 @@
                         <td>
                             <button class="delete-uom-btn" data-id="{{ element.IDE }}">
                                 <img src="{{ url_for('static', filename='img/trash-red.png') }}" alt="Delete">
-                            </button> 
+                            </button>
                         </td>
                     </tr>
                 {% endfor %}
             </tbody>
         </table>
+
+        <div class="pagination">
+            <button id="prev-page-btn" {% if not has_prev %}disabled{% endif %}>Previous</button>
+            <div id="page-numbers"></div>
+            <button id="next-page-btn" {% if not has_next %}disabled{% endif %}>Next</button>
+        </div>
     </section>
 </section>
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/element/elementsearch.js') }}"></script> {# Link your new JS file #}
+<script>
+    window.elementPagination = {
+        initialPage: {{ page|default(1) }},
+        hasPrev: {{ 'true' if has_prev else 'false' }},
+        hasNext: {{ 'true' if has_next else 'false' }},
+        totalCount: {{ total_count|default(0) }},
+        perPage: {{ per_page|default(10) }}
+    };
+</script>
+<script src="{{ url_for('static', filename='js/element/elementsearch.js') }}"></script>
 <script src="{{ url_for('static', filename='js/openother.js') }}"></script>
 {% endblock %}

@@ -14,19 +14,129 @@ def auoc():
         return redirect(url_for('auth_bp.login'))
 
     id = request.args.get("id", type=int)
+    page = request.args.get("page", 1, type=int)
+    per_page = 10
+
+    if page < 1:
+        page = 1
+
     uoc = db.session.get(UnitConversion, id)
     if not uoc:
         return render_template('auoc/auoc.html', auocs=[], uoc=None)
 
+    base_query = UnitAlias.query.filter_by(canonical_unit=uoc.unit_name)
+
+    total_count = base_query.count()
+    offset = (page - 1) * per_page
+
     auoc_list = (
-        UnitAlias.query
-        .filter_by(canonical_unit=uoc.unit_name)
+        base_query
         .order_by(UnitAlias.alias_name.desc())
-        .limit(20)
+        .offset(offset)
+        .limit(per_page)
         .all()
     )
 
-    return render_template('auoc/auoc.html', auocs=auoc_list, uoc=uoc)
+    return render_template(
+        'auoc/auoc.html',
+        auocs=auoc_list,
+        uoc=uoc,
+        page=page,
+        per_page=per_page,
+        total_count=total_count,
+        has_prev=page > 1,
+        has_next=offset + per_page < total_count
+    )
+
+
+# ------------------------------------------
+# Route: Search Unit Aliases
+# ------------------------------------------
+@auoc_bp.route('/searchauocs', methods=['GET'])
+def search_auocs():
+    if 'username' not in session:
+        return jsonify({
+            "uocs": [],
+            "page": 1,
+            "per_page": 10,
+            "total_count": 0,
+            "has_prev": False,
+            "has_next": False
+        })
+
+    query = request.args.get('q', '').strip().lower()
+    uoc_id = request.args.get("id", type=int)
+    page = request.args.get("page", 1, type=int)
+    per_page = 10
+
+    if not uoc_id:
+        return jsonify({
+            "uocs": [],
+            "page": 1,
+            "per_page": 10,
+            "total_count": 0,
+            "has_prev": False,
+            "has_next": False
+        })
+
+    uoc = db.session.get(UnitConversion, uoc_id)
+    if not uoc:
+        return jsonify({
+            "uocs": [],
+            "page": 1,
+            "per_page": 10,
+            "total_count": 0,
+            "has_prev": False,
+            "has_next": False
+        })
+
+    base_query = UnitAlias.query.filter_by(canonical_unit=uoc.unit_name)
+
+    if query:
+        like_query = f"%{query}%"
+
+        state_filter = None
+        if "active".startswith(query):
+            state_filter = UnitAlias.is_active.is_(True)
+        elif "inactive".startswith(query):
+            state_filter = UnitAlias.is_active.is_(False)
+
+        filters = [
+            UnitAlias.alias_name.ilike(like_query),
+            UnitAlias.canonical_unit.ilike(like_query),
+        ]
+
+        if state_filter is not None:
+            filters.append(state_filter)
+
+        base_query = base_query.filter(or_(*filters))
+
+    total_count = base_query.count()
+    offset = (page - 1) * per_page
+
+    auocs = (
+        base_query
+        .order_by(UnitAlias.alias_name.desc())
+        .offset(offset)
+        .limit(per_page)
+        .all()
+    )
+
+    result = [{
+        "IDU": auoc.id,
+        "UAlias": auoc.alias_name,
+        "CanonicalUnit": auoc.canonical_unit,
+        "State": "Active" if auoc.is_active else "Inactive"
+    } for auoc in auocs]
+
+    return jsonify({
+        "uocs": result,
+        "page": page,
+        "per_page": per_page,
+        "total_count": total_count,
+        "has_prev": page > 1,
+        "has_next": offset + per_page < total_count
+    })
 
 # ------------------------------------------
 # Route: Registration Page + Submission
@@ -145,67 +255,7 @@ def updateauoc():
     auoc_data = db.session.get(UnitAlias, auoc_id_param) if auoc_id_param else None
     return render_template("auoc/auocupdate.html", auoc=auoc_data, idd=idd)
 
-# ------------------------------------------
-# Route: Search Unit Aliases
-# ------------------------------------------
-@auoc_bp.route('/searchauocs', methods=['GET'])
-def search_auocs():
-    if 'username' not in session:
-        return jsonify([])
 
-    query = request.args.get('q', '').strip().lower()
-    uoc_id = request.args.get("id", type=int)
-
-    # If id is required, return JSON, not render_template
-    if not uoc_id:
-        return jsonify([])
-
-    uoc = db.session.get(UnitConversion, uoc_id)
-    if not uoc:
-        return jsonify([])
-
-    auoc_list = UnitAlias.query.filter_by(canonical_unit=uoc.unit_name)
-
-    if not query:
-        auocs = (
-            auoc_list
-            .order_by(UnitAlias.alias_name.desc())
-            .limit(20)
-            .all()
-        )
-    else:
-        like_query = f"%{query}%"
-
-        state_filter = None
-        if "active".startswith(query):
-            state_filter = UnitAlias.is_active.is_(True)
-        elif "inactive".startswith(query):
-            state_filter = UnitAlias.is_active.is_(False)
-
-        filters = [
-            UnitAlias.alias_name.ilike(like_query),
-            UnitAlias.canonical_unit.ilike(like_query),
-        ]
-
-        if state_filter is not None:
-            filters.append(state_filter)
-
-        auocs = (
-            auoc_list
-            .filter(or_(*filters))
-            .order_by(UnitAlias.alias_name.desc())
-            .limit(20)
-            .all()
-        )
-
-    result = [{
-        "IDU": auoc.id,
-        "UAlias": auoc.alias_name,
-        "CanonicalUnit": auoc.canonical_unit,
-        "State": "Active" if auoc.is_active else "Inactive"
-    } for auoc in auocs]
-
-    return jsonify(result)
 # ------------------------------------------
 # Route: Delete Unit Alias by ID
 # ------------------------------------------

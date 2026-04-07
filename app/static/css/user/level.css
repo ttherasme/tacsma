@@ -291,3 +291,61 @@ tr[data-status="existing"] td:nth-child(5) {
     color: var(--success-color);
     font-weight: 500;
 }
+
+.secondary-action-button {
+    background-color: #607d8b;
+    color: white;
+    border: 1px solid #607d8b;
+    padding: 10px 16px;
+    cursor: pointer;
+    border-radius: 4px;
+    font-weight: bold;
+    transition: background-color 0.2s;
+}
+
+.secondary-action-button:hover {
+    background-color: #546e7a;
+}
+
+.secondary-action-button:disabled {
+    background-color: #b0bec5;
+    border-color: #b0bec5;
+    cursor: not-allowed;
+}
+
+.modified-row td {
+    background-color: #fff7d6 !important;
+}
+
+.modified-cell {
+    outline: 2px solid #ffb300;
+    background-color: #fff2b3 !important;
+}
+
+.pagination {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 15px;
+    flex-wrap: wrap;
+}
+
+#page-numbers {
+    display: flex;
+    gap: 6px;
+}
+
+.pagination button {
+    min-width: 36px;
+    height: 36px;
+    border: 1px solid #ccc;
+    background: white;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.pagination button.active-page {
+    background: #2f80ed;
+    color: white;
+    font-weight: bold;
+}

@@ -2,16 +2,11 @@
 document.addEventListener("DOMContentLoaded", () => {
     const container = document.getElementById("dynamic-content");
 
-    // --- Global Variables ---
     let taskData = null;
     let fullAnalysisResults = null;
     let visualizationTasks = [];
     let rowData = [];
 
-    let pendingAnalysisRows = null;
-    let pendingManualAllocationItem = null;
-
-    // --- Constants for Selectors ---
     const TASK_SELECT_CLASS = "task-select";
     const FLOW_SELECT_CLASS = "flow-select";
     const FUNCTIONAL_UNIT_CLASS = "functional-unit-input";
@@ -19,28 +14,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const UNIT_SELECT_CLASS = "select-unit";
     const IMPACT_CATEGORY_SELECT_CLASS = "impact-category-select";
     const DELETE_ROW_CLASS = "delete-row";
-
-    const manualCloseBtn = document.getElementById('manualAllocationCloseBtn');
-    if (manualCloseBtn) {
-        manualCloseBtn.addEventListener('click', closeManualAllocationModal);
-    }
-
-    const manualModal = document.getElementById('manualAllocationModal');
-    if (manualModal) {
-        manualModal.addEventListener('click', function (e) {
-            if (e.target === manualModal) {
-                closeManualAllocationModal();
-            }
-        });
-    }
-
-
-    /* const closeBtn = document.getElementById('manualAllocationCloseBtn');
-    if (closeBtn) {
-        closeBtn.addEventListener('click', closeManualAllocationModal);
-    } */
-
-    // --- Helper Functions ---
 
     function buildTableFromData(data) {
         if (!data || data.length === 0) {
@@ -51,23 +24,23 @@ document.addEventListener("DOMContentLoaded", () => {
         const headers = Object.keys(data[0]);
 
         headers.forEach(header => {
-            const label = header.replace(/_/g, ' ');
+            const label = header.replace(/_/g, " ");
             tableHtml += `<th>${label.charAt(0).toUpperCase() + label.slice(1)}</th>`;
         });
 
-        tableHtml += '</tr></thead><tbody>';
+        tableHtml += "</tr></thead><tbody>";
 
         data.forEach(row => {
-            tableHtml += '<tr>';
+            tableHtml += "<tr>";
             headers.forEach(header => {
                 const value = row[header];
-                const displayValue = (typeof value === 'number') ? value.toFixed(4) : value;
+                const displayValue = (typeof value === "number") ? value.toFixed(4) : value;
                 tableHtml += `<td>${displayValue}</td>`;
             });
-            tableHtml += '</tr>';
+            tableHtml += "</tr>";
         });
 
-        tableHtml += '</tbody></table>';
+        tableHtml += "</tbody></table>";
         return tableHtml;
     }
 
@@ -78,73 +51,71 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const df = data;
         const allKeys = Object.keys(df[0]);
-        const taskColumns = allKeys.filter(key => key !== 'Process');
+        const taskColumns = allKeys.filter(key => key !== "Process");
 
         const taskDetails = {};
-        if (fullAnalysisResults && fullAnalysisResults.individual_results) {
+        if (fullAnalysisResults && Array.isArray(fullAnalysisResults.individual_results)) {
             fullAnalysisResults.individual_results.forEach(result => {
-                if (result.requires_manual_allocation) return;
                 if (result.error) return;
 
                 const columnName = result.task_name;
                 taskDetails[columnName] = {
-                    product: result.product || '',
-                    impact_category: result.impact_category || '',
-                    flow_name: result.flow_name || '',
-                    entered_value: result.entered_value ?? '',
-                    entered_unit: result.entered_unit || '',
-                    calculation_value_si: result.calculation_value_si ?? '',
-                    calculation_unit_si: result.calculation_unit_si || ''
+                    product: result.product || "",
+                    impact_category: result.impact_category || "",
+                    flow_name: result.flow_name || "",
+                    entered_value: result.entered_value ?? "",
+                    entered_unit: result.entered_unit || "",
+                    calculation_value_si: result.calculation_value_si ?? "",
+                    calculation_unit_si: result.calculation_unit_si || ""
                 };
             });
         }
 
-        let tableHtml = '';
+        let tableHtml = "";
         tableHtml += '<table class="table table-bordered table-striped comparison-table">';
-        tableHtml += '<thead>';
+        tableHtml += "<thead>";
 
-        // Row 1: task names
-        tableHtml += '<tr><th>Process</th>';
+        tableHtml += "<tr><th>Process</th>";
         taskColumns.forEach(task => {
             tableHtml += `<th>${task}</th>`;
         });
-        tableHtml += '</tr>';
+        tableHtml += "</tr>";
 
-        // Row 2: product / FU
-        tableHtml += '<tr><th></th>';
+        tableHtml += "<tr><th></th>";
         taskColumns.forEach(task => {
-            const details = taskDetails[task] || { product: 'N/A' };
-            const functionalUnitText = (details.product || '').replace(/\s+/g, ' ').trim();
-            tableHtml += `<th>${functionalUnitText || 'N/A'}</th>`;
+            const details = taskDetails[task] || {
+                product: "N/A",
+                impact_category: ""
+            };
+            const functionalUnitText = (details.product || "").replace(/\s+/g, " ").trim();
+            tableHtml += `<th>${functionalUnitText || "N/A"}</th>`;
         });
-        tableHtml += '</tr>';
+        tableHtml += "</tr>";
 
-        // Row 3: impact category
-        tableHtml += '<tr><th></th>';
+        tableHtml += "<tr><th></th>";
         taskColumns.forEach(task => {
-            const details = taskDetails[task] || { impact_category: 'N/A' };
-            tableHtml += `<th>${details.impact_category || 'N/A'}</th>`;
+            const details = taskDetails[task] || { impact_category: "N/A" };
+            tableHtml += `<th>${details.impact_category || "N/A"}</th>`;
         });
-        tableHtml += '</tr>';
+        tableHtml += "</tr>";
 
-        tableHtml += '</thead>';
-        tableHtml += '<tbody>';
+        tableHtml += "</thead><tbody>";
 
         df.forEach(row => {
-            tableHtml += '<tr>';
-            tableHtml += `<td>${row['Process']}</td>`;
+            tableHtml += "<tr>";
+            tableHtml += `<td>${row["Process"]}</td>`;
 
             taskColumns.forEach(task => {
                 const contribution = row[task];
                 const displayValue =
-                    (typeof contribution === 'number') ? contribution.toFixed(4) : '0.0000';
+                    (typeof contribution === "number") ? contribution.toFixed(4) : "0.0000";
                 tableHtml += `<td>${displayValue}</td>`;
             });
 
-            tableHtml += '</tr>';
+            tableHtml += "</tr>";
         });
 
-        tableHtml += '</tbody></table>';
+        tableHtml += "</tbody></table>";
         return tableHtml;
     }
 
@@ -163,134 +134,11 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    function collectManualAllocationValues() {
-        const inputs = document.querySelectorAll('.allocation-input');
-        const allocationMap = {};
-        let sum = 0;
-
-        inputs.forEach(input => {
-            const raw = input.value.trim();
-            const value = raw === '' ? 0 : parseFloat(raw);
-
-            if (!Number.isFinite(value)) {
-                throw new Error('Allocation factors must be valid numbers.');
-            }
-
-            if (value < 0 || value > 1) {
-                throw new Error('Each allocation factor must be between 0 and 1.');
-            }
-
-            allocationMap[input.dataset.flowId] = value;
-            sum += value;
-        });
-
-        return { allocationMap, sum };
-    }
-
-    function attachManualAllocationToRows(rows, manualItem, allocationMap) {
-        const updatedRows = JSON.parse(JSON.stringify(rows));
-
-        const targetRow = updatedRows.find(
-            r => String(r.taskText) === String(manualItem.task_name)
-        );
-
-        if (!targetRow) {
-            throw new Error('Could not match manual allocation task row.');
-        }
-
-        if (!targetRow.manual_allocation) {
-            targetRow.manual_allocation = {};
-        }
-
-        targetRow.manual_allocation[String(manualItem.process_id)] = allocationMap;
-
-        return updatedRows;
-    }
-
-    function openManualAllocationModal(item) {
-        const modalEl = document.getElementById('manualAllocationModal');
-        const messageEl = document.getElementById('manualAllocationMessage');
-        const fieldsEl = document.getElementById('manualAllocationFields');
-        const errorEl = document.getElementById('manualAllocationError');
-
-        if (!modalEl || !messageEl || !fieldsEl || !errorEl) {
-            console.error('Manual allocation modal elements not found.');
-            return;
-        }
-
-        messageEl.innerText = `${item.message} Process: ${item.process_name || ''}`;
-        fieldsEl.innerHTML = '';
-        errorEl.innerText = '';
-
-        (item.outputs || []).forEach(output => {
-            const wrapper = document.createElement('div');
-            wrapper.className = 'mb-3';
-
-            wrapper.innerHTML = `
-                <label>
-                    ${output.flow_name} (${output.raw_value} ${output.raw_unit})
-                </label>
-                <input
-                    type="number"
-                    class="allocation-input"
-                    data-flow-id="${output.flow_id}"
-                    min="0"
-                    max="1"
-                    step="0.0001"
-                    value=""
-                />
-                <small>SI property: ${output.si_unit}</small>
-            `;
-
-            fieldsEl.appendChild(wrapper);
-        });
-
-        modalEl.classList.add('show');
-        modalEl.style.display = 'flex';
-        modalEl.setAttribute('aria-hidden', 'false');
-    }
-
-    function closeManualAllocationModal() {
-        const modalEl = document.getElementById('manualAllocationModal');
-        if (!modalEl) return;
-
-        modalEl.classList.remove('show');
-        modalEl.style.display = 'none';
-        modalEl.setAttribute('aria-hidden', 'true');
-    }
-
-
-    function handleAnalysisResponseWithManualAllocation(response, originalRows, renderCallback) {
-        console.log("Full analysis response:", response);
-
-        const individualResults = response && response.individual_results
-            ? response.individual_results
-            : [];
-
-        console.log("individualResults:", individualResults);
-
-        const manualItem = individualResults.find(
-            item => item.requires_manual_allocation === true
-        );
-
-        console.log("manualItem found:", manualItem);
-
-        if (manualItem) {
-            pendingAnalysisRows = JSON.parse(JSON.stringify(originalRows));
-            pendingManualAllocationItem = manualItem;
-            openManualAllocationModal(manualItem);
-            return false;
-        }
-
-        renderCallback(response);
-        return true;
-    }
-
     async function submitAnalysisRows(rows, renderCallback) {
         const response = await fetch("/graph_results", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ rows: rows })
+            body: JSON.stringify({ rows })
         });
 
         if (!response.ok) {
@@ -299,67 +147,8 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         const data = await response.json();
-
-        return handleAnalysisResponseWithManualAllocation(
-            data,
-            rows,
-            renderCallback
-        );
-    }
-
-    function setupManualAllocationSaveButton(renderCallback) {
-        const saveBtn = document.getElementById('saveManualAllocationBtn');
-        if (!saveBtn) {
-            console.error('saveManualAllocationBtn not found.');
-            return;
-        }
-
-        saveBtn.addEventListener('click', async function () {
-            const errorEl = document.getElementById('manualAllocationError');
-            const loadingSpinner = document.getElementById("loading-spinner");
-            const runButton = document.querySelector(".run-button");
-
-            errorEl.innerText = '';
-
-            if (!pendingAnalysisRows || !pendingManualAllocationItem) {
-                errorEl.innerText = 'No pending allocation request found.';
-                return;
-            }
-
-            try {
-                const { allocationMap, sum } = collectManualAllocationValues();
-
-                if (Math.abs(sum - 1) > 0.000001) {
-                    errorEl.innerText = 'The sum of allocation factors must equal 1.';
-                    return;
-                }
-
-                const rerunRows = attachManualAllocationToRows(
-                    pendingAnalysisRows,
-                    pendingManualAllocationItem,
-                    allocationMap
-                );
-
-                closeManualAllocationModal();   // <-- IMPORTANT
-
-                if (loadingSpinner) loadingSpinner.style.display = 'block';
-                if (runButton) runButton.disabled = true;
-
-                const finished = await submitAnalysisRows(rerunRows, renderCallback);
-
-                if (finished) {
-                    pendingAnalysisRows = null;
-                    pendingManualAllocationItem = null;
-                }
-
-            } catch (err) {
-                console.error(err);
-                errorEl.innerText = err.message || 'Could not continue analysis.';
-            } finally {
-                if (loadingSpinner) loadingSpinner.style.display = 'none';
-                if (runButton) runButton.disabled = false;
-            }
-        });
+        renderCallback(data);
+        return true;
     }
 
     function generateFormRow(isInitialRow = false) {
@@ -370,7 +159,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const deleteButtonHTML = showDeleteButton
             ? `<button type="button" class="icon-button ${DELETE_ROW_CLASS}">🗑️</button>`
-            : '<div></div>';
+            : "<div></div>";
 
         row.innerHTML = `
             <div>
@@ -504,7 +293,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
 
                 unitNameSelect.disabled = false;
-
             } catch (err) {
                 console.error("Error fetching UOMs:", err);
                 unitNameSelect.innerHTML = '<option value="">Error loading units</option>';
@@ -534,45 +322,45 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function printResults() {
         const resultsContent = document.getElementById("results-output");
-        if (!resultsContent || resultsContent.style.display === 'none') {
+        if (!resultsContent || resultsContent.style.display === "none") {
             alert("Please run the analysis first to generate results for printing.");
             return;
         }
 
-        const printWindow = window.open('', '_blank');
-        printWindow.document.write('<html><head><title>Analysis Results</title>');
-        printWindow.document.write('<style>');
-        printWindow.document.write('body { font-family: Arial, sans-serif; padding: 20px; }');
-        printWindow.document.write('table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 10pt; }');
-        printWindow.document.write('th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }');
-        printWindow.document.write('img { max-width: 100%; height: auto; display: block; margin: 20px auto; }');
-        printWindow.document.write('#print-results-button, .visualization-controls, .results-flex-container > div:not(.comparison-table-wrapper):not(.visualization-area), .comparison-table-wrapper h3 { display: none !important; }');
-        printWindow.document.write('.results-flex-container { flex-direction: column !important; }');
-        printWindow.document.write('</style>');
-        printWindow.document.write('</head><body>');
+        const printWindow = window.open("", "_blank");
+        printWindow.document.write("<html><head><title>Analysis Results</title>");
+        printWindow.document.write("<style>");
+        printWindow.document.write("body { font-family: Arial, sans-serif; padding: 20px; }");
+        printWindow.document.write("table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 10pt; }");
+        printWindow.document.write("th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }");
+        printWindow.document.write("img { max-width: 100%; height: auto; display: block; margin: 20px auto; }");
+        printWindow.document.write("#print-results-button, .visualization-controls, .results-flex-container > div:not(.comparison-table-wrapper):not(.visualization-area), .comparison-table-wrapper h3 { display: none !important; }");
+        printWindow.document.write(".results-flex-container { flex-direction: column !important; }");
+        printWindow.document.write("</style>");
+        printWindow.document.write("</head><body>");
 
-        const printContainer = document.createElement('div');
-        printContainer.innerHTML = '<h2>Results Summary & Comparison</h2>';
+        const printContainer = document.createElement("div");
+        printContainer.innerHTML = "<h2>Results Summary & Comparison</h2>";
 
-        const comparisonTableArea = document.getElementById('comparison-table-area')?.cloneNode(true);
-        const chartAreaElement = document.getElementById('chart-area')?.cloneNode(true);
+        const comparisonTableArea = document.getElementById("comparison-table-area")?.cloneNode(true);
+        const chartAreaElement = document.getElementById("chart-area")?.cloneNode(true);
 
         if (comparisonTableArea) {
-            const title = document.createElement('h3');
+            const title = document.createElement("h3");
             title.textContent = "Combined Process Contribution Comparison";
             printContainer.appendChild(title);
             printContainer.appendChild(comparisonTableArea);
         }
 
-        if (chartAreaElement && chartAreaElement.querySelector('img')) {
-            const title = document.createElement('h3');
+        if (chartAreaElement && chartAreaElement.querySelector("img")) {
+            const title = document.createElement("h3");
             title.textContent = "Contribution Analysis Chart";
             printContainer.appendChild(title);
             printContainer.appendChild(chartAreaElement);
         }
 
         printWindow.document.write(printContainer.innerHTML);
-        printWindow.document.write('</body></html>');
+        printWindow.document.write("</body></html>");
         printWindow.document.close();
         printWindow.print();
     }
@@ -687,30 +475,30 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             fullAnalysisResults = data;
-            resultsContainer.style.display = 'block';
+            resultsContainer.style.display = "block";
 
             const individualResults = data.individual_results || [];
             const combinedTableData = data.combined_contribution_table || [];
 
-            let summaryHtml = '';
+            let summaryHtml = "";
             individualResults.forEach(result => {
                 try {
-                    if (result.requires_manual_allocation) {
-                        return;
-                    }
-
                     if (result.error) {
-                        summaryHtml += `<div class="alert alert-danger mb-3"><strong>Error for ${result.task_name || 'Task'}:</strong> ${result.error}</div>`;
+                        summaryHtml += `<div class="alert alert-danger mb-3"><strong>Error for ${result.task_name || "Task"}:</strong> ${result.error}</div>`;
                         return;
                     }
 
-                    const totalImpact = (typeof result.total_impact === 'number')
+                    const totalImpact = (typeof result.total_impact === "number")
                         ? result.total_impact.toFixed(4)
-                        : 'N/A';
+                        : "N/A";
 
                     const contributionTableHtml = result.contribution_table
                         ? buildTableFromData(result.contribution_table)
                         : '<p class="text-warning">No detailed contribution data.</p>';
+
+                    const chartNoteHtml = result.chart_note
+                        ? `<div class="alert alert-warning mt-2 mb-2">${result.chart_note}</div>`
+                        : "";
 
                     summaryHtml += `
                         <div class="card mb-3">
@@ -721,6 +509,7 @@ document.addEventListener("DOMContentLoaded", () => {
                                 <div class="alert alert-info">
                                     <strong>Total ${result.impact_category} Impact:</strong> ${totalImpact}
                                 </div>
+                                ${chartNoteHtml}
                                 <h6>Process Contributions:</h6>
                                 <div class="table-responsive">
                                     ${contributionTableHtml}
@@ -730,18 +519,18 @@ document.addEventListener("DOMContentLoaded", () => {
                     `;
                 } catch (e) {
                     console.error("Client-Side Error processing individual result:", result, e);
-                    summaryHtml += `<div class="alert alert-danger mb-3"><strong>Client-Side Error:</strong> Could not display result for ${result.task_name || 'Task'}. See console.</div>`;
+                    summaryHtml += `<div class="alert alert-danger mb-3"><strong>Client-Side Error:</strong> Could not display result for ${result.task_name || "Task"}. See console.</div>`;
                 }
             });
 
-            document.getElementById('summary-section').innerHTML =
+            document.getElementById("summary-section").innerHTML =
                 summaryHtml || '<p class="text-warning">No successful analysis results were returned.</p>';
 
             comparisonTableAreaElement.innerHTML = buildComparisonTable(combinedTableData);
             populateVizTaskSelect();
 
             chartArea.innerHTML = '<p class="text-muted text-center">Select a task, a chart type, and/or a theme, and click "Visualize" to see the chart.</p>';
-            chartTitleElement.innerHTML = '';
+            chartTitleElement.innerHTML = "";
         }
 
         vizChartSelect.innerHTML = `
@@ -775,14 +564,14 @@ document.addEventListener("DOMContentLoaded", () => {
             const selectedChartType = vizChartSelect.value;
             const selectedChartTheme = vizThemeSelect.value;
 
-            chartTitleElement.innerHTML = '';
+            chartTitleElement.innerHTML = "";
 
             if (!selectedTaskId || !selectedChartType) {
                 alert("Please select a task and chart type.");
                 return;
             }
 
-            chartArea.innerHTML = '<p>Loading chart...</p>';
+            chartArea.innerHTML = "<p>Loading chart...</p>";
             visualizeButton.disabled = true;
 
             if (fullAnalysisResults && fullAnalysisResults.individual_results) {
@@ -802,17 +591,11 @@ document.addEventListener("DOMContentLoaded", () => {
                     return;
                 }
 
-                if (taskResult.requires_manual_allocation) {
-                    chartArea.innerHTML = `<p class="text-danger">Complete the manual allocation first.</p>`;
-                    visualizeButton.disabled = false;
-                    return;
-                }
-
                 const selectedTaskContribution = taskResult.contribution_table || [];
 
-                fetch('/graph_results_single', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                fetch("/graph_results_single", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         task_id: selectedTaskId,
                         task_name: selectedTaskName,
@@ -836,7 +619,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     .finally(() => {
                         visualizeButton.disabled = false;
                     });
-
             } else {
                 chartArea.innerHTML = '<p class="text-danger">Please run the main analysis first.</p>';
                 visualizeButton.disabled = false;
@@ -845,12 +627,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
         runButton.addEventListener("click", async () => {
             runButton.disabled = true;
-            loadingSpinner.style.display = 'block';
-            resultsContainer.style.display = 'none';
-            document.getElementById('summary-section').innerHTML = '';
-            comparisonTableAreaElement.innerHTML = '';
+            loadingSpinner.style.display = "block";
+            resultsContainer.style.display = "none";
+            document.getElementById("summary-section").innerHTML = "";
+            comparisonTableAreaElement.innerHTML = "";
             chartArea.innerHTML = '<p class="text-muted text-center">Select a task, a chart type, and/or a theme, and click "Visualize" to see the chart.</p>';
-            chartTitleElement.innerHTML = '';
+            chartTitleElement.innerHTML = "";
 
             const rows = [...document.querySelectorAll(".form-row")];
 
@@ -868,12 +650,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 return {
                     task: taskSelect?.value || null,
-                    taskText: taskText,
+                    taskText,
                     flow: flowSelect?.value || null,
-                    flowText: flowText,
+                    flowText,
                     functional_unit: numberInput?.value || null,
                     unit: unitSelect?.value || null,
-                    unitText: unitText,
+                    unitText,
                     impact_category: impactCategorySelect?.value || null
                 };
             });
@@ -884,7 +666,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (!isValid) {
                 alert("Please select a Task, Flow, Functional unit value, and Unit for all rows before running the analysis.");
-                loadingSpinner.style.display = 'none';
+                loadingSpinner.style.display = "none";
                 runButton.disabled = false;
                 return;
             }
@@ -903,31 +685,25 @@ document.addEventListener("DOMContentLoaded", () => {
             visualizationTasks = Array.from(uniqueTasks, ([IDT, TName]) => ({ IDT, TName }));
 
             try {
-                const finished = await submitAnalysisRows(rowData, renderAnalysisResults);
-
-                if (finished) {
-                    pendingAnalysisRows = null;
-                    pendingManualAllocationItem = null;
-                }
+                await submitAnalysisRows(rowData, renderAnalysisResults);
             } catch (err) {
                 console.error("Analysis Fetch/Processing Error:", err);
-                const summarySection = document.getElementById('summary-section');
+                const summarySection = document.getElementById("summary-section");
                 if (summarySection) {
-                    summarySection.innerHTML = `<div class="alert alert-danger"><strong>Analysis Failed:</strong> ${err.message || 'Check the browser console for details.'}</div>`;
-                    resultsContainer.style.display = 'block';
+                    summarySection.innerHTML = `<div class="alert alert-danger"><strong>Analysis Failed:</strong> ${err.message || "Check the browser console for details."}</div>`;
+                    resultsContainer.style.display = "block";
                 }
             } finally {
-                loadingSpinner.style.display = 'none';
+                loadingSpinner.style.display = "none";
                 runButton.disabled = false;
             }
         });
 
-        setupManualAllocationSaveButton(renderAnalysisResults);
         populateVizTaskSelect();
     }
 
     Promise.all([
-        fetch("/listtasks").then(res => res.json())
+        fetch("/listtasks_with_datasheet").then(res => res.json())
     ])
         .then(([taskResponse]) => {
             if (taskResponse.success && Array.isArray(taskResponse.tasks)) {

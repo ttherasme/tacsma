@@ -18,10 +18,100 @@ def uom():
     if 'username' not in session:
         return redirect(url_for('auth_bp.login'))
 
-    # Fetch the latest 20 Units of Measure (adjust limit as needed)
-    uom_list = UOM.query.order_by(UOM.EntryDate.desc()).limit(20).all()
-    # Pass data to the template
-    return render_template('uom/unitofmeasure.html', uoms=uom_list)
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+
+    if page < 1:
+        page = 1
+
+    base_query = UOM.query.order_by(UOM.EntryDate.desc())
+
+    total_count = base_query.count()
+    offset = (page - 1) * per_page
+
+    uom_list = base_query.offset(offset).limit(per_page).all()
+
+    return render_template(
+        'uom/unitofmeasure.html',
+        uoms=uom_list,
+        page=page,
+        per_page=per_page,
+        total_count=total_count,
+        has_prev=page > 1,
+        has_next=offset + per_page < total_count
+    )
+
+
+# ------------------------------------------
+# Route: Search Units of Measure
+# ------------------------------------------
+@uom_bp.route('/searchuoms', methods=['GET'])
+def search_uoms():
+    if 'username' not in session:
+        return jsonify({
+            "uoms": [],
+            "page": 1,
+            "per_page": 10,
+            "total_count": 0,
+            "has_prev": False,
+            "has_next": False
+        })
+
+    query = request.args.get('q', '').strip().lower()
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+
+    if page < 1:
+        page = 1
+
+    base_query = UOM.query
+
+    if not query:
+        base_query = base_query.order_by(UOM.EntryDate.desc())
+    else:
+        like_query = f"%{query}%"
+
+        state_filter = None
+        if "active".startswith(query):
+            state_filter = UOM.State == 1
+        elif "inactive".startswith(query):
+            state_filter = UOM.State == 0
+
+        filters = [
+            UOM.UName.ilike(like_query),
+            UOM.Unit.ilike(like_query),
+            db.cast(UOM.IDU, db.String).ilike(like_query),
+            db.cast(UOM.EntryDate, db.String).ilike(like_query),
+        ]
+
+        if state_filter is not None:
+            filters.append(state_filter)
+        else:
+            filters.append(db.cast(UOM.State, db.String).ilike(like_query))
+
+        base_query = base_query.filter(db.or_(*filters)).order_by(UOM.EntryDate.desc())
+
+    total_count = base_query.count()
+    offset = (page - 1) * per_page
+
+    uoms = base_query.offset(offset).limit(per_page).all()
+
+    result = [{
+        "IDU": uom.IDU,
+        "UName": uom.UName,
+        "Unit": uom.Unit,
+        "State": "Active" if uom.State == 1 else "Inactive",
+        "EntryDate": uom.EntryDate.strftime('%Y-%m-%d %H:%M') if uom.EntryDate else ""
+    } for uom in uoms]
+
+    return jsonify({
+        "uoms": result,
+        "page": page,
+        "per_page": per_page,
+        "total_count": total_count,
+        "has_prev": page > 1,
+        "has_next": offset + per_page < total_count
+    })
 
 # ------------------------------------------
 # Route: Unit of Measure Registration Page + Submission
@@ -122,52 +212,6 @@ def updateuom():
     uom_data = UOM.query.get(uom_id_param) if uom_id_param else None
     return render_template("uom/uomupdate.html", uom=uom_data)
 
-# ------------------------------------------
-# Route: Search Units of Measure
-# ------------------------------------------
-@uom_bp.route('/searchuoms', methods=['GET'])
-def search_uoms():
-    if 'username' not in session:
-        return jsonify([])
-
-    query = request.args.get('q', '').strip().lower()
-
-    if not query:
-        uoms = UOM.query.order_by(UOM.EntryDate.desc()).limit(20).all()
-    else:
-        like_query = f"%{query}%"
-
-        # Detect partial inputs for 'active' and 'inactive'
-        state_filter = None
-        if "active".startswith(query):
-            state_filter = UOM.State == 1
-        elif "inactive".startswith(query):
-            state_filter = UOM.State == 0
-
-        filters = [
-            UOM.UName.ilike(like_query),
-            UOM.Unit.ilike(like_query),
-            db.cast(UOM.IDU, db.String).ilike(like_query),
-            db.cast(UOM.EntryDate, db.String).ilike(like_query),
-        ]
-
-        # Apply custom state filter if partial match found
-        if state_filter is not None:
-            filters.append(state_filter)
-        else:
-            filters.append(db.cast(UOM.State, db.String).ilike(like_query))
-
-        uoms = UOM.query.filter(db.or_(*filters)).order_by(UOM.EntryDate.desc()).limit(20).all()
-
-    result = [{
-        "IDU": uom.IDU,
-        "UName": uom.UName,
-        "Unit": uom.Unit,
-        "State": "Active" if uom.State == 1 else "Inactive",
-        "EntryDate": uom.EntryDate.strftime('%Y-%m-%d %H:%M') if uom.EntryDate else ""
-    } for uom in uoms]
-
-    return jsonify(result)
 
 # ------------------------------------------
 # Route: Delete uom by IDT

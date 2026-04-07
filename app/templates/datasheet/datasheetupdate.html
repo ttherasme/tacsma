@@ -1,54 +1,71 @@
 {% extends "base.html" %}
 
-{% block title %}TACSMA - Data Sheet Register{% endblock %}
+{% block title %}TACSMA - Data Sheet Update{% endblock %}
 
 {% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/datasheet/datasheetupdate.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/result/results.css') }}" />
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 {% endblock %}
 
 {% block content %}
 <section class="page-content">
-  <h1>Data Sheet - Update</h1>
-  <div class="page-wrapper">
-  <div class="top-tabs">
-    <div class="tabs-left-controls">
-      <input list="taskList" name="task" class="task-input" id="taskSelect" placeholder="Select or type a Task..." required>
-      <datalist id="taskList"></datalist>
-    </div>
+    <h1>Data Sheet - Update</h1>
 
-    <div class="tabs-center">
-      <button class="module-tab active" data-sname="Forest Operation">Forest Operation</button>
-      <button class="module-tab" data-sname="Transportation">Transportation</button>
-      <button class="module-tab" data-sname="Wood Processing">Wood Processing</button>
-      <select class="module-tab" id="activeStepsSelect"></select>
-      <!-- <button title="Add Step" class="step-button" data-url="{{ url_for('stepofprocess_bp.registersop') }}">+</button> -->
-    </div>
-  </div>
+    <div class="page-wrapper">
+        <div class="top-tabs">
+            <div class="tabs-left-controls">
+                <input list="taskList" name="task" class="task-input" id="taskSelect" placeholder="Select or type a Task..." required>
+                <datalist id="taskList"></datalist>
+            </div>
 
-  <div class="main-layout">
-    <div class="left-panel" id="categoryPanel">
-      <button class="category selected" data-category="Product">+ Product</button>
-      <button class="category" data-category="Co-Products">+ Co-Products</button>
-      <button class="category" data-category="Input Materials and Energy">+ Input Materials and Energy</button>
-      <!--<button class="category" data-category="Input Energy">+ Input Energy</button> -->
-      <button class="category" data-category="Emissions">+ Emissions</button>
-      <button class="category" data-category="Waste Treatment">+ Waste Treatment</button>
-    </div>
+            <div class="tabs-center">
+                <button class="module-tab active" type="button" data-sname="Forest Operation">Forest Operation</button>
+                <button class="module-tab" type="button" data-sname="Transportation">Transportation</button>
+                <button class="module-tab" type="button" data-sname="Wood Processing">Wood Processing</button>
+                <select class="module-tab" id="activeStepsSelect"></select>
+            </div>
+        </div>
 
-    <div class="right-panel" id="rightPanel">
-      <!-- Form will load here dynamically -->
+        <div class="main-layout">
+            <div class="left-panel" id="categoryPanel">
+                <button class="category selected" type="button" data-category="Product">+ Product</button>
+                <button class="category" type="button" data-category="Co-Products">+ Co-Products</button>
+                <button class="category" type="button" data-category="Input Materials and Energy">+ Input Materials and Energy</button>
+                <button class="category" type="button" data-category="Emissions">+ Emissions</button>
+                <button class="category" type="button" data-category="Waste Treatment">+ Waste Treatment</button>
+            </div>
+
+            <div class="right-panel" id="rightPanel">
+                <!-- Dynamic form -->
+            </div>
+        </div>
     </div>
-  </div>
-</div>
 </section>
 
+<!-- Manual Allocation Modal -->
+<div id="manualAllocationModal" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="manualAllocationModalLabel">Manual Allocation Required</h5>
+                <button type="button" class="btn-close" id="manualAllocationCloseBtn">✕</button>
+            </div>
+            <div class="modal-body">
+                <div id="manualAllocationMessage" class="mb-3"></div>
+                <div id="manualAllocationFields"></div>
+                <div id="manualAllocationError" class="text-danger mt-3"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="saveManualAllocationBtn">Save Allocation</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    // These variables are populated by Flask/Jinja when the page loads.
-    // They pass the URL parameters (id and name) to your JavaScript file.
     const initialTaskId = {{ task_id | tojson }};
     const initialTaskName = {{ task_name | tojson }};
 </script>

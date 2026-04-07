@@ -3,15 +3,80 @@ document.addEventListener("DOMContentLoaded", () => {
   const tableBody = document.getElementById("task-table-body");
   const checkAllBox = document.getElementById("check-all");
   const deleteAllBtn = document.querySelector(".delete-all-btn");
+  const editIcon = document.querySelector(".task-icon.edit-icon");
+  const searchButton = document.querySelector(".task-search .search-btn");
+
+  const prevPageBtn = document.getElementById("prev-page-btn");
+  const nextPageBtn = document.getElementById("next-page-btn");
+  const pageNumbers = document.getElementById("page-numbers");
+
+  let currentPage = window.taskPagination?.initialPage || 1;
+  let currentQuery = "";
+  let totalPages = Math.max(
+    1,
+    Math.ceil(
+      (window.taskPagination?.totalCount || 0) /
+      (window.taskPagination?.perPage || 10)
+    )
+  );
 
   // ------------------------------
-  // Render task table rows
+  // HANDLERS FOR MULTIPLE SELECTION
+  // ------------------------------
+  function handleCheckboxChange(event) {
+    const box = event.target;
+    box.closest("tr").classList.toggle("selected-row", box.checked);
+
+    updateCheckAllBox();
+    updateEditIconState();
+  }
+
+  function handleRowClick(event) {
+    if (
+      event.target.classList.contains("task-checkbox") ||
+      event.target.closest(".delete-task-btn")
+    ) {
+      return;
+    }
+
+    const row = event.currentTarget;
+    const checkbox = row.querySelector(".task-checkbox");
+
+    checkbox.checked = !checkbox.checked;
+    row.classList.toggle("selected-row", checkbox.checked);
+
+    updateCheckAllBox();
+    updateEditIconState();
+  }
+
+  // ------------------------------
+  // ATTACH BEHAVIORS
+  // ------------------------------
+  function attachRowAndCheckboxBehavior() {
+    const rows = document.querySelectorAll("#task-table-body tr");
+    const checkboxes = document.querySelectorAll(".task-checkbox");
+
+    rows.forEach(row => {
+      row.removeEventListener("click", handleRowClick);
+      row.addEventListener("click", handleRowClick);
+    });
+
+    checkboxes.forEach(box => {
+      box.removeEventListener("change", handleCheckboxChange);
+      box.addEventListener("change", handleCheckboxChange);
+    });
+  }
+
+  // ------------------------------
+  // RENDER TASK TABLE ROWS
   // ------------------------------
   function updateTable(rows) {
     tableBody.innerHTML = "";
 
-    if (rows.length === 0) {
+    if (!rows || rows.length === 0) {
       tableBody.innerHTML = "<tr><td colspan='7'>No results found</td></tr>";
+      updateCheckAllBox();
+      updateEditIconState();
       return;
     }
 
@@ -25,7 +90,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <td>${task.TName}</td>
         <td>${task.Region}</td>
         <td>${task.Description}</td>
-        <td>${task.EntryDate}</td>
+        <td>${task.EntryDate || ""}</td>
         <td>
           <button class="delete-task-btn" data-id="${task.IDT}">
             <img src="/static/img/trash-red.png" alt="Delete" />
@@ -36,55 +101,23 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     attachRowAndCheckboxBehavior();
+    updateCheckAllBox();
     updateEditIconState();
   }
 
   // ------------------------------
-  // Multi-select behavior
-  // ------------------------------
-  function attachRowAndCheckboxBehavior() {
-    const rows = document.querySelectorAll("#task-table-body tr");
-    const checkboxes = document.querySelectorAll(".task-checkbox");
-
-    // Row click toggles checkbox
-    rows.forEach(row => {
-      row.addEventListener("click", (event) => {
-        if (event.target.classList.contains("task-checkbox") || 
-            event.target.closest(".delete-task-btn")) return;
-
-        const checkbox = row.querySelector(".task-checkbox");
-        checkbox.checked = !checkbox.checked;
-
-        row.classList.toggle("selected-row", checkbox.checked);
-
-        updateCheckAllBox();
-        updateEditIconState();
-      });
-    });
-
-    // Checkbox change toggles row highlight
-    checkboxes.forEach(box => {
-      box.addEventListener("change", () => {
-        const row = box.closest("tr");
-        row.classList.toggle("selected-row", box.checked);
-
-        updateCheckAllBox();
-        updateEditIconState();
-      });
-    });
-  }
-
-  // ------------------------------
-  // Update Check All checkbox
+  // UPDATE CHECK ALL CHECKBOX
   // ------------------------------
   function updateCheckAllBox() {
     const allBoxes = document.querySelectorAll(".task-checkbox");
     const checkedBoxes = document.querySelectorAll(".task-checkbox:checked");
-    checkAllBox.checked = allBoxes.length > 0 && allBoxes.length === checkedBoxes.length;
+
+    checkAllBox.checked =
+      allBoxes.length > 0 && allBoxes.length === checkedBoxes.length;
   }
 
   // ------------------------------
-  // Check All / Uncheck All
+  // CHECK ALL / UNCHECK ALL
   // ------------------------------
   checkAllBox.addEventListener("change", () => {
     const allCheckboxes = document.querySelectorAll(".task-checkbox");
@@ -98,46 +131,40 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // ------------------------------
-  // Edit icon behavior (single selection)
+  // ENABLE/DISABLE EDIT ICON
   // ------------------------------
-  // ------------------------------
-  const editIcon = document.querySelector(".task-icon.edit-icon");
+  function updateEditIconState() {
+    if (!editIcon) return;
 
+    const checkedBoxes = document.querySelectorAll(".task-checkbox:checked");
+    editIcon.classList.toggle("disabled", checkedBoxes.length !== 1);
+  }
+
+  // ------------------------------
+  // EDIT ICON CLICK
+  // ------------------------------
   if (editIcon) {
-    editIcon.addEventListener("click", (event) => {
+    editIcon.addEventListener("click", () => {
       const checkedBoxes = document.querySelectorAll(".task-checkbox:checked");
 
-      // No selection
       if (checkedBoxes.length === 0) {
         alert("Please select a task to edit.");
-        return;  // <-- prevent navigation
+        return;
       }
 
-      // More than one selected
       if (checkedBoxes.length > 1) {
         alert("Please select only one task to edit.");
-        return;  // <-- prevent navigation
+        return;
       }
 
-      // Exactly one selected -> navigate
       const taskId = checkedBoxes[0].dataset.id;
       const url = editIcon.querySelector("img").dataset.url;
       window.location.href = `${url}?id=${taskId}`;
     });
   }
 
-
   // ------------------------------
-  // Enable/disable Edit icon based on selection
-  // ------------------------------
-  function updateEditIconState() {
-    const checkedBoxes = document.querySelectorAll(".task-checkbox:checked");
-    if (!editIcon) return;
-    editIcon.classList.toggle("disabled", checkedBoxes.length !== 1);
-  }
-
-  // ------------------------------
-  // Delete single task
+  // DELETE SINGLE TASK
   // ------------------------------
   document.addEventListener("click", async (event) => {
     const btn = event.target.closest(".delete-task-btn");
@@ -149,10 +176,9 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       const response = await fetch(`/delete_task/${taskId}`, { method: "DELETE" });
       const data = await response.json();
+
       if (data.success) {
-        btn.closest("tr").remove();
-        updateCheckAllBox();
-        updateEditIconState();
+        loadPage(currentPage);
       } else {
         alert(data.message || "Failed to delete task.");
       }
@@ -163,10 +189,11 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // ------------------------------
-  // Delete all checked tasks
+  // DELETE ALL CHECKED TASKS
   // ------------------------------
   deleteAllBtn.addEventListener("click", async () => {
     const checkedBoxes = [...document.querySelectorAll(".task-checkbox:checked")];
+
     if (checkedBoxes.length === 0) {
       alert("No tasks selected.");
       return;
@@ -184,18 +211,12 @@ document.addEventListener("DOMContentLoaded", () => {
       });
 
       const data = await response.json();
+
       if (data.success) {
-        data.results.forEach(result => {
-          if (result.status === "deleted") {
-            const row = document.querySelector(`.task-checkbox[data-id="${result.id}"]`)?.closest("tr");
-            if (row) row.remove();
-          }
-        });
-        updateCheckAllBox();
-        updateEditIconState();
+        loadPage(currentPage);
         alert("Deletion completed.");
       } else {
-        alert("An error occurred while deleting tasks.");
+        alert(data.message || "An error occurred while deleting tasks.");
       }
     } catch (err) {
       console.error(err);
@@ -204,13 +225,92 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // ------------------------------
-  // Search tasks
+  // PAGE BUTTONS
   // ------------------------------
-  function searchTasks(query) {
-    fetch(`/searchtasks?q=${encodeURIComponent(query)}`)
+  function createPageButton(page, isActive = false) {
+    const btn = document.createElement("button");
+    btn.textContent = page;
+    btn.type = "button";
+
+    if (isActive) {
+      btn.disabled = true;
+      btn.classList.add("active-page");
+    }
+
+    btn.addEventListener("click", () => {
+      loadPage(page);
+    });
+
+    return btn;
+  }
+
+  function createDots() {
+    const span = document.createElement("span");
+    span.textContent = "...";
+    return span;
+  }
+
+  function renderPageNumbers() {
+    pageNumbers.innerHTML = "";
+
+    if (totalPages <= 1) return;
+
+    const maxVisible = 5;
+
+    let startPage = Math.max(1, currentPage - 2);
+    let endPage = Math.min(totalPages, currentPage + 2);
+
+    if ((endPage - startPage + 1) < maxVisible) {
+      if (startPage === 1) {
+        endPage = Math.min(totalPages, startPage + maxVisible - 1);
+      } else if (endPage === totalPages) {
+        startPage = Math.max(1, totalPages - maxVisible + 1);
+      }
+    }
+
+    if (startPage > 1) {
+      pageNumbers.appendChild(createPageButton(1, currentPage === 1));
+      if (startPage > 2) {
+        pageNumbers.appendChild(createDots());
+      }
+    }
+
+    for (let page = startPage; page <= endPage; page++) {
+      pageNumbers.appendChild(createPageButton(page, page === currentPage));
+    }
+
+    if (endPage < totalPages) {
+      if (endPage < totalPages - 1) {
+        pageNumbers.appendChild(createDots());
+      }
+      pageNumbers.appendChild(
+        createPageButton(totalPages, currentPage === totalPages)
+      );
+    }
+  }
+
+  // ------------------------------
+  // UPDATE PAGINATION UI
+  // ------------------------------
+  function updatePagination(meta) {
+    currentPage = meta.page;
+    totalPages = Math.max(1, Math.ceil(meta.total_count / meta.per_page));
+
+    prevPageBtn.disabled = !meta.has_prev;
+    nextPageBtn.disabled = !meta.has_next;
+
+    renderPageNumbers();
+  }
+
+  // ------------------------------
+  // SEARCH TASKS + LOAD PAGE
+  // ------------------------------
+  function loadPage(page) {
+    fetch(`/searchtasks?q=${encodeURIComponent(currentQuery)}&page=${page}`)
       .then(res => res.json())
       .then(data => {
-        updateTable(data);
+        updateTable(data.tasks);
+        updatePagination(data);
       })
       .catch(err => {
         console.error(err);
@@ -218,12 +318,44 @@ document.addEventListener("DOMContentLoaded", () => {
       });
   }
 
+  // ------------------------------
+  // SEARCH EVENTS
+  // ------------------------------
   searchInput.addEventListener("input", () => {
-    searchTasks(searchInput.value.trim());
+    currentQuery = searchInput.value.trim();
+    currentPage = 1;
+    loadPage(1);
   });
 
+  if (searchButton) {
+    searchButton.addEventListener("click", () => {
+      currentQuery = searchInput.value.trim();
+      currentPage = 1;
+      loadPage(1);
+    });
+  }
+
   // ------------------------------
-  // Initial load
+  // PREV / NEXT
   // ------------------------------
-  searchTasks("");
+  if (prevPageBtn) {
+    prevPageBtn.addEventListener("click", () => {
+      if (currentPage > 1) {
+        loadPage(currentPage - 1);
+      }
+    });
+  }
+
+  if (nextPageBtn) {
+    nextPageBtn.addEventListener("click", () => {
+      if (currentPage < totalPages) {
+        loadPage(currentPage + 1);
+      }
+    });
+  }
+
+  // ------------------------------
+  // INITIAL LOAD
+  // ------------------------------
+  loadPage(currentPage);
 });

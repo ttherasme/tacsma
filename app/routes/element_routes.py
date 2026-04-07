@@ -17,7 +17,13 @@ def elements():
     username = session['username']
     user_id = session.get('user_id')
 
-    # Build the query FIRST (do not call .all yet)
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+
+    if page < 1:
+        page = 1
+
+    # Build the query FIRST
     query = (
         db.session.query(
             Element.IDE,
@@ -29,23 +35,37 @@ def elements():
         )
         .join(BElement, Element.IDBE == BElement.IDBE)
         .join(Item, Element.IDI == Item.IDI)
+        .filter(Element.Initial_Val == 1)
     )
-
-    query = query.filter(Element.Initial_Val == 1)
 
     # Admin sees all, others only their own records
     if username.lower() != "admin":
         query = query.filter(Element.user_id == user_id)
 
-    # Apply ordering & limit, THEN execute
+    total_count = query.count()
+    offset = (page - 1) * per_page
+
+    # Apply ordering, offset & limit, THEN execute
     element_list = (
         query
         .order_by(BElement.EName.desc())
-        .limit(10)
+        .offset(offset)
+        .limit(per_page)
         .all()
     )
 
-    return render_template('element/element.html', elements=element_list)
+    has_prev = page > 1
+    has_next = offset + per_page < total_count
+
+    return render_template(
+        'element/element.html',
+        elements=element_list,
+        page=page,
+        per_page=per_page,
+        total_count=total_count,
+        has_prev=has_prev,
+        has_next=has_next
+    )
 
 
 # ------------------------------------------
@@ -54,11 +74,24 @@ def elements():
 @element_bp.route('/search_elements', methods=['GET'])
 def search_elements():
     if 'username' not in session:
-        return jsonify([])
+        return jsonify({
+            "elements": [],
+            "page": 1,
+            "per_page": 10,
+            "total_count": 0,
+            "has_prev": False,
+            "has_next": False
+        })
 
     username = session['username']
     user_id = session.get('user_id')
     query = request.args.get('q', '').strip()
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+
+    if page < 1:
+        page = 1
+
     like_query = f"%{query}%"
 
     # Build base query (DO NOT call .all yet)
@@ -73,9 +106,8 @@ def search_elements():
         )
         .join(BElement, Element.IDBE == BElement.IDBE)
         .join(Item, Element.IDI == Item.IDI)
+        .filter(Element.Initial_Val == 1)
     )
-
-    base_query = base_query.filter(Element.Initial_Val == 1)
 
     # Admin sees all, others only their own
     if username.lower() != "admin":
@@ -95,8 +127,11 @@ def search_elements():
     else:
         base_query = base_query.order_by(BElement.EName.desc())
 
-    # Execute query
-    elements = base_query.limit(10).all()
+    total_count = base_query.count()
+    offset = (page - 1) * per_page
+
+    # Execute paginated query
+    elements = base_query.offset(offset).limit(per_page).all()
 
     # Build JSON response
     result = [
@@ -110,7 +145,14 @@ def search_elements():
         for e in elements
     ]
 
-    return jsonify(result)
+    return jsonify({
+        "elements": result,
+        "page": page,
+        "per_page": per_page,
+        "total_count": total_count,
+        "has_prev": page > 1,
+        "has_next": offset + per_page < total_count
+    })
 
 
 @element_bp.route('/registerelement_global', methods=['GET', 'POST'])

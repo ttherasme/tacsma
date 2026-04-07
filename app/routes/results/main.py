@@ -105,6 +105,8 @@ def run_analysis(rows):
                     "task_name": task_text
                 })
                 continue
+            else:
+                logger.warning(f"Matrix A : \n {A_raw}")
 
             if B_raw is None or getattr(B_raw, "empty", True):
                 results.append({
@@ -112,6 +114,8 @@ def run_analysis(rows):
                     "task_name": task_text
                 })
                 continue
+            else:
+                logger.warning(f"Matrix B : \n {B_raw}")
 
             lci_flow = B_raw.iloc[:, 0].reset_index(drop=True)
             logger.warning(f"LCI Flow: \n {lci_flow}")
@@ -123,21 +127,17 @@ def run_analysis(rows):
                 adjusted_A, adjusted_B = adjust_matrix_for_multiple_outputs(
                     A_raw,
                     B_raw,
-                    manual_allocation=manual_allocation
+                    manual_allocation=None,
+                    task_id=task_id
                 )
-            except ManualAllocationRequired as e:
-                logger.warning(
-                    f"Manual allocation required for task {task_text}, "
-                    f"process {e.process_name} ({e.process_id})"
+            except ManualAllocationRequired:
+                logger.error(
+                    f"Manual allocation missing in database for task {task_text}. "
+                    f"Please define allocation in datasheet."
                 )
                 results.append({
-                    "task_name": task_text,
-                    "requires_manual_allocation": True,
-                    "message": e.message,
-                    "process_name": e.process_name,
-                    "process_id": e.process_id,
-                    "process_index": e.process_index,
-                    "outputs": e.outputs
+                    "error": "Manual allocation missing in datasheet. Please configure allocation before running analysis.",
+                    "task_name": task_text
                 })
                 continue
             except Exception as e:
