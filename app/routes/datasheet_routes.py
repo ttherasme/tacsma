@@ -576,9 +576,9 @@ def get_elements_info_by_category(category_name):
     user_id = session.get('user_id')
     name = category_name.lower()
 
-    if name =='Product':
+    if name =='product':
         items = Item.query.filter(Item.IName=='Product').all()
-    elif name =='Co-Products':
+    elif name =='co-products':
         items = Item.query.filter(Item.IName=='Co-Products').all()
     else:
         items = Item.query.filter(Item.IName.ilike(f'%{name}%')).all()
