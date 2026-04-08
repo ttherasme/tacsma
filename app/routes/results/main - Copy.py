@@ -21,12 +21,19 @@ from .unit_conversion import unit_conversion, get_si_unit
 import matplotlib
 matplotlib.use('Agg')
 
-graph_data = {}
+graph_data = {}  # dictionary indexed by task_id
 
 
 def run_analysis(rows):
     """
-    Runs LCI/LCA analysis for multiple input rows.
+    Runs LCI/LCA analysis for multiple input rows, calculates individual results,
+    and generates a single pivoted contribution table comparing tasks.
+
+    Returns:
+    {
+        "individual_results": [...],
+        "combined_contribution_table": [...]
+    }
     """
     results = []
     all_contributions_data = []
@@ -51,23 +58,23 @@ def run_analysis(rows):
             manual_allocation = row.get('manual_allocation', {})
 
             logger.warning(
-                "Input:\n Task: %s, Flow: %s, Functional unit: %s, Unit: %s, Impact category: %s",
-                task_id, flow, functional_unit, flow_unit, impact_category
+                f"Input :\n Task : {task_id}, Flow : {flow}, "
+                f"Functional unit : {functional_unit}, Unit : {flow_unit}, "
+                f"Impact category : {impact_category}"
             )
 
             try:
                 functional_unit = float(functional_unit)
             except (ValueError, TypeError):
                 logger.error(
-                    "Task %s: Invalid functional unit '%s'; defaulting to 1.0",
-                    task_id, functional_unit
+                    f"Task {task_id}: Invalid functional unit '{functional_unit}'; defaulting to 1.0"
                 )
                 functional_unit = 1.0
 
             try:
                 task_id = int(task_id)
             except (ValueError, TypeError):
-                logger.error("Invalid task_id '%s'; skipping this row", task_id)
+                logger.error(f"Invalid task_id '{task_id}'; skipping this row")
                 results.append({
                     "error": f"Invalid task id: {task_id}",
                     "task_name": task_text
@@ -78,14 +85,19 @@ def run_analysis(rows):
             # 1. Import Data
             # ---------------------------------------------------------
             A_raw = format_rawdata_a(task_id, A='A')
+
+            if growth_regrowth is True:
+                value_B, value_A = forest_growth_function()
+                A_raw = forest_growth_newA(A_raw, value_A, 'A')
+            else:
+                logger.error("No growth regrowth model")
+
             B_raw = import_matrix_b(task_id, sort='yes')
 
-            if growth_regrowth == 1:
-                value_B, value_A = forest_growth_function(task_id)
-                A_raw = forest_growth_newA(A_raw, value_A, 'A')
+            if growth_regrowth is True:
                 B_raw = forest_growth_newA(B_raw, value_B, 'B')
             else:
-                logger.warning("Growth/regrowth model disabled.")
+                logger.error("No growth regrowth model")
 
             if A_raw is None or getattr(A_raw, "empty", True):
                 results.append({
@@ -94,7 +106,7 @@ def run_analysis(rows):
                 })
                 continue
             else:
-                logger.warning("Shape: %s\nMatrix A:\n%s", A_raw.shape, A_raw.to_string())
+                logger.warning(f"Matrix A : \n {A_raw}")
 
             if B_raw is None or getattr(B_raw, "empty", True):
                 results.append({
@@ -103,11 +115,10 @@ def run_analysis(rows):
                 })
                 continue
             else:
-                logger.warning("Shape: %s\nMatrix B:\n%s", B_raw.shape, B_raw.to_string())
+                logger.warning(f"Matrix B : \n {B_raw}")
 
-            # B matrix rows correspond to background / elementary flows
-            lci_flow = B_raw.iloc[:, 0].astype(str).reset_index(drop=True)
-            logger.warning("LCI Flow:\n%s", lci_flow.tolist())
+            lci_flow = B_raw.iloc[:, 0].reset_index(drop=True)
+            logger.warning(f"LCI Flow: \n {lci_flow}")
 
             # ---------------------------------------------------------
             # 2. Multifunctionality Adjustment
@@ -116,14 +127,13 @@ def run_analysis(rows):
                 adjusted_A, adjusted_B = adjust_matrix_for_multiple_outputs(
                     A_raw,
                     B_raw,
-                    manual_allocation=manual_allocation,
+                    manual_allocation=None,
                     task_id=task_id
                 )
-            except ManualAllocationRequired as e:
+            except ManualAllocationRequired:
                 logger.error(
-                    "Manual allocation missing in database for task %s. %s",
-                    task_text,
-                    e.message
+                    f"Manual allocation missing in database for task {task_text}. "
+                    f"Please define allocation in datasheet."
                 )
                 results.append({
                     "error": "Manual allocation missing in datasheet. Please configure allocation before running analysis.",
@@ -132,8 +142,8 @@ def run_analysis(rows):
                 continue
             except Exception as e:
                 logger.error(
-                    "Error during matrix adjustment for task %s: %s",
-                    task_text, str(e), exc_info=True
+                    f"Error during matrix adjustment for task {task_text}: {str(e)}",
+                    exc_info=True
                 )
                 results.append({
                     "error": f"Error adjusting matrices: {str(e)}",
@@ -144,8 +154,8 @@ def run_analysis(rows):
             adjusted_A = pd.DataFrame(adjusted_A)
             adjusted_B = pd.DataFrame(adjusted_B)
 
-            logger.warning("Adjusted A:\n%s", adjusted_A.to_string())
-            logger.warning("Adjusted B:\n%s", adjusted_B.to_string())
+            logger.warning(f"Adjusted A:\n {adjusted_A}")
+            logger.warning(f"Adjusted B:\n {adjusted_B}")
 
             # ---------------------------------------------------------
             # 3. Convert functional unit to SI BEFORE final demand
@@ -155,8 +165,8 @@ def run_analysis(rows):
                 functional_unit_si_unit = get_si_unit(unit_text)
             except Exception as e:
                 logger.error(
-                    "Unit conversion failed for task %s: %s",
-                    task_text, e, exc_info=True
+                    f"Unit conversion failed for task {task_text}: {e}",
+                    exc_info=True
                 )
                 results.append({
                     "error": f"Unit conversion failed: {str(e)}",
@@ -165,37 +175,32 @@ def run_analysis(rows):
                 continue
 
             logger.warning(
-                "Task %s: functional unit entered=%s %s, converted=%s %s",
-                task_id, functional_unit, unit_text, functional_unit_si, functional_unit_si_unit
+                f"Task {task_id}: functional unit entered={functional_unit} {unit_text}, "
+                f"converted={functional_unit_si} {functional_unit_si_unit}"
             )
 
-            # ---------------------------------------------------------
-            # 4. Build final demand vector
-            # ---------------------------------------------------------
-            # IMPORTANT:
-            # Here, `flow` is assumed to already be the same identifier used in matrix column 1
-            # (you confirmed the UI value carries IDBE even if named IDE visually).
-            selected_flow_id = str(flow).strip()
+            flow_dict = {
+                'flow': str(flow),
+                'unit': functional_unit_si_unit,
+                'functional_unit': functional_unit_si
+            }
+            flow_df = pd.DataFrame([flow_dict])
 
-            flow_names = adjusted_A.iloc[:, :3].copy()
-            flow_names.columns = ['flow', 'flow ID', 'unit']
+            flow_names = adjusted_A.iloc[:, :2].copy()
+            flow_names.columns = ['flow', 'flow ID']
             flow_names['flow ID'] = flow_names['flow ID'].astype(str)
 
-            flow_names['Amount'] = np.where(
-                flow_names['flow ID'] == selected_flow_id,
-                float(functional_unit_si),
-                0.0
-            )
+            flow_names['Amount'] = flow_names['flow ID'].map(
+                flow_df.set_index('flow')['functional_unit']
+            ).fillna(0)
 
-            logger.warning("Selected flow from UI: %s", selected_flow_id)
-            logger.warning("Adjusted A flow IDs: %s", flow_names['flow ID'].tolist())
-            logger.warning("Flow mapping table:\n%s", flow_names.to_string())
+            logger.warning(f"Flow name:\n {flow_names}")
 
             final_demand = flow_names['Amount'].values.astype(float)
-            logger.warning("Final demand:\n%s", final_demand.tolist())
+            logger.warning(f"Final demand:\n {final_demand}")
 
             # ---------------------------------------------------------
-            # 5. Extract process matrices and names
+            # 4. Extract process matrices and names
             # ---------------------------------------------------------
             if adjusted_A.shape[1] <= 3:
                 results.append({
@@ -212,7 +217,7 @@ def run_analysis(rows):
                 continue
 
             process_names = adjusted_A.columns.tolist()[3:]
-            logger.warning("Process names:\n%s", process_names)
+            logger.warning(f"Process name:\n {process_names}")
 
             adjusted_A_numeric = adjusted_A.iloc[:, 3:]
             adjusted_A_np = np.nan_to_num(np.array(adjusted_A_numeric, dtype=float), nan=0.0)
@@ -220,50 +225,21 @@ def run_analysis(rows):
             adjusted_B_numeric = adjusted_B.iloc[:, 3:]
             adjusted_B_np = np.nan_to_num(np.array(adjusted_B_numeric, dtype=float), nan=0.0)
 
-            logger.warning("Adjusted A numeric shape: %s", adjusted_A_np.shape)
-            logger.warning("Adjusted B numeric shape: %s", adjusted_B_np.shape)
-
-            if adjusted_A_np.shape[0] != len(final_demand):
-                results.append({
-                    "error": (
-                        f"Final demand length ({len(final_demand)}) does not match "
-                        f"number of A rows ({adjusted_A_np.shape[0]})."
-                    ),
-                    "task_name": task_text
-                })
-                continue
-
-            if adjusted_B_np.shape[1] != adjusted_A_np.shape[1]:
-                results.append({
-                    "error": (
-                        f"A and B process-column mismatch: "
-                        f"A={adjusted_A_np.shape}, B={adjusted_B_np.shape}"
-                    ),
-                    "task_name": task_text
-                })
-                continue
-
             # ---------------------------------------------------------
-            # 6. Scaling Vector
+            # 5. Scaling Vector
             # ---------------------------------------------------------
             try:
                 scaling_vector = calculate_scaling_vector(adjusted_A_np, final_demand)
-                logger.warning("Scaling vector:\n%s", scaling_vector)
+                logger.warning(f"Scaling vector:\n {scaling_vector}")
             except np.linalg.LinAlgError as e:
-                logger.error(
-                    "Scaling vector error (singular matrix) for task %s: %s",
-                    task_text, e
-                )
+                logger.error(f"Scaling vector error (singular matrix) for task {task_text}: {e}")
                 results.append({
                     "error": f"Cannot solve linear system (singular matrix): {e}",
                     "task_name": task_text
                 })
                 continue
             except Exception as e:
-                logger.error(
-                    "Scaling vector error for task %s: %s",
-                    task_text, e, exc_info=True
-                )
+                logger.error(f"Scaling vector error for task {task_text}: {e}", exc_info=True)
                 results.append({
                     "error": f"Scaling vector calculation failed: {str(e)}",
                     "task_name": task_text
@@ -271,25 +247,15 @@ def run_analysis(rows):
                 continue
 
             # ---------------------------------------------------------
-            # 7. Inventory Impact
+            # 6. Inventory Impact
             # ---------------------------------------------------------
             try:
-                g = calculate_inventory_impact(adjusted_B_np, scaling_vector)
+                g = calculate_inventory_impact(adjusted_B_numeric, scaling_vector)
                 g = np.array(g).flatten()
-
-                if len(g) != len(lci_flow):
-                    raise ValueError(
-                        f"Inventory vector length ({len(g)}) does not match "
-                        f"LCI flow length ({len(lci_flow)})."
-                    )
-
                 total_impact = calculate_impact_score(g, lci_flow, impact_category)
-                logger.warning("Total impact:\n%s", total_impact)
+                logger.warning(f"total impact:\n {total_impact}")
             except Exception as e:
-                logger.error(
-                    "Impact calculation error for task %s: %s",
-                    task_text, e, exc_info=True
-                )
+                logger.error(f"Impact calculation error for task {task_text}: {e}", exc_info=True)
                 results.append({
                     "error": f"Impact calculation failed: {str(e)}",
                     "task_name": task_text
@@ -297,7 +263,7 @@ def run_analysis(rows):
                 continue
 
             # ---------------------------------------------------------
-            # 8. Process Contribution
+            # 7. Process Contribution
             # ---------------------------------------------------------
             try:
                 diag_s = diagonal_vector(scaling_vector)
@@ -316,13 +282,10 @@ def run_analysis(rows):
                     "Contribution": process_contribution_filtered
                 }).query("Contribution != 0")
 
-                logger.warning("Contribution table:\n%s", contribution_table_df.to_string())
+                logger.warning(f"Contribution table:\n {contribution_table_df}")
 
             except Exception as e:
-                logger.error(
-                    "Process contribution error for task %s: %s",
-                    task_text, e, exc_info=True
-                )
+                logger.error(f"Process contribution error for task {task_text}: {e}", exc_info=True)
                 results.append({
                     "error": f"Process contribution calculation failed: {str(e)}",
                     "task_name": task_text
@@ -330,7 +293,7 @@ def run_analysis(rows):
                 continue
 
             # ---------------------------------------------------------
-            # 9. Combined comparison table payload
+            # 8. Combined comparison table payload
             # ---------------------------------------------------------
             current_row_contributions = pd.DataFrame({
                 "Process": process_names_np,
@@ -340,7 +303,7 @@ def run_analysis(rows):
             all_contributions_data.extend(current_row_contributions.to_dict('records'))
 
             # ---------------------------------------------------------
-            # 10. Chart cache
+            # 9. Chart cache
             # ---------------------------------------------------------
             graph_data[task_id] = {
                 "task_name": task_text,
@@ -350,7 +313,7 @@ def run_analysis(rows):
             }
 
             # ---------------------------------------------------------
-            # 11. Individual result payload
+            # 10. Individual result payload
             # ---------------------------------------------------------
             chart_base64 = None
             chart_note = None
@@ -399,7 +362,7 @@ def run_analysis(rows):
             })
 
         except Exception as e:
-            logger.exception("Unexpected error for task %s: %s", task_text, e)
+            logger.exception(f"Unexpected error for task {task_text}: {e}")
             results.append({
                 "error": f"Unexpected error: {e}",
                 "task_name": task_text
@@ -419,12 +382,14 @@ def run_analysis(rows):
             )
             final_contribution_table = pivot_table.reset_index().to_dict('records')
         except Exception as e:
-            logger.error("Error generating combined contribution table: %s", e, exc_info=True)
+            logger.error(f"Error generating combined contribution table: {e}", exc_info=True)
             final_contribution_table = []
     else:
         final_contribution_table = []
 
     logger.warning("--- ENDING run_analysis ---")
+    logging.debug("Returning from run_analysis(): %s", results)
+    logging.debug("Returning from run_analysis(): %s", final_contribution_table)
 
     return {
         "individual_results": results,
@@ -440,7 +405,7 @@ def graph_results_single(chart_type='pie', theme='vibrant', task_name=None, task
     data_contribution = graph_data[task_id]["contribution_table_values"]
     data_nameTask = graph_data[task_id]["task_name"]
 
-    logging.debug("Data chart :\n %s", data_contribution)
+    logging.debug(f"Data chart :\n {data_contribution}")
 
     graph = None
     if data_contribution is not None:

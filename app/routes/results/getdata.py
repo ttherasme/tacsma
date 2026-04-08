@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import logging
 from sqlalchemy.exc import SQLAlchemyError
+
 from app import db
 from app.models import Step, Datasheet, UOM, Element, Item, BElement
 
@@ -9,6 +10,9 @@ logger = logging.getLogger(__name__)
 
 
 def get_all_processes(idt_param: int):
+    """
+    Return all distinct process names for the task, in DB order.
+    """
     results = (
         db.session.query(Step.SName)
         .join(Datasheet, Datasheet.IDS == Step.IDS)
@@ -22,11 +26,24 @@ def get_all_processes(idt_param: int):
 def _get_base_task_data(idt_param: int) -> pd.DataFrame:
     """
     Fetch all datasheet rows needed to build Matrix A and Matrix B.
+
+    Returned columns:
+      - IDD
+      - IDT
+      - Flow_id   -> Element.IDBE
+      - Flow      -> BElement.EName
+      - Process   -> Step.SName
+      - ValueD
+      - UnitD
+      - CHK
+      - IName     -> Item.IName
+      - IDE       -> Element.IDE
     """
     results = (
         db.session.query(
             Datasheet.IDD.label("IDD"),
             Datasheet.IDT.label("IDT"),
+            Element.IDE.label("IDE"),
             Element.IDBE.label("Flow_id"),
             BElement.EName.label("Flow"),
             Step.SName.label("Process"),
@@ -47,7 +64,7 @@ def _get_base_task_data(idt_param: int) -> pd.DataFrame:
     if not results:
         return pd.DataFrame(
             columns=[
-                "IDD", "IDT", "Flow_id", "Flow", "Process",
+                "IDD", "IDT", "IDE", "Flow_id", "Flow", "Process",
                 "ValueD", "UnitD", "CHK", "IName"
             ]
         )
@@ -55,21 +72,20 @@ def _get_base_task_data(idt_param: int) -> pd.DataFrame:
     return pd.DataFrame(
         results,
         columns=[
-            "IDD", "IDT", "Flow_id", "Flow", "Process",
+            "IDD", "IDT", "IDE", "Flow_id", "Flow", "Process",
             "ValueD", "UnitD", "CHK", "IName"
         ]
     )
 
 
-def _build_internal_output_keys(df: pd.DataFrame) -> set:
+def _build_output_process_map(df: pd.DataFrame) -> dict:
     """
-    Internal outputs are the flows that are produced by another process
-    inside the same task and therefore should move matching input rows
-    into Matrix A.
+    Build:
+        Flow_id -> set(process names where this flow is an OUTPUT)
 
-    Rules used:
-    - Product
-    - Co-Products with CHK = 0
+    Output rows are ONLY:
+      - Product
+      - Co-Products with CHK = 0
     """
     outputs_df = df.loc[
         (df["IName"] == "Product") |
@@ -77,27 +93,36 @@ def _build_internal_output_keys(df: pd.DataFrame) -> set:
         ["Flow_id", "Process"]
     ].drop_duplicates()
 
-    return set(tuple(x) for x in outputs_df[["Flow_id", "Process"]].to_numpy())
+    if outputs_df.empty:
+        return {}
+
+    return (
+        outputs_df.groupby("Flow_id")["Process"]
+        .apply(lambda s: set(str(x).strip() for x in s if pd.notna(x)))
+        .to_dict()
+    )
 
 
 def _classify_rows(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Classify each row into Matrix A or Matrix B and compute signed value
-    based on the business rules provided by the user.
+    Classify each row into Matrix A or Matrix B and compute signed value.
+
+    Business rules:
+    - Product -> A, positive
+    - Co-Products with CHK=0 -> A, negative
+    - Input Materials and Energy with Flow='Tree' -> A, negative
+    - Input Materials and Energy that exists as output in ANOTHER process -> A, negative
+    - Other Input Materials and Energy -> B, positive
+    - Co-Products with CHK!=0 -> B, negative
+    - Waste Treatment / Emission / Emissions -> B, positive
     """
     if df.empty:
-        df["Matrix"] = pd.Series(dtype="object")
-        df["Value_Final"] = pd.Series(dtype="float64")
-        return df
+        out = df.copy()
+        out["Matrix"] = pd.Series(dtype="object")
+        out["Value_Final"] = pd.Series(dtype="float64")
+        return out
 
-    # Flows that are outputs somewhere in the same task
-    output_flow_ids = set(
-        df.loc[
-            (df["IName"] == "Product") |
-            ((df["IName"] == "Co-Products") & (df["CHK"] == 0)),
-            "Flow_id"
-        ].dropna().unique()
-    )
+    output_process_map = _build_output_process_map(df)
 
     matrix_list = []
     value_list = []
@@ -106,39 +131,46 @@ def _classify_rows(df: pd.DataFrame) -> pd.DataFrame:
         item = str(row["IName"]).strip() if pd.notna(row["IName"]) else ""
         flow_name = str(row["Flow"]).strip() if pd.notna(row["Flow"]) else ""
         flow_id = row["Flow_id"]
+        process = str(row["Process"]).strip() if pd.notna(row["Process"]) else ""
         chk = row["CHK"] if pd.notna(row["CHK"]) else 0
         value = float(row["ValueD"]) if pd.notna(row["ValueD"]) else 0.0
 
         matrix = None
         signed_value = None
 
-        # Matrix A
+        # 1. Product -> A, positive
         if item == "Product":
             matrix = "A"
             signed_value = value
 
+        # 2. Co-Products CHK=0 -> A, negative
         elif item == "Co-Products" and chk == 0:
             matrix = "A"
             signed_value = -value
 
+        # 3. Input Materials and Energy
         elif item == "Input Materials and Energy":
-            # Force Tree into A
+            # Special rule: Tree always in A, negative
             if flow_name.lower() == "tree":
                 matrix = "A"
                 signed_value = -value
-            # If same flow is produced by another process in same task => A
-            elif flow_id in output_flow_ids:
-                matrix = "A"
-                signed_value = -value
             else:
-                matrix = "B"
-                signed_value = value
+                producing_processes = output_process_map.get(flow_id, set())
 
-        # Matrix B
-        elif item == "Co-Products" and chk == 1:
+                # Input belongs to A only if same flow is output in another process
+                if any(prod_process != process for prod_process in producing_processes):
+                    matrix = "A"
+                    signed_value = -value
+                else:
+                    matrix = "B"
+                    signed_value = value
+
+        # 4. Co-Products CHK!=0 -> B, negative
+        elif item == "Co-Products" and chk != 0:
             matrix = "B"
             signed_value = -value
 
+        # 5. Waste / Emissions -> B, positive
         elif item in ["Waste Treatment", "Emission", "Emissions"]:
             matrix = "B"
             signed_value = value
@@ -152,6 +184,15 @@ def _classify_rows(df: pd.DataFrame) -> pd.DataFrame:
 
     # Keep only classified rows
     out = out[out["Matrix"].notna()].copy()
+
+    logger.warning(
+        "Classified rows:\n%s",
+        out[[
+            "IDD", "IDE", "Flow_id", "Flow", "Process", "IName",
+            "CHK", "ValueD", "Matrix", "Value_Final"
+        ]].to_string(index=False)
+    )
+
     return out
 
 
@@ -163,10 +204,10 @@ def _choose_unit_per_flow(df: pd.DataFrame) -> pd.DataFrame:
     and log a warning.
     """
     if df.empty:
-        return pd.DataFrame(columns=["Flow_id", "Flow", "Unit"])
+        return pd.DataFrame(columns=["Flow", "Flow_id", "Unit"])
 
     unit_check = (
-        df.groupby(["Flow_id", "Flow"])["UnitD"]
+        df.groupby(["Flow", "Flow_id"])["UnitD"]
         .agg(lambda s: sorted({str(x).strip() for x in s.dropna() if str(x).strip() != ""}))
         .reset_index(name="UnitsFound")
     )
@@ -180,7 +221,7 @@ def _choose_unit_per_flow(df: pd.DataFrame) -> pd.DataFrame:
             )
 
     unit_df = (
-        df.groupby(["Flow_id", "Flow"], as_index=False)["UnitD"]
+        df.groupby(["Flow", "Flow_id"], as_index=False)["UnitD"]
         .agg(lambda s: next((str(x).strip() for x in s if pd.notna(x) and str(x).strip() != ""), np.nan))
         .rename(columns={"UnitD": "Unit"})
     )
@@ -188,7 +229,42 @@ def _choose_unit_per_flow(df: pd.DataFrame) -> pd.DataFrame:
     return unit_df
 
 
+def _pivot_matrix(df_matrix: pd.DataFrame, all_processes: list[str]) -> pd.DataFrame:
+    """
+    Pivot a classified matrix dataframe to:
+        Flow | Flow_id | Unit | Process_1 | Process_2 | ...
+    """
+    if df_matrix.empty:
+        cols = ["Flow", "Flow_id", "Unit"] + all_processes
+        return pd.DataFrame(columns=cols)
+
+    pivot_df = df_matrix.pivot_table(
+        index=["Flow", "Flow_id"],
+        columns="Process",
+        values="Value_Final",
+        aggfunc="sum",
+        fill_value=0.0
+    ).reset_index()
+
+    # Ensure all process columns exist
+    for p in all_processes:
+        if p not in pivot_df.columns:
+            pivot_df[p] = 0.0
+
+    unit_df = _choose_unit_per_flow(df_matrix)
+
+    result = pivot_df.merge(unit_df, on=["Flow", "Flow_id"], how="left")
+
+    final_cols = ["Flow", "Flow_id", "Unit"] + all_processes
+    result = result[final_cols].sort_values(by="Flow_id").reset_index(drop=True)
+
+    return result
+
+
 def get_matrix_a(idt_param: int):
+    """
+    Build Matrix A for a task.
+    """
     try:
         all_processes = get_all_processes(idt_param)
         base_df = _get_base_task_data(idt_param)
@@ -200,49 +276,28 @@ def get_matrix_a(idt_param: int):
         classified = _classify_rows(base_df)
         df_a = classified[classified["Matrix"] == "A"].copy()
 
-        if df_a.empty:
-            cols = ["Flow", "Flow_id", "Unit"] + all_processes
-            return pd.DataFrame(columns=cols)
+        result = _pivot_matrix(df_a, all_processes)
 
-        # Pivot
-        pivot_a = df_a.pivot_table(
-            index=["Flow", "Flow_id"],
-            columns="Process",
-            values="Value_Final",
-            aggfunc="sum",
-            fill_value=0.0
-        ).reset_index()
+        logger.info("Matrix A:\n%s", result.to_string(index=False))
+        logger.info("Matrix A shape: %s", result.shape)
 
-        # Ensure all processes exist
-        for p in all_processes:
-            if p not in pivot_a.columns:
-                pivot_a[p] = 0.0
-
-        # Get ONE unit per flow
-        unit_df = (
-            df_a.groupby(["Flow", "Flow_id"], as_index=False)["UnitD"]
-            .agg(lambda s: next((x for x in s if pd.notna(x)), np.nan))
-            .rename(columns={"UnitD": "Unit"})
-        )
-
-        # Merge units
-        result = pivot_a.merge(unit_df, on=["Flow", "Flow_id"], how="left")
-
-        # FINAL ORDER (CRITICAL)
-        final_cols = ["Flow", "Flow_id", "Unit"] + all_processes
-        result = result[final_cols]
-
-        result = result.sort_values(by="Flow_id").reset_index(drop=True)
-
-        logger.info(f"Matrix A:\n{result}")
         return result
 
+    except SQLAlchemyError as e:
+        logger.exception("SQLAlchemy error in get_matrix_a for IDT=%s: %s", idt_param, e)
+        db.session.rollback()
+        return pd.DataFrame()
+
     except Exception as e:
-        logger.exception(f"Error in get_matrix_a: {e}")
+        logger.exception("Unexpected error in get_matrix_a for IDT=%s: %s", idt_param, e)
+        db.session.rollback()
         return pd.DataFrame()
 
 
 def get_matrix_b(idt_param: int):
+    """
+    Build Matrix B for a task.
+    """
     try:
         all_processes = get_all_processes(idt_param)
         base_df = _get_base_task_data(idt_param)
@@ -254,38 +309,19 @@ def get_matrix_b(idt_param: int):
         classified = _classify_rows(base_df)
         df_b = classified[classified["Matrix"] == "B"].copy()
 
-        if df_b.empty:
-            cols = ["Flow", "Flow_id", "Unit"] + all_processes
-            return pd.DataFrame(columns=cols)
+        result = _pivot_matrix(df_b, all_processes)
 
-        pivot_b = df_b.pivot_table(
-            index=["Flow", "Flow_id"],
-            columns="Process",
-            values="Value_Final",
-            aggfunc="sum",
-            fill_value=0.0
-        ).reset_index()
+        logger.info("Matrix B:\n%s", result.to_string(index=False))
+        logger.info("Matrix B shape: %s", result.shape)
 
-        for p in all_processes:
-            if p not in pivot_b.columns:
-                pivot_b[p] = 0.0
-
-        unit_df = (
-            df_b.groupby(["Flow", "Flow_id"], as_index=False)["UnitD"]
-            .agg(lambda s: next((x for x in s if pd.notna(x)), np.nan))
-            .rename(columns={"UnitD": "Unit"})
-        )
-
-        result = pivot_b.merge(unit_df, on=["Flow", "Flow_id"], how="left")
-
-        final_cols = ["Flow", "Flow_id", "Unit"] + all_processes
-        result = result[final_cols]
-
-        result = result.sort_values(by="Flow_id").reset_index(drop=True)
-
-        logger.info(f"Matrix B:\n{result}")
         return result
 
+    except SQLAlchemyError as e:
+        logger.exception("SQLAlchemy error in get_matrix_b for IDT=%s: %s", idt_param, e)
+        db.session.rollback()
+        return pd.DataFrame()
+
     except Exception as e:
-        logger.exception(f"Error in get_matrix_b: {e}")
+        logger.exception("Unexpected error in get_matrix_b for IDT=%s: %s", idt_param, e)
+        db.session.rollback()
         return pd.DataFrame()
