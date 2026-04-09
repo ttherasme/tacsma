@@ -24,10 +24,35 @@ matplotlib.use('Agg')
 graph_data = {}
 
 
+def build_b_alignment(adjusted_B: pd.DataFrame):
+    """
+    Keep B metadata and numeric rows aligned.
+    """
+    b_meta = adjusted_B.iloc[:, :2].copy()
+    b_meta.columns = ["Flow", "Flow_id"]
+    b_meta["Flow"] = b_meta["Flow"].astype(str).str.strip()
+    b_meta["Flow_id"] = b_meta["Flow_id"].astype(str).str.strip()
+
+    logger.warning(
+        "Adjusted B with labels:\n%s",
+        pd.concat(
+            [adjusted_B.iloc[:, :3].reset_index(drop=True),
+             adjusted_B.iloc[:, 3:].reset_index(drop=True)],
+            axis=1
+        ).to_string()
+    )
+
+    adjusted_B_numeric = adjusted_B.iloc[:, 3:].copy()
+    adjusted_B_np = np.nan_to_num(np.array(adjusted_B_numeric, dtype=float), nan=0.0)
+
+    return b_meta.reset_index(drop=True), adjusted_B_np
+
+
+def get_lci_flow_labels(b_meta: pd.DataFrame):
+    return b_meta["Flow"].astype(str).reset_index(drop=True)
+
+
 def run_analysis(rows):
-    """
-    Runs LCI/LCA analysis for multiple input rows.
-    """
     results = []
     all_contributions_data = []
 
@@ -35,11 +60,11 @@ def run_analysis(rows):
 
     for i, row in enumerate(rows):
         task_text = row.get('taskText', 'Unknown Task')
-        logger.warning(f"--- Processing Row {i + 1} ({task_text}) ---")
+        logger.warning("--- Processing Row %s (%s) ---", i + 1, task_text)
 
         try:
             params = init_param_variable()
-            growth_regrowth = params.get('regeneration_mode', False)
+            growth_regrowth = params.get('regeneration_mode', 0)
 
             task_id = row.get('task')
             functional_unit = row.get('functional_unit', 1.0)
@@ -75,10 +100,36 @@ def run_analysis(rows):
                 continue
 
             # ---------------------------------------------------------
-            # 1. Import Data
+            # 1. Import data
             # ---------------------------------------------------------
             A_raw = format_rawdata_a(task_id, A='A')
             B_raw = import_matrix_b(task_id, sort='yes')
+
+            logger.warning("B_raw with labels:\n%s", B_raw.to_string())
+
+            if A_raw is None or getattr(A_raw, "empty", True):
+                results.append({
+                    "error": "Matrix A is empty or could not be loaded.",
+                    "task_name": task_text
+                })
+                continue
+
+            if B_raw is None or getattr(B_raw, "empty", True):
+                results.append({
+                    "error": "Matrix B is empty or could not be loaded.",
+                    "task_name": task_text
+                })
+                continue
+
+            # Force B process order to follow A
+            a_process_cols = A_raw.columns.tolist()[3:]
+            b_fixed_cols = B_raw.columns.tolist()[:3]
+
+            missing_in_b = [c for c in a_process_cols if c not in B_raw.columns]
+            if missing_in_b:
+                raise ValueError(f"Matrix B is missing process columns present in A: {missing_in_b}")
+
+            B_raw = B_raw[b_fixed_cols + a_process_cols]
 
             if growth_regrowth == 1:
                 value_B, value_A = forest_growth_function(task_id)
@@ -87,30 +138,11 @@ def run_analysis(rows):
             else:
                 logger.warning("Growth/regrowth model disabled.")
 
-            if A_raw is None or getattr(A_raw, "empty", True):
-                results.append({
-                    "error": "Matrix A is empty or could not be loaded.",
-                    "task_name": task_text
-                })
-                continue
-            else:
-                logger.warning("Shape: %s\nMatrix A:\n%s", A_raw.shape, A_raw.to_string())
-
-            if B_raw is None or getattr(B_raw, "empty", True):
-                results.append({
-                    "error": "Matrix B is empty or could not be loaded.",
-                    "task_name": task_text
-                })
-                continue
-            else:
-                logger.warning("Shape: %s\nMatrix B:\n%s", B_raw.shape, B_raw.to_string())
-
-            # B matrix rows correspond to background / elementary flows
-            lci_flow = B_raw.iloc[:, 0].astype(str).reset_index(drop=True)
-            logger.warning("LCI Flow:\n%s", lci_flow.tolist())
+            logger.warning("Shape: %s\nMatrix A:\n%s", A_raw.shape, A_raw.to_string())
+            logger.warning("Shape: %s\nMatrix B:\n%s", B_raw.shape, B_raw.to_string())
 
             # ---------------------------------------------------------
-            # 2. Multifunctionality Adjustment
+            # 2. Multifunctionality
             # ---------------------------------------------------------
             try:
                 adjusted_A, adjusted_B = adjust_matrix_for_multiple_outputs(
@@ -148,7 +180,15 @@ def run_analysis(rows):
             logger.warning("Adjusted B:\n%s", adjusted_B.to_string())
 
             # ---------------------------------------------------------
-            # 3. Convert functional unit to SI BEFORE final demand
+            # 3. Build aligned B + LCI labels
+            # ---------------------------------------------------------
+            b_meta, adjusted_B_np = build_b_alignment(adjusted_B)
+            lci_flow = get_lci_flow_labels(b_meta)
+
+            logger.warning("Aligned LCI flow: %s", list(lci_flow))
+
+            # ---------------------------------------------------------
+            # 4. Functional unit to SI
             # ---------------------------------------------------------
             try:
                 functional_unit_si = unit_conversion(functional_unit, unit_text, 'SI')
@@ -164,17 +204,9 @@ def run_analysis(rows):
                 })
                 continue
 
-            logger.warning(
-                "Task %s: functional unit entered=%s %s, converted=%s %s",
-                task_id, functional_unit, unit_text, functional_unit_si, functional_unit_si_unit
-            )
-
             # ---------------------------------------------------------
-            # 4. Build final demand vector
+            # 5. Final demand vector
             # ---------------------------------------------------------
-            # IMPORTANT:
-            # Here, `flow` is assumed to already be the same identifier used in matrix column 1
-            # (you confirmed the UI value carries IDBE even if named IDE visually).
             selected_flow_id = str(flow).strip()
 
             flow_names = adjusted_A.iloc[:, :3].copy()
@@ -195,7 +227,7 @@ def run_analysis(rows):
             logger.warning("Final demand:\n%s", final_demand.tolist())
 
             # ---------------------------------------------------------
-            # 5. Extract process matrices and names
+            # 6. Extract matrices
             # ---------------------------------------------------------
             if adjusted_A.shape[1] <= 3:
                 results.append({
@@ -212,16 +244,15 @@ def run_analysis(rows):
                 continue
 
             process_names = adjusted_A.columns.tolist()[3:]
-            logger.warning("Process names:\n%s", process_names)
 
-            adjusted_A_numeric = adjusted_A.iloc[:, 3:]
-            adjusted_A_np = np.nan_to_num(np.array(adjusted_A_numeric, dtype=float), nan=0.0)
+            adjusted_A_np = np.nan_to_num(
+                np.array(adjusted_A.iloc[:, 3:], dtype=float),
+                nan=0.0
+            )
 
-            adjusted_B_numeric = adjusted_B.iloc[:, 3:]
-            adjusted_B_np = np.nan_to_num(np.array(adjusted_B_numeric, dtype=float), nan=0.0)
-
-            logger.warning("Adjusted A numeric shape: %s", adjusted_A_np.shape)
-            logger.warning("Adjusted B numeric shape: %s", adjusted_B_np.shape)
+            logger.warning("Process names: %s", process_names)
+            logger.warning("Adjusted B numeric:\n%s", pd.DataFrame(adjusted_B_np, columns=process_names).to_string())
+            logger.warning("LCI flows: %s", list(lci_flow))
 
             if adjusted_A_np.shape[0] != len(final_demand):
                 results.append({
@@ -244,11 +275,10 @@ def run_analysis(rows):
                 continue
 
             # ---------------------------------------------------------
-            # 6. Scaling Vector
+            # 7. Scaling vector
             # ---------------------------------------------------------
             try:
                 scaling_vector = calculate_scaling_vector(adjusted_A_np, final_demand)
-                logger.warning("Scaling vector:\n%s", scaling_vector)
             except np.linalg.LinAlgError as e:
                 logger.error(
                     "Scaling vector error (singular matrix) for task %s: %s",
@@ -271,17 +301,11 @@ def run_analysis(rows):
                 continue
 
             # ---------------------------------------------------------
-            # 7. Inventory Impact
+            # 8. Inventory impact
             # ---------------------------------------------------------
             try:
                 g = calculate_inventory_impact(adjusted_B_np, scaling_vector)
                 g = np.array(g).flatten()
-
-                if len(g) != len(lci_flow):
-                    raise ValueError(
-                        f"Inventory vector length ({len(g)}) does not match "
-                        f"LCI flow length ({len(lci_flow)})."
-                    )
 
                 total_impact = calculate_impact_score(g, lci_flow, impact_category)
                 logger.warning("Total impact:\n%s", total_impact)
@@ -297,24 +321,27 @@ def run_analysis(rows):
                 continue
 
             # ---------------------------------------------------------
-            # 8. Process Contribution
+            # 9. Process contribution
             # ---------------------------------------------------------
             try:
                 diag_s = diagonal_vector(scaling_vector)
                 G = calculate_inventory_matrix(adjusted_B_np, diag_s)
-                process_contribution = calculate_process_contribution(G, lci_flow, impact_category)
 
-                process_names_np = np.array(process_names).flatten().astype(str)
+                process_contribution = calculate_process_contribution(
+                    G, lci_flow, impact_category
+                )
+
                 process_contribution = np.array(process_contribution).flatten().astype(float)
+                process_names_np = np.array(process_names).flatten().astype(str)
 
-                non_zero_mask = process_contribution != 0
-                process_names_filtered = process_names_np[non_zero_mask]
-                process_contribution_filtered = process_contribution[non_zero_mask]
+                mask = process_contribution != 0
+                process_names_filtered = process_names_np[mask]
+                process_contribution_filtered = process_contribution[mask]
 
                 contribution_table_df = pd.DataFrame({
                     "Process": process_names_filtered,
                     "Contribution": process_contribution_filtered
-                }).query("Contribution != 0")
+                })
 
                 logger.warning("Contribution table:\n%s", contribution_table_df.to_string())
 
@@ -330,38 +357,39 @@ def run_analysis(rows):
                 continue
 
             # ---------------------------------------------------------
-            # 9. Combined comparison table payload
+            # 10. Store comparison rows
             # ---------------------------------------------------------
-            current_row_contributions = pd.DataFrame({
-                "Process": process_names_np,
-                "Task": task_text,
-                "Contribution": process_contribution
-            })
-            all_contributions_data.extend(current_row_contributions.to_dict('records'))
+            all_contributions_data.extend(
+                pd.DataFrame({
+                    "Process": process_names_filtered,
+                    "Task": task_text,
+                    "Contribution": process_contribution_filtered
+                }).to_dict('records')
+            )
 
-            # ---------------------------------------------------------
-            # 10. Chart cache
-            # ---------------------------------------------------------
+            # Store graph-safe plain list
+            graph_values = None
+            if not contribution_table_df.empty:
+                graph_values = contribution_table_df.astype({
+                    "Process": str,
+                    "Contribution": float
+                }).values.tolist()
+
             graph_data[task_id] = {
                 "task_name": task_text,
-                "contribution_table_values": (
-                    contribution_table_df.values if not contribution_table_df.empty else None
-                )
+                "contribution_table_values": graph_values
             }
 
-            # ---------------------------------------------------------
-            # 11. Individual result payload
-            # ---------------------------------------------------------
+            # Optional preview chart for summary card
             chart_base64 = None
             chart_note = None
-
-            if not contribution_table_df.empty:
+            if graph_values:
                 has_negative = (contribution_table_df["Contribution"] < 0).any()
 
                 if has_negative:
                     chart_note = "Negative process contributions detected. Pie chart replaced with bar chart."
                     chart_base64 = create_graph(
-                        contribution_table_df.values,
+                        graph_values,
                         graph_type='bar',
                         x_column=0,
                         y_column=1,
@@ -372,7 +400,7 @@ def run_analysis(rows):
                     )
                 else:
                     chart_base64 = create_graph(
-                        contribution_table_df.values,
+                        graph_values,
                         graph_type='pie',
                         x_column=0,
                         y_column=1,
@@ -399,60 +427,55 @@ def run_analysis(rows):
             })
 
         except Exception as e:
-            logger.exception("Unexpected error for task %s: %s", task_text, e)
-            results.append({
-                "error": f"Unexpected error: {e}",
-                "task_name": task_text
-            })
+            logger.exception("Error in task %s", task_text)
+            results.append({"error": str(e), "task_name": task_text})
 
-    logger.warning("Starting final pivot table generation...")
-
+    # ---------------------------------------------------------
+    # FINAL COMPARISON TABLE
+    # ---------------------------------------------------------
     if all_contributions_data:
         try:
             df_all = pd.DataFrame(all_contributions_data)
-            pivot_table = df_all.pivot_table(
+            pivot = df_all.pivot_table(
                 index='Process',
                 columns='Task',
                 values='Contribution',
                 aggfunc='sum',
                 fill_value=0
             )
-            final_contribution_table = pivot_table.reset_index().to_dict('records')
+            combined = pivot.reset_index().to_dict('records')
         except Exception as e:
             logger.error("Error generating combined contribution table: %s", e, exc_info=True)
-            final_contribution_table = []
+            combined = []
     else:
-        final_contribution_table = []
+        combined = []
 
     logger.warning("--- ENDING run_analysis ---")
 
     return {
         "individual_results": results,
-        "combined_contribution_table": final_contribution_table
+        "combined_contribution_table": combined
     }
 
 
 def graph_results_single(chart_type='pie', theme='vibrant', task_name=None, task_id=None):
-    logging.debug("Task : %s", task_name)
-    logging.debug("Chart type : %s", chart_type)
-
     task_id = int(task_id)
-    data_contribution = graph_data[task_id]["contribution_table_values"]
-    data_nameTask = graph_data[task_id]["task_name"]
+    data = graph_data.get(task_id, {}).get("contribution_table_values")
 
-    logging.debug("Data chart :\n %s", data_contribution)
+    if not data or len(data) == 0:
+        logger.warning("No data available for graph for task %s", task_id)
+        return None
 
-    graph = None
-    if data_contribution is not None:
-        graph = create_graph_wt(
-            data_contribution,
-            graph_type=chart_type,
-            x_column=0,
-            y_column=1,
-            has_header=False,
-            xlabel="Process",
-            ylabel="Contribution",
-            title=f"Contribution Analysis: {data_nameTask}"
-        )
+    logger.warning("Graph data for task %s:\n%s", task_id, data)
 
-    return graph
+    return create_graph_wt(
+        data,
+        graph_type=chart_type,
+        x_column=0,
+        y_column=1,
+        has_header=False,
+        xlabel="Process",
+        ylabel="Contribution",
+        title=f"Contribution Analysis: {task_name}",
+        theme=theme
+    )

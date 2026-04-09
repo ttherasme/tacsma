@@ -112,4 +112,7 @@ def calculate_process_contribution(G, lci_flow, category):
     contribution_score = np.dot(LCI_vector.T, G)  # shape: (n_processes,)
     
     logger.warning(f"Process contribution scores: {contribution_score}")
+    logger.warning("G shape: %s", G.shape)
+    logger.warning("LCI vector: %s", LCI_vector.tolist())
+    logger.warning("G matrix:\n%s", G)
     return contribution_score

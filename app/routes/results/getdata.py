@@ -5,6 +5,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app import db
 from app.models import Step, Datasheet, UOM, Element, Item, BElement
+from .Forest_growth_model import init_param_variable
 
 logger = logging.getLogger(__name__)
 
@@ -126,6 +127,8 @@ def _classify_rows(df: pd.DataFrame) -> pd.DataFrame:
 
     matrix_list = []
     value_list = []
+    params = init_param_variable()
+    growth_regrowth = params.get('regeneration_mode', 0)
 
     for _, row in df.iterrows():
         item = str(row["IName"]).strip() if pd.notna(row["IName"]) else ""
@@ -146,14 +149,16 @@ def _classify_rows(df: pd.DataFrame) -> pd.DataFrame:
         # 2. Co-Products CHK=0 -> A, negative
         elif item == "Co-Products" and chk == 0:
             matrix = "A"
-            signed_value = -value
+            signed_value = value
 
         # 3. Input Materials and Energy
         elif item == "Input Materials and Energy":
             # Special rule: Tree always in A, negative
             if flow_name.lower() == "tree":
-                matrix = "A"
-                signed_value = -value
+                if growth_regrowth == 1:
+                    matrix = "A"
+                    signed_value = -value
+                
             else:
                 producing_processes = output_process_map.get(flow_id, set())
 

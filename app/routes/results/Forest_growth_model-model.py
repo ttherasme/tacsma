@@ -44,7 +44,7 @@ def init_param_variable():
         'p_residues': param_dict.get('Residues left behind', DEFAULT_RATE),
         'T_half_decay': param_dict.get('Residues half life', DEFAULT_HALF_LIFE),
         'c_content': param_dict.get('Carbon content, wood', DEFAULT_RATE),
-        'standing_biomass': param_dict.get('Standing biomass', DEFAULT_HALF_LIFE)
+        'standing_biomass': param_dict.get('Standing biomas', DEFAULT_HALF_LIFE)
     }
     return result
 
@@ -138,8 +138,6 @@ def Post_harvest(t, post_harvest_yield):
     """
     post_harvest_yield = 7.07 * t - 1.78 * (t * np.log(t) - t) / np.log(10)
     post_harvest = post_harvest_yield * 1000
-    
-    print('the post harvest rate is kg :',  post_harvest)
     return post_harvest
 
 
@@ -148,8 +146,7 @@ def Forgone_growth(t, pre_harvest_yield):
     Forgone growth in kg/ha.
     Assumes input yield is in Mg/ha/yr and converts to kg/ha/yr via *1000.
     """
-    forgone_growth = pre_harvest_yield * 1000 * t #kg biomass per ha over t years kg CO2
-    
+    forgone_growth = pre_harvest_yield * 1000 * t
     return forgone_growth
 
 
@@ -211,15 +208,13 @@ def forest_growth_function(task_id: int):
     logger.warning("Pre-harvest biomass: %s kg", pre_harvest)
     logger.warning("Pre-harvest growth: %s kg CO2 eq", E_preharvest)
 
-    Harvested_area = (pre_harvest/1000) / standing_biomass #standing biomass in Mg/ha and preharvest in kg/1000
-    #print ('the standing biomass and pre harvest/1000', pre_harvest/1000, standing_biomass)
+    Harvested_area = pre_harvest / standing_biomass
     post_harvest_growth = Post_harvest(t, post_harvest_yield)
     E_postharvest = (
         -1.0 * post_harvest_growth * Harvested_area * (c_content / 100) * 44 / 12
     )
 
     logger.warning("Post-harvest growth: %s kg CO2 eq", E_postharvest)
-    logger.warning("harvested area: %s ha", Harvested_area)
 
     forgone_growth = Forgone_growth(t, pre_harvest_yield)
     E_forgone = (

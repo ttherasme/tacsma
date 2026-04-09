@@ -11,14 +11,19 @@ logger = logging.getLogger(__name__)
 
 # Function to import the CSV, check shape, and return dataframe
 def import_matrix_b(idt_param: int, sort='yes'):
+    """
+    Import Matrix B while preserving the original process-column order.
+    A and B must keep the same process order before multifunctionality.
+    """
     df = get_matrix_b(idt_param).copy()
 
     if df.empty:
         return df
 
     fixed_cols = ['Flow', 'Flow_id', 'Unit']
-    process_cols = sorted([c for c in df.columns if c not in fixed_cols])
+    process_cols = [c for c in df.columns if c not in fixed_cols]
 
+    # Preserve original process order from get_matrix_b()
     df = df[fixed_cols + process_cols]
 
     if sort == 'yes':

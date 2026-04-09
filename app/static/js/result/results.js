@@ -15,6 +15,22 @@ document.addEventListener("DOMContentLoaded", () => {
     const IMPACT_CATEGORY_SELECT_CLASS = "impact-category-select";
     const DELETE_ROW_CLASS = "delete-row";
 
+    function formatContribution(value) {
+        const num = Number(value);
+
+        if (!Number.isFinite(num)) return "0";
+
+        // Keep exact backend zero as zero
+        if (num === 0) return "0.000000";
+
+        // Show very small or very large values in scientific notation
+        if (Math.abs(num) < 1e-6 || Math.abs(num) >= 1e6) {
+            return num.toExponential(6);
+        }
+
+        return num.toFixed(6);
+    }
+
     function buildTableFromData(data) {
         if (!data || data.length === 0) {
             return '<p>No contribution data available.</p>';
@@ -34,7 +50,7 @@ document.addEventListener("DOMContentLoaded", () => {
             tableHtml += "<tr>";
             headers.forEach(header => {
                 const value = row[header];
-                const displayValue = (typeof value === "number") ? value.toFixed(4) : value;
+                const displayValue = (typeof value === "number") ? formatContribution(value) : value;
                 tableHtml += `<td>${displayValue}</td>`;
             });
             tableHtml += "</tr>";
@@ -60,38 +76,43 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 const columnName = result.task_name;
                 taskDetails[columnName] = {
-                    product: result.product || "",
-                    impact_category: result.impact_category || "",
                     flow_name: result.flow_name || "",
-                    entered_value: result.entered_value ?? "",
-                    entered_unit: result.entered_unit || "",
-                    calculation_value_si: result.calculation_value_si ?? "",
-                    calculation_unit_si: result.calculation_unit_si || ""
+                    impact_category: result.impact_category || "",
+                    total_impact: typeof result.total_impact === "number" ? result.total_impact : 0
                 };
             });
+        }
+
+        // Keep rows if at least one backend value is non-zero.
+        // This preserves tiny scientific values like 1.637103e-17.
+        const filteredRows = df.filter(row => {
+            return taskColumns.some(task => Number(row[task] ?? 0) !== 0);
+        });
+
+        if (filteredRows.length === 0) {
+            return '<p class="text-muted">All contribution rows are zero.</p>';
         }
 
         let tableHtml = "";
         tableHtml += '<table class="table table-bordered table-striped comparison-table">';
         tableHtml += "<thead>";
 
+        // Row 1: task names
         tableHtml += "<tr><th>Process</th>";
         taskColumns.forEach(task => {
             tableHtml += `<th>${task}</th>`;
         });
         tableHtml += "</tr>";
 
+        // Row 2: flow names
         tableHtml += "<tr><th></th>";
         taskColumns.forEach(task => {
-            const details = taskDetails[task] || {
-                product: "N/A",
-                impact_category: ""
-            };
-            const functionalUnitText = (details.product || "").replace(/\s+/g, " ").trim();
-            tableHtml += `<th>${functionalUnitText || "N/A"}</th>`;
+            const details = taskDetails[task] || { flow_name: "N/A" };
+            tableHtml += `<th>${details.flow_name || "N/A"}</th>`;
         });
         tableHtml += "</tr>";
 
+        // Row 3: impact category
         tableHtml += "<tr><th></th>";
         taskColumns.forEach(task => {
             const details = taskDetails[task] || { impact_category: "N/A" };
@@ -101,19 +122,28 @@ document.addEventListener("DOMContentLoaded", () => {
 
         tableHtml += "</thead><tbody>";
 
-        df.forEach(row => {
+        // Contribution rows
+        filteredRows.forEach(row => {
             tableHtml += "<tr>";
             tableHtml += `<td>${row["Process"]}</td>`;
 
             taskColumns.forEach(task => {
-                const contribution = row[task];
-                const displayValue =
-                    (typeof contribution === "number") ? contribution.toFixed(4) : "0.0000";
-                tableHtml += `<td>${displayValue}</td>`;
+                const contribution = Number(row[task] ?? 0);
+                tableHtml += `<td>${formatContribution(contribution)}</td>`;
             });
 
             tableHtml += "</tr>";
         });
+
+        // Total row: use backend total_impact directly
+        tableHtml += '<tr class="table-secondary fw-bold">';
+        tableHtml += "<td>Total</td>";
+        taskColumns.forEach(task => {
+            const details = taskDetails[task] || { total_impact: 0 };
+            const total = Number(details.total_impact ?? 0);
+            tableHtml += `<td>${formatContribution(total)}</td>`;
+        });
+        tableHtml += "</tr>";
 
         tableHtml += "</tbody></table>";
         return tableHtml;
